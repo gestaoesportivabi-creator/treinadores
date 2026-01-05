@@ -7,10 +7,13 @@ const LOGO_IMAGE = '/public-logo.png.png';
 
 interface LoginProps {
   onLogin: (user: User) => void;
+  initialMode?: 'login' | 'register';
+  onSwitchToLogin?: () => void;
+  onSwitchToRegister?: () => void;
 }
 
-export const Login: React.FC<LoginProps> = ({ onLogin }) => {
-  const [isRegistering, setIsRegistering] = useState(false);
+export const Login: React.FC<LoginProps> = ({ onLogin, initialMode = 'login', onSwitchToLogin, onSwitchToRegister }) => {
+  const [isRegistering, setIsRegistering] = useState(initialMode === 'register');
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -41,22 +44,52 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setSuccessMsg('');
 
     if (isRegistering) {
-        if (password.length < 5) {
-            setError('A senha deve ter no mínimo 5 caracteres.');
+        // Validações simples
+        if (!name || name.trim().length < 3) {
+            setError('Digite seu nome (mínimo 3 caracteres).');
             return;
         }
-        setSuccessMsg(`Solicitação enviada. Aguarde aprovação.`);
-        setTimeout(() => {
-             const newUser: User = {
-                name: name || email.split('@')[0],
-                email: email,
-                role: role,
-                linkedPlayerId: role === 'Atleta' ? 'p1' : undefined
-            };
-            onLogin(newUser);
-        }, 1500);
+        if (!email || email.trim().length < 3) {
+            setError('Digite um nome de usuário (mínimo 3 caracteres).');
+            return;
+        }
+        if (!password || password.length < 4) {
+            setError('Senha muito curta (mínimo 4 caracteres).');
+            return;
+        }
+        
+        // Cadastro instantâneo - acesso imediato!
+        const newUser: User = {
+            name: name.trim(),
+            email: email.trim(),
+            role: role,
+            linkedPlayerId: role === 'Atleta' ? 'p1' : undefined
+        };
+        
+        // Salvar no localStorage para permitir login depois
+        const users = JSON.parse(localStorage.getItem('scout21_users') || '[]');
+        users.push({ username: email.trim(), password: password, name: name.trim(), role: role });
+        localStorage.setItem('scout21_users', JSON.stringify(users));
+        
+        // Login automático
+        onLogin(newUser);
     } else {
-        // Login admin/admin
+        // Login - verificar localStorage primeiro
+        const users = JSON.parse(localStorage.getItem('scout21_users') || '[]');
+        const foundUser = users.find((u: any) => u.username === email && u.password === password);
+        
+        if (foundUser) {
+            const user: User = {
+                name: foundUser.name,
+                email: foundUser.username,
+                role: foundUser.role,
+                linkedPlayerId: foundUser.role === 'Atleta' ? 'p1' : undefined
+            };
+            onLogin(user);
+            return;
+        }
+        
+        // Login admin/admin (fallback)
         if (email === 'admin' && password === 'admin') {
             const adminUser: User = {
                 name: 'Administrador',
@@ -68,33 +101,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
             return;
         }
         
-        if (password === 'afc25') {
-             let userRole: UserRole = 'Treinador';
-             let linkedId = undefined;
-             let userName = 'Head Coach';
-
-             if (email.includes('atleta')) {
-                 userRole = 'Atleta';
-                 linkedId = 'p1';
-                 userName = 'Ricardinho';
-             } else if (email.includes('fisico')) {
-                 userRole = 'Preparador Físico';
-                 userName = 'Prep. Staff';
-             } else if (email.includes('diretor')) {
-                 userRole = 'Diretor';
-                 userName = 'Diretoria';
-             }
-
-             const user: User = {
-                 name: userName,
-                 email: email,
-                 role: userRole,
-                 linkedPlayerId: linkedId
-             };
-             onLogin(user);
-        } else {
-            setError('Credenciais inválidas.');
-        }
+        setError('Usuário ou senha incorretos.');
     }
   };
 
@@ -132,48 +139,53 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 SCOUT21PRO
             </h1>
             <p className="text-[10px] text-zinc-200 font-light uppercase tracking-[0.3em] mt-2 drop-shadow-md">
-                {isRegistering ? 'Credenciamento Oficial' : 'Performance Data Intelligence e Gestão'}
+                {isRegistering ? 'Criar Conta Gratuita' : 'Performance Data Intelligence e Gestão'}
             </p>
         </div>
         
         <form onSubmit={handleSubmit} className="space-y-5">
           {isRegistering && (
              <div className="space-y-1.5">
-                <label className="text-[10px] font-light text-zinc-300 uppercase tracking-wider pl-1">Nome Completo</label>
+                <label className="text-[10px] font-light text-zinc-300 uppercase tracking-wider pl-1">Seu Nome</label>
                 <input
                     type="text"
                     required={isRegistering}
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className="w-full px-4 py-3.5 bg-black/40 border border-white/10 rounded-xl text-white focus:outline-none focus:border-[#00f0ff] focus:bg-black/60 transition-all placeholder-zinc-400 font-light text-sm backdrop-blur-sm"
-                    placeholder="Seu nome"
+                    placeholder="João Silva"
                 />
             </div>
           )}
 
           <div className="space-y-1.5">
-            <label className="text-[10px] font-light text-zinc-300 uppercase tracking-wider pl-1">Usuário</label>
+            <label className="text-[10px] font-light text-zinc-300 uppercase tracking-wider pl-1">{isRegistering ? 'Escolha um usuário' : 'Usuário'}</label>
             <input
               type="text"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-3.5 bg-black/40 border border-white/10 rounded-xl text-white focus:outline-none focus:border-[#00f0ff] focus:bg-black/60 transition-all placeholder-zinc-400 font-light text-sm backdrop-blur-sm"
-              placeholder="admin"
+              placeholder={isRegistering ? 'joaosilva' : 'admin'}
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[10px] font-light text-zinc-300 uppercase tracking-wider pl-1">Senha</label>
+            <label className="text-[10px] font-light text-zinc-300 uppercase tracking-wider pl-1">{isRegistering ? 'Crie uma senha' : 'Senha'}</label>
             <input
               type="password"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-4 py-3.5 bg-black/40 border border-white/10 rounded-xl text-white focus:outline-none focus:border-[#00f0ff] focus:bg-black/60 transition-all placeholder-zinc-400 font-light text-sm backdrop-blur-sm"
-              placeholder="•••••"
+              placeholder="••••••"
             />
-            <p className="text-[10px] text-zinc-400 font-light text-center pt-1">Acesso restrito</p>
+            {!isRegistering && (
+              <p className="text-[10px] text-zinc-400 font-light text-center pt-1">Use admin/admin para teste</p>
+            )}
+            {isRegistering && (
+              <p className="text-[10px] text-zinc-400 font-light text-center pt-1">Mínimo 4 caracteres</p>
+            )}
           </div>
           
           {!isRegistering && (
@@ -253,7 +265,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
               type="submit"
               className="w-full py-4 px-4 bg-white/90 hover:bg-[#00f0ff] text-black font-semibold text-sm rounded-xl transition-all hover:scale-[1.02] shadow-[0_0_30px_rgba(255,255,255,0.1)] mt-4 uppercase tracking-wider backdrop-blur-sm flex items-center justify-center gap-3"
             >
-              {isRegistering ? 'Solicitar Acesso' : 'Entrar em Quadra'}
+              {isRegistering ? 'Criar Conta Grátis' : 'Entrar em Quadra'}
             </button>
           )}
         </form>
@@ -261,7 +273,13 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
         <div className="mt-8 text-center pt-6 border-t border-white/10">
              <button 
                 onClick={() => {
-                    setIsRegistering(!isRegistering);
+                    if (isRegistering && onSwitchToLogin) {
+                      onSwitchToLogin();
+                    } else if (!isRegistering && onSwitchToRegister) {
+                      onSwitchToRegister();
+                    } else {
+                      setIsRegistering(!isRegistering);
+                    }
                     setError('');
                 }}
                 className="text-xs text-zinc-300 hover:text-white font-light transition-colors uppercase tracking-widest"

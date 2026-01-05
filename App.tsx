@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Login } from './components/Login';
+import { LandingPage } from './components/LandingPage';
 import { GeneralScout } from './components/GeneralScout';
 import { IndividualScout } from './components/IndividualScout';
 import { PhysicalScout } from './components/PhysicalScout';
@@ -65,6 +66,9 @@ const SLIDES = [
 ];
 
 export default function App() {
+  // Route state: 'landing' | 'login' | 'register' | 'app'
+  const [currentRoute, setCurrentRoute] = useState<'landing' | 'login' | 'register' | 'app'>('landing');
+  
   // User Session (Not persisted for security in this demo, but could be)
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   
@@ -468,13 +472,77 @@ export default function App() {
       }
   };
 
+  // Sync URL with route on mount
+  useEffect(() => {
+    const path = window.location.pathname;
+    if (path === '/registro' || path === '/register') {
+      setCurrentRoute('register');
+    } else if (path === '/login') {
+      setCurrentRoute('login');
+    } else if (path === '/' || path === '') {
+      setCurrentRoute('landing');
+    }
+  }, []);
+
+  // Update URL when route changes
+  useEffect(() => {
+    if (currentRoute === 'register') {
+      window.history.pushState({}, '', '/registro');
+    } else if (currentRoute === 'login') {
+      window.history.pushState({}, '', '/login');
+    } else if (currentRoute === 'landing') {
+      window.history.pushState({}, '', '/');
+    } else if (currentRoute === 'app') {
+      window.history.pushState({}, '', '/dashboard');
+    }
+  }, [currentRoute]);
+
+  // Handle login with route change
+  const handleLoginWithRoute = (user: User) => {
+    handleLogin(user);
+    setCurrentRoute('app');
+  };
+
+  // Mostrar landing page
+  if (currentRoute === 'landing') {
+    return <LandingPage 
+      onGetStarted={() => {
+        console.log('🚀 Redirecionando para /registro');
+        setCurrentRoute('register');
+      }}
+      onGoToLogin={() => {
+        console.log('🔑 Redirecionando para /login');
+        setCurrentRoute('login');
+      }}
+    />;
+  }
+
+  // Mostrar página de registro
+  if (currentRoute === 'register') {
+    return <Login 
+      onLogin={handleLoginWithRoute} 
+      initialMode="register"
+      onSwitchToLogin={() => setCurrentRoute('login')}
+    />;
+  }
+
+  // Mostrar página de login
+  if (currentRoute === 'login') {
+    return <Login 
+      onLogin={handleLoginWithRoute}
+      initialMode="login"
+      onSwitchToRegister={() => setCurrentRoute('register')}
+    />;
+  }
+
   // Mostrar loading enquanto inicializa
   if (isInitializing) {
     return <LoadingMessage activeTab={activeTab} />;
   }
 
   if (!currentUser) {
-    return <Login onLogin={handleLogin} />;
+    setCurrentRoute('login');
+    return null;
   }
 
   // Handlers para Settings
@@ -785,7 +853,11 @@ export default function App() {
       <Sidebar 
         activeTab={activeTab} 
         setActiveTab={handleTabChange} 
-        onLogout={() => setCurrentUser(null)}
+        onLogout={() => {
+          console.log('👋 Logout - Voltando para home');
+          setCurrentUser(null);
+          setCurrentRoute('landing');
+        }}
         currentUser={currentUser}
       />
       <main className="flex-1 ml-64 p-6 overflow-y-auto h-screen scroll-smooth print:ml-0 print:p-0">
