@@ -1,0 +1,477 @@
+/**
+ * ============================================
+ * SCOUT 21 PRO - Google Apps Script API
+ * ============================================
+ * 
+ * INSTRUÇÕES:
+ * 1. Abra sua planilha no Google Sheets
+ * 2. Vá em: Extensões > Apps Script
+ * 3. DELETE todo o código existente
+ * 4. COLE este código completo
+ * 5. Salve o projeto (Ctrl+S)
+ * 6. Execute a função "test" uma vez para verificar
+ * 7. Publique como aplicativo web:
+ *    - Publicar > Implantar como aplicativo da web
+ *    - Executar como: Eu
+ *    - Quem tem acesso: Qualquer pessoa, mesmo sem login
+ *    - Copie a URL gerada
+ * 
+ * ============================================
+ */
+
+// ⚙️ CONFIGURAÇÃO - ID da Planilha (já configurado)
+const SPREADSHEET_ID = '1h1EeCezkEfFZ-oxObrs3G8f0f4DODEsTXv10WYduL2w';
+
+// Nomes das abas (deve corresponder exatamente aos nomes na planilha)
+const SHEETS = {
+  players: 'players',
+  matches: 'matches',
+  matchPlayerStats: 'match_player_stats',
+  injuries: 'injuries',
+  assessments: 'assessments',
+  schedules: 'schedules',
+  scheduleDays: 'schedule_days',
+  budgetEntries: 'budget_entries',
+  budgetExpenses: 'budget_expenses',
+  competitions: 'competitions',
+  statTargets: 'stat_targets',
+  users: 'users',
+  timeControls: 'time_controls'
+};
+
+/**
+ * ============================================
+ * FUNÇÕES AUXILIARES
+ * ============================================
+ */
+
+// Obter planilha ativa
+function getSpreadsheet() {
+  try {
+    return SpreadsheetApp.getActiveSpreadsheet();
+  } catch (error) {
+    Logger.log('Erro ao obter planilha: ' + error.toString());
+    throw error;
+  }
+}
+
+// Obter aba específica
+function getSheet(sheetName) {
+  try {
+    const ss = getSpreadsheet();
+    let sheet = ss.getSheetByName(sheetName);
+    if (!sheet) {
+      sheet = ss.insertSheet(sheetName);
+    }
+    return sheet;
+  } catch (error) {
+    Logger.log('Erro ao obter aba ' + sheetName + ': ' + error.toString());
+    throw error;
+  }
+}
+
+// Converter objeto para linha (baseado nos headers)
+function objectToRow(sheet, obj) {
+  let headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  return headers.map((header, index) => {
+    const normalizedHeader = String(header).trim().toLowerCase();
+    let key = header;
+    if (!(header in obj)) {
+      const foundKey = Object.keys(obj).find(k => String(k).trim().toLowerCase() === normalizedHeader);
+      if (foundKey) {
+        key = foundKey;
+      }
+    }
+    
+    if (obj[key] === undefined) {
+      if (normalizedHeader === 'id') {
+        Logger.log('⚠️ Campo "id" não encontrado no objeto! Chaves disponíveis: ' + Object.keys(obj).join(', '));
+      }
+      return '';
+    }
+    const value = obj[key];
+    if (typeof value === 'object' && value !== null && !(value instanceof Date)) {
+      try {
+        const jsonString = JSON.stringify(value);
+        return jsonString;
+      } catch (e) {
+        Logger.log('Erro ao converter ' + header + ' para JSON: ' + e.toString());
+        return '';
+      }
+    }
+    return value;
+  });
+}
+
+// Obter todos os dados de uma aba
+function getAllData(sheetName) {
+  try {
+    const sheet = getSheet(sheetName);
+    const lastRow = sheet.getLastRow();
+    if (lastRow <= 1) return [];
+    
+    const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    if (!headers || headers.length === 0) return [];
+    
+    const data = sheet.getRange(2, 1, lastRow - 1, headers.length).getValues();
+    
+    return data.map(row => {
+      const obj = {};
+      headers.forEach((header, index) => {
+        if (header) {
+          let value = row[index];
+          if (typeof value === 'string' && value.trim() !== '' && (value.trim().startsWith('[') || value.trim().startsWith('{'))) {
+            try {
+              const parsed = JSON.parse(value);
+              value = parsed;
+            } catch (e) {
+              Logger.log('Erro ao parsear JSON do campo ' + header + ': ' + e.toString());
+            }
+          }
+          if (value === '' || value === null || value === undefined) {
+            value = null;
+          }
+          obj[header] = value;
+        }
+      });
+      return obj;
+    });
+  } catch (error) {
+    Logger.log('Erro ao obter todos os dados de ' + sheetName + ': ' + error.toString());
+    return [];
+  }
+}
+
+// Obter registro por ID
+function getDataById(sheetName, id) {
+  try {
+    const sheet = getSheet(sheetName);
+    const lastRow = sheet.getLastRow();
+    if (lastRow <= 1) return null;
+    
+    const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    const idColumn = headers.findIndex(h => String(h).trim().toLowerCase() === 'id');
+    if (idColumn === -1) return null;
+    
+    const idStr = String(id).trim();
+    
+    const data = sheet.getRange(2, 1, lastRow - 1, headers.length).getValues();
+    for (let i = 0; i < data.length; i++) {
+      if (String(data[i][idColumn]).trim() === idStr) {
+        const obj = {};
+        headers.forEach((header, index) => {
+          if (header) {
+            let value = data[i][index];
+            if (typeof value === 'string' && value.trim() !== '' && (value.trim().startsWith('[') || value.trim().startsWith('{'))) {
+              try {
+                const parsed = JSON.parse(value);
+                value = parsed;
+              } catch (e) {
+                Logger.log('Erro ao parsear JSON: ' + e.toString());
+              }
+            }
+            if (value === '' || value === null || value === undefined) {
+              value = null;
+            }
+            obj[header] = value;
+          }
+        });
+        return obj;
+      }
+    }
+    return null;
+  } catch (error) {
+    Logger.log('Erro ao obter dados por ID de ' + sheetName + ': ' + error.toString());
+    return null;
+  }
+}
+
+// Inserir novo registro
+function insertData(sheetName, data) {
+  try {
+    const sheet = getSheet(sheetName);
+    
+    if (sheet.getLastRow() === 0) {
+      const headers = Object.keys(data);
+      sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    }
+    
+    let headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    let idColumnIndex = headers.findIndex(h => String(h).trim().toLowerCase() === 'id');
+    
+    if (idColumnIndex === -1 && data.id) {
+      sheet.insertColumnBefore(1);
+      sheet.getRange(1, 1).setValue('id');
+      headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    }
+    
+    const row = objectToRow(sheet, data);
+    sheet.appendRow(row);
+    
+    return { success: true, data: data };
+  } catch (error) {
+    Logger.log('Erro ao inserir dados em ' + sheetName + ': ' + error.toString());
+    return { success: false, error: error.toString() };
+  }
+}
+
+// Atualizar registro
+function updateData(sheetName, id, data) {
+  try {
+    const sheet = getSheet(sheetName);
+    const lastRow = sheet.getLastRow();
+    if (lastRow <= 1) {
+      return { success: false, error: 'No data found' };
+    }
+    
+    const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    const idColumn = headers.findIndex(h => String(h).trim().toLowerCase() === 'id');
+    if (idColumn === -1) {
+      return { success: false, error: 'ID column not found' };
+    }
+    
+    const idStr = String(id).trim();
+    
+    for (let i = 2; i <= lastRow; i++) {
+      const cellValue = sheet.getRange(i, idColumn + 1).getValue();
+      const rowId = String(cellValue).trim();
+      
+      if (rowId === idStr) {
+        headers.forEach((header, colIndex) => {
+          if (!header) return;
+          
+          if (data.hasOwnProperty(header)) {
+            const value = data[header];
+            
+            if (typeof value === 'object' && value !== null && !(value instanceof Date)) {
+              try {
+                const jsonString = JSON.stringify(value);
+                sheet.getRange(i, colIndex + 1).setValue(jsonString);
+              } catch (e) {
+                sheet.getRange(i, colIndex + 1).setValue('');
+              }
+            } else {
+              if ((header === 'startDate' || header === 'endDate') && typeof value === 'string') {
+                const datePart = value.split('T')[0].split(' ')[0];
+                if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+                  sheet.getRange(i, colIndex + 1).setValue(datePart);
+                } else {
+                  sheet.getRange(i, colIndex + 1).setValue(value);
+                }
+              } else {
+                sheet.getRange(i, colIndex + 1).setValue(value);
+              }
+            }
+          }
+        });
+        const updated = getDataById(sheetName, id);
+        return { success: true, data: { ...updated, ...data } };
+      }
+    }
+    return { success: false, error: 'Record not found' };
+  } catch (error) {
+    Logger.log('Erro ao atualizar dados em ' + sheetName + ': ' + error.toString());
+    return { success: false, error: error.toString() };
+  }
+}
+
+// Deletar registro
+function deleteData(sheetName, id) {
+  try {
+    const sheet = getSheet(sheetName);
+    const lastRow = sheet.getLastRow();
+    if (lastRow <= 1) {
+      return { success: false, error: 'No data found' };
+    }
+    
+    const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    const idColumn = headers.findIndex(h => String(h).trim().toLowerCase() === 'id');
+    if (idColumn === -1) {
+      return { success: false, error: 'ID column not found' };
+    }
+    
+    const idStr = String(id).trim();
+    
+    for (let i = 2; i <= lastRow; i++) {
+      const cellValue = sheet.getRange(i, idColumn + 1).getValue();
+      const rowId = String(cellValue).trim();
+      
+      if (rowId === idStr) {
+        sheet.deleteRow(i);
+        return { success: true };
+      }
+    }
+    return { success: false, error: 'Record not found' };
+  } catch (error) {
+    Logger.log('Erro ao deletar dados de ' + sheetName + ': ' + error.toString());
+    return { success: false, error: error.toString() };
+  }
+}
+
+/**
+ * ============================================
+ * HANDLERS HTTP (GET, POST, PUT, DELETE)
+ * ============================================
+ */
+
+function doGet(e) {
+  return handleRequest(e);
+}
+
+function doPost(e) {
+  return handleRequest(e);
+}
+
+function handleRequest(e) {
+  try {
+    const output = ContentService.createTextOutput();
+    output.setMimeType(ContentService.MimeType.JSON);
+    
+    let method = 'GET';
+    let path = '';
+    let requestData = {};
+    
+    if (e.parameter.method) {
+      method = e.parameter.method.toUpperCase();
+    } else if (e.postData) {
+      method = 'POST';
+      
+      if (e.postData.type === 'application/json') {
+        try {
+          const parsed = JSON.parse(e.postData.contents);
+          method = parsed.method || 'POST';
+          path = parsed.path || e.parameter.path || '';
+          requestData = parsed.data || parsed;
+        } catch (err) {
+          // Ignorar erro
+        }
+      } else if (e.postData.type === 'application/x-www-form-urlencoded' || e.parameter.data) {
+        try {
+          requestData = e.parameter.data ? JSON.parse(e.parameter.data) : {};
+        } catch (err) {
+          requestData = e.parameter;
+        }
+      }
+    }
+    
+    if (!path) {
+      path = e.parameter.path || '';
+    }
+    
+    const pathParts = path.split('/').filter(p => p);
+    const resource = pathParts[0];
+    const id = pathParts[1];
+    
+    const resourceMap = {
+      'players': SHEETS.players,
+      'matches': SHEETS.matches,
+      'match-player-stats': SHEETS.matchPlayerStats,
+      'injuries': SHEETS.injuries,
+      'assessments': SHEETS.assessments,
+      'schedules': SHEETS.schedules,
+      'schedule-days': SHEETS.scheduleDays,
+      'budget-entries': SHEETS.budgetEntries,
+      'budget-expenses': SHEETS.budgetExpenses,
+      'competitions': SHEETS.competitions,
+      'stat-targets': SHEETS.statTargets,
+      'users': SHEETS.users,
+      'time-controls': SHEETS.timeControls
+    };
+    
+    const sheetName = resourceMap[resource];
+    
+    if (!sheetName) {
+      output.setContent(JSON.stringify({ 
+        success: false, 
+        error: 'Resource not found',
+        available: Object.keys(resourceMap)
+      }));
+      return output;
+    }
+    
+    let result;
+    
+    if (method === 'GET') {
+      if (id) {
+        const data = getDataById(sheetName, id);
+        result = data ? { success: true, data: data } : { success: false, error: 'Not found' };
+      } else {
+        const data = getAllData(sheetName);
+        result = { success: true, data: data };
+      }
+    } else if (method === 'POST') {
+      if (Object.keys(requestData).length === 0) {
+        if (e.parameter.data) {
+          try {
+            requestData = JSON.parse(e.parameter.data);
+          } catch (err) {
+            requestData = {};
+          }
+        } else if (e.postData && e.postData.contents) {
+          try {
+            requestData = JSON.parse(e.postData.contents);
+          } catch (err) {
+            requestData = {};
+          }
+        }
+      }
+      result = insertData(sheetName, requestData);
+    } else if (method === 'PUT' || method === 'PATCH') {
+      if (!id) {
+        result = { success: false, error: 'ID required for update' };
+      } else {
+        const requestData = e.parameter.data ? JSON.parse(e.parameter.data) : (e.postData && e.postData.contents ? JSON.parse(e.postData.contents) : {});
+        result = updateData(sheetName, id, requestData);
+      }
+    } else if (method === 'DELETE') {
+      if (!id) {
+        result = { success: false, error: 'ID required for delete' };
+      } else {
+        result = deleteData(sheetName, id);
+      }
+    } else {
+      result = { success: false, error: 'Method not allowed: ' + method };
+    }
+    
+    output.setContent(JSON.stringify(result));
+    return output;
+    
+  } catch (error) {
+    const output = ContentService.createTextOutput();
+    output.setMimeType(ContentService.MimeType.JSON);
+    output.setContent(JSON.stringify({ 
+      success: false, 
+      error: error.toString()
+    }));
+    return output;
+  }
+}
+
+/**
+ * ============================================
+ * FUNÇÃO DE TESTE
+ * ============================================
+ */
+
+function test() {
+  try {
+    Logger.log('🧪 Testando conexão com planilha...');
+    const ss = getSpreadsheet();
+    Logger.log('✅ Planilha obtida com sucesso!');
+    Logger.log('📋 Nome da planilha: ' + ss.getName());
+    const sheet = getSheet('players');
+    Logger.log('✅ Aba obtida/criada com sucesso!');
+    const data = getAllData('players');
+    Logger.log('✅ Dados obtidos: ' + data.length + ' registros');
+    Logger.log('✅✅✅ Todos os testes passaram! ✅✅✅');
+    return 'Teste concluído com sucesso! Veja os logs acima.';
+  } catch (error) {
+    Logger.log('❌ Erro no teste: ' + error.toString());
+    return 'Erro no teste. Veja os logs.';
+  }
+}
+
+
+
+
+
