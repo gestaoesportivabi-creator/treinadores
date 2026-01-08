@@ -9,11 +9,44 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 // O backend compila para CommonJS
 const getApp = () => {
   try {
-    // Usar require para CommonJS
-    const backendApp = require('../backend/dist/app.js');
+    const path = require('path');
+    const fs = require('fs');
+    
+    // Tentar diferentes caminhos possíveis
+    const possiblePaths = [
+      path.join(__dirname, '../backend/dist/app.js'),
+      path.join(process.cwd(), 'backend/dist/app.js'),
+      '../backend/dist/app.js',
+      './backend/dist/app.js',
+    ];
+    
+    let backendApp;
+    let foundPath = null;
+    
+    for (const tryPath of possiblePaths) {
+      try {
+        const resolvedPath = path.resolve(tryPath);
+        if (fs.existsSync(resolvedPath)) {
+          console.log('✅ Backend encontrado em:', resolvedPath);
+          backendApp = require(resolvedPath);
+          foundPath = resolvedPath;
+          break;
+        }
+      } catch (e) {
+        // Continuar tentando
+      }
+    }
+    
+    if (!backendApp) {
+      throw new Error(`Backend não encontrado. Tentados: ${possiblePaths.join(', ')}`);
+    }
+    
+    console.log('✅ Backend carregado com sucesso de:', foundPath);
     return backendApp.default || backendApp;
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Erro ao carregar backend:', error);
+    console.error('❌ Caminho atual (__dirname):', __dirname);
+    console.error('❌ Caminho atual (process.cwd):', process.cwd());
     throw error;
   }
 };
