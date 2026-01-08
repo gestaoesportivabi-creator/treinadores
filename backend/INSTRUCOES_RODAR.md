@@ -1,128 +1,98 @@
-# Instruções para Rodar o Projeto
+# 📋 Instruções para Rodar o Backend
 
-## ✅ Status Atual
+## ✅ Pré-requisitos
 
-- ✅ Backend rodando em: `http://localhost:3000`
-- ✅ Frontend rodando em: `http://localhost:5173`
-- ✅ Prisma Client gerado
-- ⚠️ PostgreSQL precisa ser configurado
+- Node.js 18+
+- PostgreSQL (Supabase recomendado) ou Docker
+- npm ou yarn
 
-## 📋 Próximos Passos
+## 🚀 Passo a Passo
 
-### 1. Configurar PostgreSQL
-
-**Opção A - PostgreSQL Local:**
-```bash
-# Instalar PostgreSQL (se não tiver)
-# macOS:
-brew install postgresql@14
-brew services start postgresql@14
-
-# Criar banco de dados
-createdb scout21pro
-
-# Atualizar .env com suas credenciais:
-# DATABASE_URL="postgresql://seu_usuario:sua_senha@localhost:5432/scout21pro?schema=public"
-```
-
-**Opção B - Docker (Recomendado):**
-```bash
-# Rodar PostgreSQL em Docker
-docker run --name scout21pro-postgres \
-  -e POSTGRES_USER=scout21pro \
-  -e POSTGRES_PASSWORD=scout21pro \
-  -e POSTGRES_DB=scout21pro \
-  -p 5432:5432 \
-  -d postgres:14
-
-# Atualizar .env:
-# DATABASE_URL="postgresql://scout21pro:scout21pro@localhost:5432/scout21pro?schema=public"
-```
-
-### 2. Rodar Migrations
+### 1. Instalar Dependências
 
 ```bash
 cd backend
+npm install
+```
 
+### 2. Configurar Variáveis de Ambiente
+
+```bash
+cp .env.example .env
+```
+
+Edite `.env` com suas configurações:
+- `DATABASE_URL` - Connection string do PostgreSQL/Supabase
+- `JWT_SECRET` - Chave secreta para JWT (gere uma forte)
+- `CORS_ORIGIN` - URL do frontend (ex: http://localhost:5173)
+
+### 3. Configurar Banco de Dados
+
+**Opção A - Supabase (Recomendado):**
+- Veja [CONEXAO_SUPABASE.md](./CONEXAO_SUPABASE.md)
+
+**Opção B - PostgreSQL Local:**
+- Veja [SETUP_DATABASE.md](./SETUP_DATABASE.md)
+
+### 4. Executar Migrations
+
+```bash
 # Usar Prisma Migrate (recomendado)
 npx prisma migrate dev --name init
 
-# OU rodar migrations SQL manualmente:
-# psql -d scout21pro -f migrations/001_add_missing_fields.sql
-# psql -d scout21pro -f migrations/002_normalize_competitions.sql
-# ... (todas as migrations)
+# OU executar migrations SQL manualmente
+psql -d scout21pro -f migrations/000_seed_roles.sql
+# ... (executar todas as migrations na ordem)
 ```
 
-### 3. Verificar Conexão
+### 5. Iniciar Servidor
 
 ```bash
-cd backend
-npx prisma db pull  # Verifica conexão
+npm run dev
 ```
 
-### 4. Criar Usuário Admin (Opcional)
-
-```sql
--- Conectar ao banco e criar roles iniciais
-INSERT INTO roles (name, description) VALUES 
-  ('ADMIN', 'Administrador do sistema'),
-  ('TECNICO', 'Técnico/Treinador'),
-  ('CLUBE', 'Clube'),
-  ('ATLETA', 'Atleta');
-```
-
-## 🚀 Comandos Úteis
-
-### Backend
-```bash
-cd backend
-npm run dev          # Desenvolvimento
-npm run build        # Build
-npm run start        # Produção
-npx prisma studio    # Interface visual do banco
-```
-
-### Frontend
-```bash
-cd 21Scoutpro
-npm run dev          # Desenvolvimento
-npm run build        # Build
-```
+O servidor estará em `http://localhost:3000`
 
 ## 🔍 Verificar se Está Funcionando
 
-1. **Backend Health Check:**
-   ```bash
-   curl http://localhost:3000/health
-   # Deve retornar: {"success":true,"message":"SCOUT 21 PRO Backend is running"}
-   ```
+### Health Check
+```bash
+curl http://localhost:3000/health
+```
 
-2. **Frontend:**
-   - Abrir navegador em: `http://localhost:5173`
-   - Deve mostrar a landing page
+### Testar API
+```bash
+# Registrar usuário
+curl -X POST http://localhost:3000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Teste","email":"teste@teste.com","password":"teste123"}'
+```
 
-3. **Testar API:**
-   ```bash
-   # Criar usuário
-   curl -X POST http://localhost:3000/api/auth/register \
-     -H "Content-Type: application/json" \
-     -d '{"name":"Admin","email":"admin@test.com","password":"admin123"}'
-   ```
+## 📚 Comandos Úteis
 
-## ⚠️ Problemas Comuns
+```bash
+npm run dev          # Desenvolvimento (watch mode)
+npm run build        # Build TypeScript
+npm run start        # Produção
+npx prisma studio    # Interface visual do banco
+npx prisma migrate dev  # Criar nova migration
+```
+
+## 🆘 Problemas Comuns
 
 ### Erro: "Cannot connect to database"
-- Verificar se PostgreSQL está rodando
-- Verificar credenciais no `.env`
-- Verificar se o banco `scout21pro` existe
+- Verifique se PostgreSQL/Supabase está acessível
+- Verifique credenciais no `.env`
+- Verifique se o banco existe
 
 ### Erro: "Table does not exist"
-- Rodar migrations: `npx prisma migrate dev`
+- Execute migrations: `npx prisma migrate dev`
 
 ### Erro: "Prisma Client not generated"
-- Rodar: `npx prisma generate`
+- Execute: `npx prisma generate`
 
----
+## 📖 Documentação Adicional
 
-**Status:** ✅ Servidores rodando - Configure PostgreSQL para usar completamente
-
+- **Quick Start:** [QUICK_START.md](./QUICK_START.md)
+- **Setup Database:** [SETUP_DATABASE.md](./SETUP_DATABASE.md)
+- **Arquitetura:** [docs/architecture.md](./docs/architecture.md)

@@ -4,55 +4,94 @@
 
 # 🏆 SCOUT 21 PRO - Sistema de Gestão Esportiva
 
-Sistema completo de scout, análise e gestão para equipes esportivas.
+Sistema completo de scout, análise e gestão para equipes esportivas com backend PostgreSQL e deploy único no Vercel.
 
 ## 🚀 Deploy Online
 
-**Para colocar o sistema online, consulte o guia completo:** [DEPLOY.md](./DEPLOY.md)
+**Para colocar o sistema online, consulte o guia completo:** [DEPLOY_UNICO.md](./DEPLOY_UNICO.md)
 
-### Opções Rápidas:
-- **Vercel** (Recomendado - Mais fácil): https://vercel.com
-- **Netlify**: https://netlify.com
-- **GitHub Pages**: Veja instruções em DEPLOY.md
+O sistema está configurado para deploy único no Vercel (frontend + backend no mesmo domínio).
 
 ## 💻 Executar Localmente
 
-**Pré-requisitos:** Node.js instalado
+### Pré-requisitos
+- Node.js 18+
+- PostgreSQL (ou use Supabase - veja [backend/CONEXAO_SUPABASE.md](./backend/CONEXAO_SUPABASE.md))
 
-1. Instalar dependências:
+### Instalação Completa
+
+1. **Instalar dependências do projeto:**
    ```bash
    npm install
+   cd 21Scoutpro && npm install
+   cd ../backend && npm install
    ```
 
-2. Iniciar servidor de desenvolvimento:
+2. **Configurar backend:**
    ```bash
+   cd backend
+   cp .env.example .env
+   # Editar .env com suas configurações (veja backend/README.md)
+   ```
+
+3. **Configurar banco de dados:**
+   - Veja [backend/SETUP_DATABASE.md](./backend/SETUP_DATABASE.md) para setup local
+   - Ou [backend/CONEXAO_SUPABASE.md](./backend/CONEXAO_SUPABASE.md) para usar Supabase
+
+4. **Executar migrations:**
+   ```bash
+   cd backend
+   npm run migrate
+   ```
+
+5. **Iniciar backend:**
+   ```bash
+   cd backend
    npm run dev
    ```
-   
-   Ou simplesmente execute o arquivo `iniciar.bat` (Windows)
+   Backend estará em `http://localhost:3000`
 
-3. Acessar no navegador:
+6. **Iniciar frontend:**
+   ```bash
+   cd 21Scoutpro
+   npm run dev
    ```
-   http://localhost:5173
-   ```
+   Frontend estará em `http://localhost:5173`
 
-4. Fazer login:
-   - **E-mail:** treinador@clube.com (ou qualquer e-mail)
-   - **Senha:** afc25
+7. **Criar conta:**
+   - Acesse `http://localhost:5173`
+   - Clique em "Criar Conta Grátis"
+   - Preencha os dados e crie sua conta
 
 ## 📦 Build para Produção
 
 ```bash
+cd 21Scoutpro
 npm run build
 ```
 
-Os arquivos otimizados serão gerados na pasta `dist/`.
+Os arquivos otimizados serão gerados na pasta `21Scoutpro/dist/`.
 
 ## 📚 Documentação
 
-- **Guia de Acesso:** [GUIA_ACESSO.md](./GUIA_ACESSO.md)
-- **Guia de Deploy:** [DEPLOY.md](./DEPLOY.md)
+- **Deploy Único (Vercel):** [DEPLOY_UNICO.md](./DEPLOY_UNICO.md)
+- **Backend:** [backend/README.md](./backend/README.md)
+- **Arquitetura:** [backend/docs/architecture.md](./backend/docs/architecture.md)
+- **Setup Database:** [backend/SETUP_DATABASE.md](./backend/SETUP_DATABASE.md)
+- **Conexão Supabase:** [backend/CONEXAO_SUPABASE.md](./backend/CONEXAO_SUPABASE.md)
+
+## 🏗️ Arquitetura
+
+- **Frontend:** React + TypeScript + Vite
+- **Backend:** Node.js + Express + TypeScript
+- **Database:** PostgreSQL (Supabase)
+- **Deploy:** Vercel (deploy único)
+- **Autenticação:** JWT
+- **Multi-tenancy:** Isolamento completo por técnico/clube
 
 ## ⚠️ Importante
 
-Este sistema usa **localStorage** para salvar dados. Cada navegador/dispositivo terá seus próprios dados salvos. Para múltiplos usuários compartilharem dados, seria necessário um backend + banco de dados.
+- O sistema usa **PostgreSQL** como banco de dados principal
+- Dados são persistidos no banco (não localStorage)
+- Suporta múltiplos técnicos com isolamento completo de dados
+- Pronto para produção com deploy único no Vercel

@@ -1,115 +1,84 @@
-# 🚀 Quick Start - Setup do Banco de Dados
+# 🚀 Quick Start - Backend PostgreSQL
 
 ## ⚠️ IMPORTANTE: PostgreSQL Necessário
 
-O sistema precisa de um banco de dados PostgreSQL rodando. Escolha uma das opções abaixo:
+O sistema precisa de um banco de dados PostgreSQL. Use **Supabase** (recomendado) ou PostgreSQL local.
 
-## 📦 Opção 1: Docker (Mais Fácil - Recomendado)
+## 📦 Opção 1: Supabase (Recomendado - Mais Fácil)
 
-### 1. Instalar Docker Desktop
-- **macOS**: Baixe em https://www.docker.com/products/docker-desktop/
-- Instale e inicie o Docker Desktop
+### 1. Criar Projeto no Supabase
+- Acesse: https://supabase.com
+- Crie um novo projeto
+- Anote a connection string
 
-### 2. Criar e Iniciar Container PostgreSQL
+### 2. Configurar .env
 ```bash
 cd backend
+cp .env.example .env
+```
 
-# Criar container PostgreSQL
+Edite `.env` com a connection string do Supabase:
+```env
+DATABASE_URL=postgresql://postgres:SUA_SENHA@db.SEU_PROJETO.supabase.co:5432/postgres
+JWT_SECRET=sua-chave-secreta-forte
+JWT_EXPIRES_IN=7d
+NODE_ENV=development
+CORS_ORIGIN=http://localhost:5173
+FRONTEND_URL=http://localhost:5173
+```
+
+### 3. Executar Migrations
+```bash
+cd backend
+npx prisma migrate dev --name init
+```
+
+Ou execute as migrations SQL manualmente (veja [SETUP_DATABASE.md](./SETUP_DATABASE.md)).
+
+## 📦 Opção 2: Docker (PostgreSQL Local)
+
+### 1. Criar Container
+```bash
 docker run --name scout21pro-postgres \
   -e POSTGRES_USER=scout21pro \
   -e POSTGRES_PASSWORD=scout21pro \
   -e POSTGRES_DB=scout21pro \
   -p 5432:5432 \
   -d postgres:14
-
-# Verificar se está rodando
-docker ps | grep scout21pro-postgres
 ```
 
-### 3. Atualizar .env
-```bash
-# O arquivo .env já deve ter:
+### 2. Configurar .env
+```env
 DATABASE_URL="postgresql://scout21pro:scout21pro@localhost:5432/scout21pro?schema=public"
 ```
 
-### 4. Executar Migrations
+### 3. Executar Migrations
+```bash
+npx prisma migrate dev --name init
+```
+
+## 🚀 Iniciar Servidor
+
 ```bash
 cd backend
-
-# Criar schema e executar migrations
-npx prisma migrate dev --name init
-
-# OU executar migrations SQL manualmente:
-docker exec -i scout21pro-postgres psql -U scout21pro -d scout21pro < migrations/000_seed_roles.sql
+npm install
+npm run dev
 ```
 
-## 📦 Opção 2: PostgreSQL Local (Homebrew)
-
-### 1. Instalar PostgreSQL
-```bash
-brew install postgresql@14
-brew services start postgresql@14
-```
-
-### 2. Criar Banco de Dados
-```bash
-createdb scout21pro
-```
-
-### 3. Atualizar .env
-```bash
-# Edite backend/.env e atualize:
-DATABASE_URL="postgresql://$(whoami)@localhost:5432/scout21pro?schema=public"
-```
-
-### 4. Executar Migrations
-```bash
-cd backend
-
-# Criar schema
-npx prisma migrate dev --name init
-
-# OU executar SQL manualmente:
-psql -d scout21pro -f migrations/000_seed_roles.sql
-```
+O servidor estará em `http://localhost:3000`
 
 ## ✅ Verificar se Funcionou
 
 ```bash
-cd backend
+# Health check
+curl http://localhost:3000/health
 
-# Testar conexão
-npx prisma db pull
-
-# Se funcionar, você verá o schema sendo sincronizado
+# Deve retornar:
+# {"success":true,"message":"SCOUT 21 PRO Backend is running"}
 ```
 
-## 🎯 Próximos Passos
+## 📚 Documentação Completa
 
-Após configurar o banco:
-
-1. ✅ Backend já está rodando (tsx watch)
-2. ✅ Frontend já está rodando (vite)
-3. ✅ CORS já está configurado
-4. ✅ Registro e Login já estão integrados
-
-**Agora você pode:**
-- Acessar http://localhost:5174 (ou a porta que o Vite estiver usando)
-- Clicar em "Criar Conta Grátis"
-- Preencher os dados e criar sua conta!
-
-## 🆘 Problemas?
-
-### Erro: "Can't reach database server"
-- Verifique se PostgreSQL/Docker está rodando
-- Verifique a porta 5432
-- Verifique as credenciais no `.env`
-
-### Erro: "database does not exist"
-- Crie o banco: `createdb scout21pro`
-- Ou use Docker que cria automaticamente
-
-### Erro: "role does not exist"
-- Execute: `psql -d scout21pro -f migrations/000_seed_roles.sql`
-- Ou use Prisma: `npx prisma migrate dev`
-
+- **Setup Database:** [SETUP_DATABASE.md](./SETUP_DATABASE.md)
+- **Conexão Supabase:** [CONEXAO_SUPABASE.md](./CONEXAO_SUPABASE.md)
+- **Arquitetura:** [docs/architecture.md](./docs/architecture.md)
