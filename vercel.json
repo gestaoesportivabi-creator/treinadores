@@ -4,11 +4,6 @@
   "outputDirectory": "21Scoutpro/dist",
   "installCommand": "cd 21Scoutpro && npm install --production=false",
   "framework": null,
-  "functions": {
-    "api/**/*.ts": {
-      "runtime": "nodejs20.x"
-    }
-  },
   "rewrites": [
     {
       "source": "/api/(.*)",

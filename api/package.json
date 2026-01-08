@@ -2,8 +2,7 @@
   "name": "scout-21-pro-api",
   "version": "1.0.0",
   "type": "module",
-  "dependencies": {
-    "@vercel/node": "^3.0.0"
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
-
