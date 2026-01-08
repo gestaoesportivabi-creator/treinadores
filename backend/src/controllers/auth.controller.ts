@@ -42,11 +42,10 @@ export const authController = {
       }
 
       // Gerar token JWT
-      const expiresIn: string | number = env.JWT_EXPIRES_IN;
       const token = jwt.sign(
         { userId: user.id, email: user.email },
         env.JWT_SECRET,
-        { expiresIn }
+        { expiresIn: env.JWT_EXPIRES_IN } as jwt.SignOptions
       );
 
       return res.json({
@@ -128,11 +127,10 @@ export const authController = {
       });
 
       // Gerar token
-      const expiresIn: string | number = env.JWT_EXPIRES_IN;
       const token = jwt.sign(
         { userId: user.id, email: user.email },
         env.JWT_SECRET,
-        { expiresIn }
+        { expiresIn: env.JWT_EXPIRES_IN } as jwt.SignOptions
       );
 
       return res.status(201).json({
