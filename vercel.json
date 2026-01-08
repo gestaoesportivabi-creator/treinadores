@@ -4,11 +4,6 @@
   "outputDirectory": "21Scoutpro/dist",
   "installCommand": "npm install && cd 21Scoutpro && npm install && cd ../backend && npm install",
   "framework": null,
-  "functions": {
-    "api/**/*.ts": {
-      "runtime": "@vercel/node"
-    }
-  },
   "rewrites": [
     {
       "source": "/api/(.*)",
