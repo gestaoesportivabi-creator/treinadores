@@ -1,0 +1,15 @@
+{
+  "name": "scout21pro-cli",
+  "version": "1.0.0",
+  "description": "CLI tools for managing Scout 21 Pro coaches",
+  "type": "commonjs",
+  "scripts": {
+    "create-coach": "node create-coach.js",
+    "list-coaches": "node list-coaches.js",
+    "delete-coach": "node delete-coach.js"
+  },
+  "keywords": ["scout", "sports", "management", "cli"],
+  "author": "Scout 21 Pro",
+  "license": "MIT"
+}
+
