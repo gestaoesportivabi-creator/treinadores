@@ -19,7 +19,7 @@ VITE_API_URL=https://scout21-backend.vercel.app/api
 
 | Variável | Valor | Descrição |
 |----------|-------|-----------|
-| `DATABASE_URL` | `postgresql://postgres:%23Gestaoesportiva21@db.jhjrqnggsfeztgkpqcjm.supabase.co:5432/postgres` | Connection string do Supabase |
+| `DATABASE_URL` | `postgresql://postgres:SUA_SENHA@db.SEU_PROJETO.supabase.co:5432/postgres` | Connection string do Supabase (substitua SUA_SENHA e SEU_PROJETO) |
 | `JWT_SECRET` | `sua-chave-secreta-forte-aqui` | Chave secreta para JWT (use uma string longa e aleatória) |
 | `JWT_EXPIRES_IN` | `7d` | Tempo de expiração do token (opcional) |
 | `NODE_ENV` | `production` | Ambiente de produção |
@@ -49,6 +49,8 @@ VITE_API_URL=https://scout21-backend.vercel.app/api
 3. Vá em **Settings → Environment Variables**
 4. Adicione todas as variáveis da tabela acima
 5. **IMPORTANTE:** Para `DATABASE_URL`, use a connection string completa do Supabase
+   - Obtenha a connection string no dashboard do Supabase
+   - Se a senha contiver `#`, codifique como `%23` na URL
 6. Para `JWT_SECRET`, gere uma chave forte:
    ```bash
    # No terminal, gere uma chave aleatória:
@@ -76,13 +78,18 @@ VITE_API_URL=https://scout21-backend-abc123.vercel.app/api
 
 ### Backend (.env no Vercel)
 ```
-DATABASE_URL=postgresql://postgres:%23Gestaoesportiva21@db.jhjrqnggsfeztgkpqcjm.supabase.co:5432/postgres
-JWT_SECRET=a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6
+DATABASE_URL=postgresql://postgres:SUA_SENHA_CODIFICADA@db.SEU_PROJETO.supabase.co:5432/postgres
+JWT_SECRET=chave-aleatoria-gerada-com-o-comando-acima
 JWT_EXPIRES_IN=7d
 NODE_ENV=production
 CORS_ORIGIN=https://scout21-frontend-xyz789.vercel.app
 FRONTEND_URL=https://scout21-frontend-xyz789.vercel.app
 ```
+
+**⚠️ IMPORTANTE:** 
+- Substitua `SUA_SENHA_CODIFICADA` pela senha real do Supabase (se tiver `#`, use `%23`)
+- Substitua `SEU_PROJETO` pelo ID do seu projeto Supabase
+- Obtenha a connection string completa no dashboard do Supabase
 
 ## ⚠️ Importante
 
@@ -114,4 +121,3 @@ FRONTEND_URL=https://scout21-frontend-xyz789.vercel.app
 - Verifique se `DATABASE_URL` está correta
 - Certifique-se de que o `#` na senha está codificado como `%23`
 - Verifique se o Supabase permite conexões externas
-
