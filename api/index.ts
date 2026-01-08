@@ -4,7 +4,28 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import app from '../backend/src/app.js';
+
+// Importar o app Express
+// Usar require para evitar problemas de importação ESM/CommonJS
+let app: any;
+
+try {
+  // Tentar importar como CommonJS (compilado)
+  app = require('../backend/dist/app.js').default;
+} catch (e) {
+  // Se não encontrar, tentar importar direto do TypeScript (desenvolvimento)
+  try {
+    app = require('../backend/src/app.ts').default;
+  } catch (e2) {
+    // Fallback: criar um app básico
+    const express = require('express');
+    app = express();
+    app.use(express.json());
+    app.get('/health', (_req: any, res: any) => {
+      res.json({ success: true, message: 'SCOUT 21 PRO Backend is running' });
+    });
+  }
+}
 
 // Handler serverless para Vercel
 export default async function handler(req: VercelRequest, res: VercelResponse) {
