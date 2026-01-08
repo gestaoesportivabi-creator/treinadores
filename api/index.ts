@@ -5,13 +5,41 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-// Importar o app Express compilado
-// O backend precisa ser compilado antes (npm run build no backend)
-const app = require('../backend/dist/app.js').default;
+// Importar o app Express compilado dinamicamente
+// O backend compila para CommonJS
+const getApp = () => {
+  try {
+    // Usar require para CommonJS
+    const backendApp = require('../backend/dist/app.js');
+    return backendApp.default || backendApp;
+  } catch (error) {
+    console.error('❌ Erro ao carregar backend:', error);
+    throw error;
+  }
+};
+
+// Cache do app para evitar recarregar a cada requisição
+let cachedApp: any = null;
 
 // Handler serverless para Vercel
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // O app Express já está configurado com todas as rotas
-  // Apenas passar o request e response para ele
-  return app(req as any, res as any);
+  try {
+    // Carregar o app na primeira requisição
+    if (!cachedApp) {
+      cachedApp = getApp();
+    }
+    
+    // O app Express já está configurado com todas as rotas
+    // Apenas passar o request e response para ele
+    return cachedApp(req as any, res as any);
+  } catch (error: any) {
+    console.error('❌ Erro no handler:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ 
+        success: false,
+        error: 'Internal server error',
+        message: error?.message || 'Erro desconhecido'
+      });
+    }
+  }
 }
