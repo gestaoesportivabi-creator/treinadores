@@ -45,7 +45,7 @@ export const authController = {
       const token = jwt.sign(
         { userId: user.id, email: user.email },
         env.JWT_SECRET,
-        { expiresIn: env.JWT_EXPIRES_IN as string | number }
+        { expiresIn: env.JWT_EXPIRES_IN }
       );
 
       return res.json({
