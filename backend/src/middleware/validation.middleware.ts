@@ -4,7 +4,6 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { z, ZodError } from 'zod';
-import { ValidationError } from '../utils/errors';
 
 export function validate(schema: z.ZodSchema) {
   return (req: Request, res: Response, next: NextFunction) => {
@@ -34,6 +33,7 @@ export function validate(schema: z.ZodSchema) {
         error: 'Erro de validação',
       });
     }
+    return;
   };
 }
 

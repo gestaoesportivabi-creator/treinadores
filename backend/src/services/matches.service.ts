@@ -6,7 +6,7 @@
 import { TenantInfo } from '../utils/tenant.helper';
 import { matchesRepository } from '../repositories/matches.repository';
 import { transformMatchToFrontend } from '../adapters/match.adapter';
-import { MatchRecord } from '../../../21Scoutpro/types';
+import { MatchRecord } from '../types/frontend';
 import { NotFoundError } from '../utils/errors';
 
 export const matchesService = {
@@ -120,10 +120,13 @@ export const matchesService = {
     // Buscar estatísticas criadas
     const estatisticasEquipe = await matchesRepository.findEstatisticasEquipe(jogo.id);
 
+    // Buscar estatísticas de jogadores
+    const estatisticasJogadores = await matchesRepository.findEstatisticasJogadores(jogo.id);
+    
     return transformMatchToFrontend(
       jogo as any,
-      estatisticasEquipe as any,
-      []
+      estatisticasJogadores as any,
+      estatisticasEquipe || undefined
     );
   },
 

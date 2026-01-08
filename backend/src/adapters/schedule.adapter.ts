@@ -3,7 +3,7 @@
  * Aplicar ajuste recomendado da Seção 11.2.C (item 14)
  */
 
-import { WeeklySchedule, DaySchedule } from '../../../21Scoutpro/types';
+import { WeeklySchedule, DaySchedule } from '../types/frontend';
 
 // Tipos do banco de dados (Prisma retorna camelCase)
 interface ProgramacaoDB {
@@ -65,12 +65,12 @@ export function transformScheduleToFrontend(
       time: dia.horario || '',
       activity: dia.atividade || '',
       location: dia.localizacao || '',
-      notes: dia.observacoes,
+      notes: dia.observacoes || undefined,
     });
   });
 
   // Converter Map para array e ordenar por data
-  const daysArray: DaySchedule[] = Array.from(daysMap.values()).sort((a, b) => {
+  const daysArray: DaySchedule[] = Array.from(daysMap.values()).sort(() => {
     // Ordenar por ordem dos dias da semana se disponível
     return 0; // Simplificado - pode melhorar com ordenação por data
   });

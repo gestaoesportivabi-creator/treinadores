@@ -44,7 +44,7 @@ export const championshipMatchesService = {
   /**
    * Criar jogo de campeonato
    */
-  async create(data: any, tenantInfo: TenantInfo) {
+  async create(data: any, _tenantInfo: TenantInfo) {
     const jogo = await championshipMatchesRepository.create(data);
     return transformChampionshipMatchToFrontend(jogo);
   },

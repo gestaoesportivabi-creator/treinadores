@@ -3,7 +3,7 @@
  * Corrige incompatibilidade de nomes de campos
  */
 
-import { StatTargets } from '../../../21Scoutpro/types';
+import { StatTargets } from '../types/frontend';
 
 // Tipo do banco de dados
 interface MetasEstatisticasDB {

@@ -3,7 +3,7 @@
  * Aplicar ajuste recomendado da Seção 11.2.C (item 13)
  */
 
-import { MatchRecord, MatchStats } from '../../../21Scoutpro/types';
+import { MatchRecord, MatchStats } from '../types/frontend';
 
 // Tipos do banco de dados (Prisma retorna camelCase)
 interface JogoDB {

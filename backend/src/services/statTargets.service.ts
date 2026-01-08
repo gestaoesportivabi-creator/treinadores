@@ -4,7 +4,7 @@
 
 import { TenantInfo } from '../utils/tenant.helper';
 import { statTargetsRepository } from '../repositories/statTargets.repository';
-import { StatTargets } from '../../../21Scoutpro/types';
+import { StatTargets } from '../types/frontend';
 import { transformStatTargetsToFrontend, transformStatTargetsToBackend } from '../adapters/statTargets.adapter';
 
 export const statTargetsService = {

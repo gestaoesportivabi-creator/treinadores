@@ -4,7 +4,7 @@
 
 import { TenantInfo } from '../utils/tenant.helper';
 import { assessmentsRepository } from '../repositories/assessments.repository';
-import { PhysicalAssessment } from '../../../21Scoutpro/types';
+import { PhysicalAssessment } from '../types/frontend';
 import { NotFoundError } from '../utils/errors';
 
 // Transformar avaliação do banco para frontend
@@ -66,7 +66,7 @@ export const assessmentsService = {
    * Criar avaliação
    * Frontend envia campos adicionais: bodyFatPercent, actionPlan, skinfolds (chest, axilla, etc.)
    */
-  async create(data: any, tenantInfo: TenantInfo): Promise<PhysicalAssessment> {
+  async create(data: any, _tenantInfo: TenantInfo): Promise<PhysicalAssessment> {
     // Mapear campos do frontend para banco
     const backendData = {
       jogadorId: data.playerId,

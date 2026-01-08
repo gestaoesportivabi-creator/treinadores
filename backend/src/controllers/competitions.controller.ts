@@ -7,7 +7,7 @@ import { competitionsService } from '../services/competitions.service';
 import { AppError } from '../utils/errors';
 
 export const competitionsController = {
-  getAll: async (req: Request, res: Response) => {
+  getAll: async (_req: Request, res: Response) => {
     try {
       const competitions = await competitionsService.getAll();
       return res.json({ success: true, data: competitions });

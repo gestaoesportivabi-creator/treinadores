@@ -8,7 +8,7 @@ import { playersRepository } from '../repositories/players.repository';
 import { lesoesRepository } from '../repositories/lesoes.repository';
 import { assessmentsRepository } from '../repositories/assessments.repository';
 import { transformPlayerToFrontend } from '../adapters/player.adapter';
-import { Player } from '../../../21Scoutpro/types';
+import { Player } from '../types/frontend';
 import { NotFoundError } from '../utils/errors';
 
 export const playersService = {
@@ -103,7 +103,7 @@ export const playersService = {
     isTransferido?: boolean;
     dataTransferencia?: Date;
     isAtivo?: boolean;
-  }, tenantInfo: TenantInfo): Promise<Player> {
+  }, _tenantInfo: TenantInfo): Promise<Player> {
     // Criar jogador
     const jogador = await playersRepository.create(data);
 

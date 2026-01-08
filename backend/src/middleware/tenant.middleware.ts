@@ -45,10 +45,22 @@ export function tenantMiddleware() {
       const tenantInfo = await getTenantInfo(
         req.user,
         async (userId: string) => {
-          return prisma.tecnico.findUnique({ where: { userId } });
+          const tecnico = await prisma.tecnico.findUnique({ where: { userId } });
+          if (!tecnico) return null;
+          return {
+            id: tecnico.id,
+            user_id: tecnico.userId,
+            nome: tecnico.nome,
+          };
         },
         async (userId: string) => {
-          return prisma.clube.findUnique({ where: { userId } });
+          const clube = await prisma.clube.findUnique({ where: { userId } });
+          if (!clube) return null;
+          return {
+            id: clube.id,
+            user_id: clube.userId,
+            razao_social: clube.razaoSocial,
+          };
         },
         async (tecnicoId: string) => {
           const equipes = await prisma.equipe.findMany({
@@ -84,6 +96,7 @@ export function tenantMiddleware() {
       req.tenantInfo = tenantInfo;
 
       next();
+      return;
     } catch (error) {
       console.error('Erro no middleware de tenant:', error);
       return res.status(500).json({
@@ -116,6 +129,7 @@ export function requireEquipeAccess(equipeId: string) {
     }
 
     next();
+    return;
   };
 }
 
@@ -161,6 +175,7 @@ export function requireJogoAccess(
       }
 
       next();
+      return;
     } catch (error) {
       console.error('Erro ao validar acesso ao jogo:', error);
       return res.status(500).json({

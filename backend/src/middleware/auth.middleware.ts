@@ -82,5 +82,6 @@ export async function authMiddleware(
       error: 'Erro ao verificar autenticação',
     });
   }
+  return;
 }
 

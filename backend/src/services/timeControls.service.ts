@@ -5,7 +5,7 @@
 
 import { TenantInfo } from '../utils/tenant.helper';
 import { timeControlsRepository } from '../repositories/timeControls.repository';
-import { PlayerTimeControl } from '../../../21Scoutpro/types';
+import { PlayerTimeControl } from '../types/frontend';
 import prisma from '../config/database';
 
 /**
@@ -121,8 +121,8 @@ export const timeControlsService = {
 
     // Criar novos eventos
     for (const tc of timeControls) {
-      // Frontend pode usar 'entries' ou 'timeEntries'
-      const entries = tc.entries || (tc as any).timeEntries || [];
+      // Frontend usa 'timeEntries'
+      const entries = tc.timeEntries || [];
       
       for (const entry of entries) {
         if (entry.entryTime) {

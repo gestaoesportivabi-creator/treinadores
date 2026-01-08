@@ -4,7 +4,7 @@
  */
 
 import prisma from '../config/database';
-import { TenantInfo, getEquipesTenantFilter } from '../utils/tenant.helper';
+import { TenantInfo } from '../utils/tenant.helper';
 
 // Tipos do banco (Prisma gera automaticamente, mas definimos aqui para referência)
 type JogadorDB = {

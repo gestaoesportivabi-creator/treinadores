@@ -3,7 +3,7 @@
  * Aplicar ajuste recomendado da Seção 11.2.C (item 15)
  */
 
-import { Player, InjuryRecord } from '../../../21Scoutpro/types';
+import { Player, InjuryRecord } from '../types/frontend';
 
 // Tipos do banco de dados (Prisma retorna camelCase)
 interface JogadorDB {
@@ -83,15 +83,15 @@ function transformLesaoToFrontend(lesao: LesaoDB): InjuryRecord {
   return {
     id: lesao.id,
     playerId: lesao.jogadorId,
-    date: formatDate(lesao.dataInicio || lesao.data), // Usar dataInicio se disponível
-    startDate: formatDate(lesao.dataInicio || lesao.data) || '',
-    endDate: formatDate(lesao.dataFim),
+    date: formatDate(lesao.dataInicio || lesao.data || undefined), // Usar dataInicio se disponível
+    startDate: formatDate(lesao.dataInicio || lesao.data || undefined) || '',
+    endDate: formatDate(lesao.dataFim || undefined),
     type: lesao.tipo,
     location: lesao.localizacao,
     side: (lesao.lado as any) || 'N/A',
     severity: lesao.severidade || '',
     origin: (lesao.origem as any) || 'Outros',
-    daysOut: lesao.diasAfastado,
+    daysOut: lesao.diasAfastado ?? undefined,
   };
 }
 
@@ -101,7 +101,7 @@ function transformLesaoToFrontend(lesao: LesaoDB): InjuryRecord {
 export function transformPlayerToFrontend(
   jogador: JogadorDB,
   lesoes: LesaoDB[] = [],
-  avaliacoesFisicas: AvaliacaoFisicaDB[] = []
+  _avaliacoesFisicas: AvaliacaoFisicaDB[] = []
 ): Player {
   // Transformar lesões para formato do frontend
   const injuryHistory: InjuryRecord[] = lesoes
@@ -140,7 +140,7 @@ export function transformPlayerToFrontend(
     lastClub: jogador.ultimoClube || '',
     photoUrl: jogador.fotoUrl || undefined,
     isTransferred: jogador.isTransferido || false,
-    transferDate: formatDate(jogador.dataTransferencia),
+    transferDate: formatDate(jogador.dataTransferencia || undefined),
     injuryHistory: injuryHistory.length > 0 ? injuryHistory : undefined,
   };
 }

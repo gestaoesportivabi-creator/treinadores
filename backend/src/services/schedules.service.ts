@@ -5,7 +5,7 @@
 import { TenantInfo } from '../utils/tenant.helper';
 import { schedulesRepository } from '../repositories/schedules.repository';
 import { transformScheduleToFrontend } from '../adapters/schedule.adapter';
-import { WeeklySchedule } from '../../../21Scoutpro/types';
+import { WeeklySchedule } from '../types/frontend';
 import { NotFoundError } from '../utils/errors';
 
 export const schedulesService = {
