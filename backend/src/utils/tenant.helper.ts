@@ -23,7 +23,7 @@ interface Clube {
   razao_social: string;
 }
 
-interface TenantInfo {
+export interface TenantInfo {
   tecnico_id?: string;
   clube_id?: string;
   equipe_ids?: string[];

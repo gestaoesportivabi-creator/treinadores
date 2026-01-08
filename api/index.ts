@@ -4,7 +4,7 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import app from '../backend/src/app';
+import app from '../backend/src/app.js';
 
 // Handler serverless para Vercel
 export default async function handler(req: VercelRequest, res: VercelResponse) {
