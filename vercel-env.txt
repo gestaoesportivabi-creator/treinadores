@@ -1,0 +1,34 @@
+# 📋 Variáveis de Ambiente - Copie e Cole no Vercel
+# 
+# Como usar:
+# 1. Acesse: https://vercel.com/dashboard
+# 2. Selecione seu projeto
+# 3. Vá em: Settings → Environment Variables
+# 4. Clique em "Add New"
+# 5. Copie e cole cada variável abaixo (uma por vez)
+# 6. Marque todas as opções: Production, Preview, Development
+# 7. Clique em "Save"
+# 8. Faça um Redeploy
+
+# ============================================
+# FRONTEND (21Scoutpro)
+# ============================================
+
+VITE_API_URL=https://seu-backend.vercel.app/api
+
+# ============================================
+# BACKEND
+# ============================================
+
+DATABASE_URL=postgresql://postgres:SUA_SENHA@db.SEU_PROJETO.supabase.co:5432/postgres
+JWT_SECRET=sua-chave-secreta-forte-aqui
+JWT_EXPIRES_IN=7d
+NODE_ENV=production
+CORS_ORIGIN=https://seu-frontend.vercel.app
+FRONTEND_URL=https://seu-frontend.vercel.app
+
+# ============================================
+# 🔑 Gerar JWT_SECRET:
+# Execute no terminal: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+# ============================================
+
