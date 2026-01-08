@@ -1,17 +1,22 @@
 {
+  "version": 2,
+  "buildCommand": "cd 21Scoutpro && npm install && npm run build",
+  "outputDirectory": "21Scoutpro/dist",
+  "installCommand": "npm install && cd 21Scoutpro && npm install && cd ../backend && npm install",
+  "framework": null,
+  "functions": {
+    "api/**/*.ts": {
+      "runtime": "@vercel/node"
+    }
+  },
   "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/index.ts"
+    },
     {
       "source": "/(.*)",
       "destination": "/index.html"
     }
   ]
 }
-
-
-
-
-
-
-
-
-

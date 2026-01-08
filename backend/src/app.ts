@@ -35,7 +35,15 @@ app.use(cors({
         return;
       }
     }
-    // Em produção, usar a origem configurada
+    
+    // Se estiver rodando no Vercel (serverless), aceitar requisições do mesmo domínio
+    if (process.env.VERCEL === '1') {
+      // No Vercel, aceitar requisições do mesmo domínio
+      callback(null, true);
+      return;
+    }
+    
+    // Em produção tradicional, usar a origem configurada
     if (origin === env.CORS_ORIGIN) {
       callback(null, true);
     } else {
@@ -72,14 +80,16 @@ app.use('/api/competitions', authMiddleware, competitionsRoutes);
 // Middleware de tratamento de erros (deve ser o último)
 app.use(errorMiddleware);
 
-// Iniciar servidor
-const PORT = env.PORT;
-
-app.listen(PORT, () => {
-  console.log(`🚀 SCOUT 21 PRO Backend rodando em http://localhost:${PORT}`);
-  console.log(`📚 Ambiente: ${env.NODE_ENV}`);
-  console.log(`🔗 CORS habilitado para: ${env.CORS_ORIGIN}`);
-});
+// Iniciar servidor apenas se não estiver rodando como serverless function
+// O Vercel não precisa do app.listen()
+if (process.env.VERCEL !== '1') {
+  const PORT = env.PORT;
+  app.listen(PORT, () => {
+    console.log(`🚀 SCOUT 21 PRO Backend rodando em http://localhost:${PORT}`);
+    console.log(`📚 Ambiente: ${env.NODE_ENV}`);
+    console.log(`🔗 CORS habilitado para: ${env.CORS_ORIGIN}`);
+  });
+}
 
 export default app;
 

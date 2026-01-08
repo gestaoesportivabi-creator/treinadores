@@ -5,10 +5,23 @@
 
 // URL do Backend PostgreSQL
 // Em desenvolvimento: http://localhost:3000/api
-// Em produção: configurar via variável de ambiente VITE_API_URL
+// Em produção: usar URL relativa (/api) se VITE_API_URL não estiver definida
 export const getApiUrl = () => {
   // Vite usa import.meta.env ao invés de process.env
-  return import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+  const apiUrl = import.meta.env.VITE_API_URL;
+  
+  // Se VITE_API_URL estiver definida, usar ela
+  if (apiUrl) {
+    return apiUrl;
+  }
+  
+  // Se estiver em produção (Vercel), usar URL relativa
+  if (import.meta.env.PROD) {
+    return '/api';
+  }
+  
+  // Em desenvolvimento, usar localhost
+  return 'http://localhost:3000/api';
 };
 
 export const API_URL = getApiUrl();
