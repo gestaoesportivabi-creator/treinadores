@@ -47,3 +47,4 @@ backend/_archived/google-sheets/google-credentials.json
 backend/_archived/google-sheets/google-token.json
 *.zip
 21Scoutpro/package-lock.json
+CREDENCIAIS_BANCO.md
