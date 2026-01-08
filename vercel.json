@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "buildCommand": "cd 21Scoutpro && npm ci && npm run build",
+  "buildCommand": "cd 21Scoutpro && npm install --production=false && npm run build",
   "outputDirectory": "21Scoutpro/dist",
-  "installCommand": "cd 21Scoutpro && npm ci && cd ../backend && npm ci && cd ../api && npm ci",
+  "installCommand": "cd 21Scoutpro && npm install --production=false",
   "framework": null,
   "functions": {
     "api/**/*.ts": {
