@@ -83,8 +83,6 @@ CREATE TABLE clubes (
 );
 ```
 
-
-
 ### 2.2 Tabelas de Gestão de Equipe
 
 **`equipes`**
@@ -137,8 +135,6 @@ CREATE TABLE equipes_jogadores (
   UNIQUE(equipe_id, jogador_id, data_inicio)
 );
 ```
-
-
 
 ### 2.3 Tabelas de Jogos e Partidas
 
@@ -232,8 +228,6 @@ CREATE TABLE jogos_eventos (
 );
 ```
 
-
-
 ### 2.4 Tabelas de Lesões
 
 **`lesoes`**
@@ -253,8 +247,6 @@ CREATE TABLE lesoes (
   created_at TIMESTAMP DEFAULT NOW()
 );
 ```
-
-
 
 ### 2.5 Tabelas de Avaliação Física
 
@@ -288,8 +280,6 @@ CREATE TABLE avaliacoes_fisicas (
 );
 ```
 
-
-
 ### 2.6 Tabelas de Programação
 
 **`programacoes`**
@@ -322,8 +312,6 @@ CREATE TABLE programacoes_dias (
 );
 ```
 
-
-
 ### 2.7 Tabelas de Campeonato
 
 **`campeonatos`**
@@ -351,8 +339,6 @@ CREATE TABLE campeonatos_jogos (
   created_at TIMESTAMP DEFAULT NOW()
 );
 ```
-
-
 
 ### 2.8 Tabelas de Configuração
 
@@ -386,8 +372,6 @@ CREATE TABLE metas_estatisticas (
   updated_at TIMESTAMP DEFAULT NOW()
 );
 ```
-
-
 
 ### 2.9 Sistema de Categorias Dinâmicas (Extensível)
 
@@ -470,8 +454,6 @@ CREATE TABLE registros_valores (
 );
 ```
 
-
-
 ### 2.10 Índices e Performance
 
 ```sql
@@ -546,8 +528,6 @@ backend/
 ├── package.json
 └── tsconfig.json
 ```
-
-
 
 ### 3.2 Escolha de ORM
 
@@ -696,8 +676,6 @@ export const getApiUrl = () => {
   return process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
 };
 ```
-
-
 
 ### 8.2 Transformação de Dados
 

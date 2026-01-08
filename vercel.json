@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "buildCommand": "cd backend && npm install && npm run build && cd ../21Scoutpro && npm install --production=false && npm run build",
+  "installCommand": "npm install && cd 21Scoutpro && npm install --production=false && cd ../backend && npm install --production=false && cd ../api && npm install",
+  "buildCommand": "npm run build",
   "outputDirectory": "21Scoutpro/dist",
-  "installCommand": "cd 21Scoutpro && npm install --production=false",
   "framework": null,
   "rewrites": [
     {

@@ -8,7 +8,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import prisma from '../config/database';
 import { env } from '../config/env';
-import { UnauthorizedError, ValidationError } from '../utils/errors';
+import { UnauthorizedError } from '../utils/errors';
 
 export const authController = {
   /**
@@ -45,7 +45,7 @@ export const authController = {
       const token = jwt.sign(
         { userId: user.id, email: user.email },
         env.JWT_SECRET,
-        { expiresIn: env.JWT_EXPIRES_IN }
+        { expiresIn: env.JWT_EXPIRES_IN as string | number }
       );
 
       return res.json({
