@@ -131,17 +131,42 @@ export const Login: React.FC<LoginProps> = ({ onLogin, initialMode = 'login', on
           
           onLogin(user);
         } else {
-          // Fallback para admin/admin em desenvolvimento
-          if (email === 'admin' && password === 'admin') {
-            const adminUser: User = {
-              name: 'Administrador',
-              email: 'admin@admin.com',
-              role: 'Treinador',
-              photoUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=600&auto=format&fit=crop'
-            };
-            onLogin(adminUser);
-            setIsLoading(false);
-            return;
+          // Fallback para admin/admin - tentar com admin@admin.com
+          if ((email === 'admin' || email === 'admin@admin.com') && password === 'admin') {
+            try {
+              // Tentar login real com admin@admin.com
+              const fallbackResponse = await fetch(`${getApiUrl()}/auth/login`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  email: 'admin@admin.com',
+                  password: 'admin',
+                }),
+              });
+
+              const fallbackResult = await fallbackResponse.json();
+              
+              if (fallbackResult.success && fallbackResult.data) {
+                // Salvar token
+                localStorage.setItem('token', fallbackResult.data.token);
+                
+                // Criar objeto User
+                const user: User = {
+                  id: fallbackResult.data.user.id,
+                  name: fallbackResult.data.user.name,
+                  email: fallbackResult.data.user.email,
+                  role: fallbackResult.data.user.role === 'TECNICO' ? 'Treinador' : fallbackResult.data.user.role,
+                };
+                
+                onLogin(user);
+                setIsLoading(false);
+                return;
+              }
+            } catch (fallbackError) {
+              console.error('Erro no fallback:', fallbackError);
+            }
           }
           
           setError(result.error || 'Email ou senha incorretos.');
