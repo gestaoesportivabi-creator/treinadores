@@ -103,12 +103,22 @@ export default function App() {
   
   const config = SPORT_CONFIGS['futsal'];
 
-  // Carregar dados da API quando o componente monta
+  // Carregar dados da API quando o componente monta E quando o usuário faz login
   useEffect(() => {
+    // Só carregar dados se o usuário estiver logado
+    if (!currentUser) {
+      console.log('⏸️ Usuário não logado, pulando carregamento de dados');
+      setIsInitializing(false);
+      return;
+    }
+    
     const loadData = async () => {
       try {
         setIsInitializing(true);
+        const token = localStorage.getItem('token');
         console.log('🔄 Carregando dados da API...');
+        console.log('👤 Usuário logado:', currentUser?.email);
+        console.log('🔑 Token presente:', token ? 'SIM' : 'NÃO');
         
         // Carregar todos os dados em paralelo com tratamento individual de erros
         // Nota: timeControls não tem getAll(), só getByMatchId, então será carregado por jogo quando necessário
@@ -209,7 +219,7 @@ export default function App() {
     };
 
     loadData();
-  }, []); // Executar apenas uma vez quando o componente monta
+  }, [currentUser]); // Executar quando o usuário fizer login ou mudar
 
   // Clean up old schedules (older than 30 days) on mount
   useEffect(() => {

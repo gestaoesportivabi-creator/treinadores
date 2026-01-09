@@ -22,13 +22,15 @@ async function get<T>(resource: string, id?: string): Promise<T[]> {
   try {
     const path = id ? `${resource}/${id}` : resource;
     const url = `${getApiUrl()}/${path}`;
+    const token = localStorage.getItem('token') || '';
     console.log(`📡 GET ${resource}:`, url);
+    console.log(`🔑 Token presente:`, token ? 'SIM' : 'NÃO', token ? `(${token.substring(0, 20)}...)` : '');
     
     const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
+        'Authorization': `Bearer ${token}`,
       },
     });
 
