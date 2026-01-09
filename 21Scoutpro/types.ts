@@ -141,6 +141,17 @@ export interface PlayerTimeControl {
   totalTime: number;
 }
 
+// Team Types
+export interface Team {
+  id: string;
+  nome: string;
+  categoria?: string;
+  temporada?: string;
+  tecnicoId: string;
+  clubeId?: string;
+  createdAt: string;
+}
+
 // Sport Config Types
 export interface SportConfig {
   name: string;

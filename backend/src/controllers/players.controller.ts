@@ -55,18 +55,58 @@ export const playersController = {
    */
   create: async (req: Request, res: Response) => {
     try {
-      const player = await playersService.create(req.body, req.tenantInfo!);
+      // DEBUG: Log do tenantInfo e body recebido
+      console.log('[PLAYERS_CONTROLLER] create - Dados recebidos:', {
+        tenant_tecnico_id: req.tenantInfo?.tecnico_id,
+        tenant_clube_id: req.tenantInfo?.clube_id,
+        tenant_equipe_ids: req.tenantInfo?.equipe_ids,
+        user_email: req.user?.email,
+        user_id: req.user?.id,
+        body: {
+          nome: req.body.nome,
+          equipeId: req.body.equipeId,
+          numeroCamisa: req.body.numeroCamisa,
+          position: req.body.position,
+        },
+      });
+
+      if (!req.tenantInfo) {
+        console.error('[PLAYERS_CONTROLLER] create - ERRO: tenantInfo não está disponível');
+        return res.status(500).json({
+          success: false,
+          error: 'Tenant info não disponível',
+        });
+      }
+
+      const player = await playersService.create(req.body, req.tenantInfo);
+      
+      console.log('[PLAYERS_CONTROLLER] create - Jogador criado com sucesso:', {
+        id: player.id,
+        nome: player.name,
+      });
+
       return res.status(201).json({ success: true, data: player });
-    } catch (error) {
+    } catch (error: any) {
+      console.error('[PLAYERS_CONTROLLER] create - ERRO ao criar jogador:', {
+        error: error?.message,
+        stack: error?.stack,
+        code: error?.code,
+        meta: error?.meta,
+      });
       if (error instanceof AppError) {
         return res.status(error.statusCode).json({
           success: false,
           error: error.message,
         });
       }
+      // Retornar mensagem de erro mais detalhada em desenvolvimento
+      const errorMessage = process.env.NODE_ENV === 'development' 
+        ? error?.message || 'Erro ao criar jogador'
+        : 'Erro ao criar jogador';
       return res.status(500).json({
         success: false,
-        error: 'Erro ao criar jogador',
+        error: errorMessage,
+        ...(process.env.NODE_ENV === 'development' && { details: error?.stack }),
       });
     }
   },

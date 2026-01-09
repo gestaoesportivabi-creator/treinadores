@@ -42,7 +42,6 @@ model Tecnico {
   registroProfissional String?    @map("registro_profissional") @db.VarChar(50)
   createdAt            DateTime   @default(now()) @map("created_at")
   equipes              Equipe[]
-  registros            Registro[]
   user                 User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("tecnicos")
@@ -106,7 +105,6 @@ model Jogador {
   estatisticasJogador JogosEstatisticasJogador[]
   eventos             JogosEventos[]
   lesoes              Lesao[]
-  registros           Registro[]
 
   @@map("jogadores")
 }
@@ -146,7 +144,6 @@ model Jogo {
   estatisticasEquipe  JogosEstatisticasEquipe?
   estatisticasJogador JogosEstatisticasJogador[]
   eventos             JogosEventos[]
-  registros           Registro[]
 
   @@index([equipeId, data(sort: Desc)])
   @@index([competicaoId])
@@ -362,81 +359,4 @@ model MetasEstatisticas {
 
   @@index([equipeId])
   @@map("metas_estatisticas")
-}
-
-model Categoria {
-  id            String         @id @default(uuid())
-  nome          String         @unique @db.VarChar(100)
-  descricao     String?
-  ordem         Int            @default(0)
-  createdAt     DateTime       @default(now()) @map("created_at")
-  subcategorias Subcategoria[]
-
-  @@map("categorias")
-}
-
-model Subcategoria {
-  id          String     @id @default(uuid())
-  categoriaId String     @map("categoria_id")
-  nome        String     @db.VarChar(100)
-  descricao   String?
-  ordem       Int        @default(0)
-  createdAt   DateTime   @default(now()) @map("created_at")
-  campos      Campo[]
-  registros   Registro[]
-  categoria   Categoria  @relation(fields: [categoriaId], references: [id], onDelete: Cascade)
-
-  @@unique([categoriaId, nome])
-  @@map("subcategorias")
-}
-
-model Campo {
-  id             String             @id @default(uuid())
-  subcategoriaId String             @map("subcategoria_id")
-  nome           String             @db.VarChar(255)
-  tipo           String             @db.VarChar(20)
-  obrigatorio    Boolean            @default(false)
-  valorMinimo    Decimal?           @map("valor_minimo")
-  valorMaximo    Decimal?           @map("valor_maximo")
-  ordem          Int                @default(0)
-  createdAt      DateTime           @default(now()) @map("created_at")
-  subcategoria   Subcategoria       @relation(fields: [subcategoriaId], references: [id], onDelete: Cascade)
-  valores        RegistrosValores[]
-
-  @@unique([subcategoriaId, nome])
-  @@map("campos")
-}
-
-model Registro {
-  id             String             @id @default(uuid())
-  jogadorId      String?            @map("jogador_id")
-  tecnicoId      String             @map("tecnico_id")
-  jogoId         String?            @map("jogo_id")
-  subcategoriaId String             @map("subcategoria_id")
-  createdAt      DateTime           @default(now()) @map("created_at")
-  jogador        Jogador?           @relation(fields: [jogadorId], references: [id], onDelete: Cascade)
-  jogo           Jogo?              @relation(fields: [jogoId], references: [id])
-  subcategoria   Subcategoria       @relation(fields: [subcategoriaId], references: [id])
-  tecnico        Tecnico            @relation(fields: [tecnicoId], references: [id])
-  valores        RegistrosValores[]
-
-  @@index([jogadorId, createdAt(sort: Desc)])
-  @@index([subcategoriaId])
-  @@map("registros")
-}
-
-model RegistrosValores {
-  id           String    @id @default(uuid())
-  registroId   String    @map("registro_id")
-  campoId      String    @map("campo_id")
-  valorTexto   String?
-  valorNumero  Decimal?
-  valorBoolean Boolean?
-  valorData    DateTime? @map("valor_data") @db.Date
-  createdAt    DateTime  @default(now()) @map("created_at")
-  campo        Campo     @relation(fields: [campoId], references: [id])
-  registro     Registro  @relation(fields: [registroId], references: [id], onDelete: Cascade)
-
-  @@unique([registroId, campoId])
-  @@map("registros_valores")
 }

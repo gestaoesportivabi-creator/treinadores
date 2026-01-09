@@ -21,6 +21,7 @@ import competitionsRoutes from './routes/competitions.routes';
 import statTargetsRoutes from './routes/statTargets.routes';
 import championshipMatchesRoutes from './routes/championshipMatches.routes';
 import timeControlsRoutes from './routes/timeControls.routes';
+import teamsRoutes from './routes/teams.routes';
 
 const app: Express = express();
 
@@ -66,6 +67,7 @@ app.get('/health', (_req, res) => {
 app.use('/api/auth', authRoutes);
 
 // Rotas protegidas (com autenticação e tenant)
+app.use('/api/teams', authMiddleware, tenantMiddleware(), teamsRoutes);
 app.use('/api/players', authMiddleware, tenantMiddleware(), playersRoutes);
 app.use('/api/matches', authMiddleware, tenantMiddleware(), matchesRoutes);
 app.use('/api/schedules', authMiddleware, tenantMiddleware(), schedulesRoutes);

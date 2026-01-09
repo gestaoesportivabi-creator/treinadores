@@ -6,7 +6,7 @@
  */
 
 import { getApiUrl, API_RESOURCES } from '../config';
-import { Player, MatchRecord, PhysicalAssessment, WeeklySchedule, StatTargets } from '../types';
+import { Player, MatchRecord, PhysicalAssessment, WeeklySchedule, StatTargets, Team } from '../types';
 
 // Tipos de resposta da API
 interface ApiResponse<T> {
@@ -345,3 +345,13 @@ export const championshipMatchesApi = {
   delete: (id: string) => del(API_RESOURCES.championshipMatches, id),
 };
 
+/**
+ * API específica para Teams
+ */
+export const teamsApi = {
+  getAll: () => get<Team>(API_RESOURCES.teams),
+  getById: (id: string) => get<Team>(API_RESOURCES.teams, id).then(arr => arr[0] || null),
+  create: (team: Omit<Team, 'id' | 'createdAt'>) => post<Team>(API_RESOURCES.teams, team),
+  update: (id: string, team: Partial<Team>) => put<Team>(API_RESOURCES.teams, id, team),
+  delete: (id: string) => del(API_RESOURCES.teams, id),
+};

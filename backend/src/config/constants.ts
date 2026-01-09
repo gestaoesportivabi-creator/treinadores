@@ -23,12 +23,3 @@ export const RESULTADO_JOGO = {
   EMPATE: 'E',
 } as const;
 
-// Tipos de campo EAV
-export const TIPO_CAMPO = {
-  INTEGER: 'INTEGER',
-  DECIMAL: 'DECIMAL',
-  TEXT: 'TEXT',
-  BOOLEAN: 'BOOLEAN',
-  DATE: 'DATE',
-} as const;
-

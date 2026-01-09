@@ -40,7 +40,8 @@ export const API_RESOURCES = {
   statTargets: 'stat-targets',
   users: 'users',
   timeControls: 'time-controls',
-  championshipMatches: 'championship-matches'
+  championshipMatches: 'championship-matches',
+  teams: 'teams'
 } as const;
 
 

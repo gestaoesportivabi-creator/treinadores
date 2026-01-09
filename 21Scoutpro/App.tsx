@@ -19,8 +19,8 @@ import { ScheduleAlerts } from './components/ScheduleAlerts';
 import { TabBackgroundWrapper } from './components/TabBackgroundWrapper';
 import { SPORT_CONFIGS } from './constants';
 import { Activity, BarChart3, Clock, Database, PlayCircle, ArrowRight, User as UserIcon, Quote, Trophy } from 'lucide-react';
-import { User, MatchRecord, Player, PhysicalAssessment, WeeklySchedule, StatTargets, PlayerTimeControl } from './types';
-import { playersApi, matchesApi, assessmentsApi, schedulesApi, competitionsApi, statTargetsApi, timeControlsApi, championshipMatchesApi } from './services/api';
+import { User, MatchRecord, Player, PhysicalAssessment, WeeklySchedule, StatTargets, PlayerTimeControl, Team } from './types';
+import { playersApi, matchesApi, assessmentsApi, schedulesApi, competitionsApi, statTargetsApi, timeControlsApi, championshipMatchesApi, teamsApi } from './services/api';
 
 const SLIDES = [
     {
@@ -85,6 +85,7 @@ export default function App() {
   const [competitions, setCompetitions] = useState<string[]>([]);
   const [timeControls, setTimeControls] = useState<PlayerTimeControl[]>([]);
   const [championshipMatches, setChampionshipMatches] = useState<ChampionshipMatch[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
   
   // Stats Targets State
   const [statTargets, setStatTargets] = useState<StatTargets>({
@@ -110,7 +111,7 @@ export default function App() {
         console.log('🔄 Carregando dados da API...');
         
         // Carregar todos os dados em paralelo com tratamento individual de erros
-        const [playersData, matchesData, assessmentsData, schedulesData, competitionsData, statTargetsData, timeControlsData, championshipMatchesData] = await Promise.allSettled([
+        const [playersData, matchesData, assessmentsData, schedulesData, competitionsData, statTargetsData, timeControlsData, championshipMatchesData, teamsData] = await Promise.allSettled([
           playersApi.getAll().catch(err => { console.error('Erro ao carregar players:', err); return []; }),
           matchesApi.getAll().catch(err => { console.error('Erro ao carregar matches:', err); return []; }),
           assessmentsApi.getAll().catch(err => { console.error('Erro ao carregar assessments:', err); return []; }),
@@ -118,7 +119,8 @@ export default function App() {
           competitionsApi.getAll().catch(err => { console.error('Erro ao carregar competitions:', err); return []; }),
           statTargetsApi.getAll().catch(err => { console.error('Erro ao carregar statTargets:', err); return []; }),
           timeControlsApi.getAll().catch(err => { console.error('Erro ao carregar timeControls:', err); return []; }),
-          championshipMatchesApi.getAll().catch(err => { console.error('Erro ao carregar championshipMatches:', err); return []; })
+          championshipMatchesApi.getAll().catch(err => { console.error('Erro ao carregar championshipMatches:', err); return []; }),
+          teamsApi.getAll().catch(err => { console.error('Erro ao carregar teams:', err); return []; })
         ]).then(results => results.map(r => r.status === 'fulfilled' ? r.value : []));
 
         // Usar apenas dados da API (sem fallback para dados iniciais)
@@ -181,6 +183,8 @@ export default function App() {
         setChampionshipMatches(championshipMatchesData && championshipMatchesData.length > 0 ? championshipMatchesData : []);
         // Competições: usar da API ou array vazio (usuário pode adicionar depois)
         setCompetitions(competitionsData.length > 0 ? competitionsData : []);
+        // Teams: carregar equipes
+        setTeams(teamsData);
         
         // Stat targets (pegar o primeiro ou usar default)
         if (statTargetsData.length > 0 && statTargetsData[0]) {
@@ -341,6 +345,48 @@ export default function App() {
       } catch (error) {
         console.error('Erro ao salvar avaliação:', error);
       }
+  };
+
+  const handleAddTeam = async (newTeam: Omit<Team, 'id' | 'createdAt'>) => {
+    try {
+      const saved = await teamsApi.create(newTeam);
+      if (saved) {
+        setTeams(prev => [...prev, saved]);
+        return saved;
+      }
+      return null;
+    } catch (error) {
+      console.error('Erro ao criar equipe:', error);
+      return null;
+    }
+  };
+
+  const handleUpdateTeam = async (updatedTeam: Team) => {
+    try {
+      const saved = await teamsApi.update(updatedTeam.id, updatedTeam);
+      if (saved) {
+        setTeams(prev => prev.map(t => t.id === updatedTeam.id ? saved : t));
+        return saved;
+      }
+      return null;
+    } catch (error) {
+      console.error('Erro ao atualizar equipe:', error);
+      return null;
+    }
+  };
+
+  const handleDeleteTeam = async (teamId: string) => {
+    try {
+      const success = await teamsApi.delete(teamId);
+      if (success) {
+        setTeams(prev => prev.filter(t => t.id !== teamId));
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Erro ao deletar equipe:', error);
+      return false;
+    }
   };
 
   const handleSaveSchedule = async (newSchedule: WeeklySchedule) => {
@@ -607,7 +653,16 @@ export default function App() {
       case 'team':
         return (
           <TabBackgroundWrapper>
-            <TeamManagement players={players} onAddPlayer={handleAddPlayer} onUpdatePlayer={handleUpdatePlayer} config={config} />
+            <TeamManagement 
+              players={players} 
+              teams={teams}
+              onAddPlayer={handleAddPlayer} 
+              onUpdatePlayer={handleUpdatePlayer}
+              onAddTeam={handleAddTeam}
+              onUpdateTeam={handleUpdateTeam}
+              onDeleteTeam={handleDeleteTeam}
+              config={config} 
+            />
           </TabBackgroundWrapper>
         );
       case 'ranking': 

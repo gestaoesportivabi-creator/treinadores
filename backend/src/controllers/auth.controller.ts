@@ -126,6 +126,28 @@ export const authController = {
         include: { role: true },
       });
 
+      // Criar registro específico baseado no role
+      if (roleName === 'TECNICO') {
+        await prisma.tecnico.create({
+          data: {
+            userId: user.id,
+            nome: user.name,
+          },
+        });
+      } else if (roleName === 'CLUBE') {
+        // Se houver dados do clube no body, usar; senão, usar nome do usuário
+        const { razaoSocial, cnpj, cidade, estado } = req.body;
+        await prisma.clube.create({
+          data: {
+            userId: user.id,
+            razaoSocial: razaoSocial || user.name,
+            cnpj: cnpj || '',
+            cidade: cidade || null,
+            estado: estado || null,
+          },
+        });
+      }
+
       // Gerar token
       const token = jwt.sign(
         { userId: user.id, email: user.email },
