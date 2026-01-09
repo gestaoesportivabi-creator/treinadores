@@ -104,13 +104,20 @@ export const Login: React.FC<LoginProps> = ({ onLogin, initialMode = 'login', on
         }
       } else {
         // Login - chamar API do backend
+        // IMPORTANTE: Se o usuário digitar "admin", sempre usar "admin@admin.com"
+        const emailToUse = (email.trim() === 'admin' || email.trim() === 'admin@admin.com') 
+          ? 'admin@admin.com' 
+          : email.trim();
+        
+        console.log('🔐 Tentando login com email:', emailToUse);
+        
         const response = await fetch(`${getApiUrl()}/auth/login`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            email: email.trim(),
+            email: emailToUse,
             password: password,
           }),
         });
@@ -120,6 +127,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin, initialMode = 'login', on
         if (result.success && result.data) {
           // Salvar token
           localStorage.setItem('token', result.data.token);
+          console.log('✅ Token salvo no localStorage:', result.data.token.substring(0, 20) + '...');
           
           // Criar objeto User
           const user: User = {
@@ -129,46 +137,11 @@ export const Login: React.FC<LoginProps> = ({ onLogin, initialMode = 'login', on
             role: result.data.user.role === 'TECNICO' ? 'Treinador' : result.data.user.role,
           };
           
+          console.log('👤 Usuário criado:', user);
+          console.log('🔄 Chamando onLogin...');
           onLogin(user);
+          setIsLoading(false);
         } else {
-          // Fallback para admin/admin - tentar com admin@admin.com
-          if ((email === 'admin' || email === 'admin@admin.com') && password === 'admin') {
-            try {
-              // Tentar login real com admin@admin.com
-              const fallbackResponse = await fetch(`${getApiUrl()}/auth/login`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  email: 'admin@admin.com',
-                  password: 'admin',
-                }),
-              });
-
-              const fallbackResult = await fallbackResponse.json();
-              
-              if (fallbackResult.success && fallbackResult.data) {
-                // Salvar token
-                localStorage.setItem('token', fallbackResult.data.token);
-                
-                // Criar objeto User
-                const user: User = {
-                  id: fallbackResult.data.user.id,
-                  name: fallbackResult.data.user.name,
-                  email: fallbackResult.data.user.email,
-                  role: fallbackResult.data.user.role === 'TECNICO' ? 'Treinador' : fallbackResult.data.user.role,
-                };
-                
-                onLogin(user);
-                setIsLoading(false);
-                return;
-              }
-            } catch (fallbackError) {
-              console.error('Erro no fallback:', fallbackError);
-            }
-          }
-          
           setError(result.error || 'Email ou senha incorretos.');
           setIsLoading(false);
         }

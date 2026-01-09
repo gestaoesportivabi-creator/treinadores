@@ -115,23 +115,45 @@ export default function App() {
     const loadData = async () => {
       try {
         setIsInitializing(true);
+        
+        // Pequeno delay para garantir que o token foi salvo
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         const token = localStorage.getItem('token');
         console.log('🔄 Carregando dados da API...');
         console.log('👤 Usuário logado:', currentUser?.email);
         console.log('🔑 Token presente:', token ? 'SIM' : 'NÃO');
         
+        if (!token) {
+          console.error('❌ Token não encontrado no localStorage!');
+          setIsInitializing(false);
+          return;
+        }
+        
         // Carregar todos os dados em paralelo com tratamento individual de erros
         // Nota: timeControls não tem getAll(), só getByMatchId, então será carregado por jogo quando necessário
+        console.log('🚀 Iniciando carregamento paralelo de dados...');
         const [playersData, matchesData, assessmentsData, schedulesData, competitionsData, statTargetsData, championshipMatchesData, teamsData] = await Promise.allSettled([
-          playersApi.getAll().catch(err => { console.error('Erro ao carregar players:', err); return []; }),
-          matchesApi.getAll().catch(err => { console.error('Erro ao carregar matches:', err); return []; }),
-          assessmentsApi.getAll().catch(err => { console.error('Erro ao carregar assessments:', err); return []; }),
-          schedulesApi.getAll().catch(err => { console.error('Erro ao carregar schedules:', err); return []; }),
-          competitionsApi.getAll().catch(err => { console.error('Erro ao carregar competitions:', err); return []; }),
-          statTargetsApi.getAll().catch(err => { console.error('Erro ao carregar statTargets:', err); return []; }),
-          championshipMatchesApi.getAll().catch(err => { console.error('Erro ao carregar championshipMatches:', err); return []; }),
-          teamsApi.getAll().catch(err => { console.error('Erro ao carregar teams:', err); return []; })
+          playersApi.getAll().catch(err => { console.error('❌ Erro ao carregar players:', err); return []; }),
+          matchesApi.getAll().catch(err => { console.error('❌ Erro ao carregar matches:', err); return []; }),
+          assessmentsApi.getAll().catch(err => { console.error('❌ Erro ao carregar assessments:', err); return []; }),
+          schedulesApi.getAll().catch(err => { console.error('❌ Erro ao carregar schedules:', err); return []; }),
+          competitionsApi.getAll().catch(err => { console.error('❌ Erro ao carregar competitions:', err); return []; }),
+          statTargetsApi.getAll().catch(err => { console.error('❌ Erro ao carregar statTargets:', err); return []; }),
+          championshipMatchesApi.getAll().catch(err => { console.error('❌ Erro ao carregar championshipMatches:', err); return []; }),
+          teamsApi.getAll().catch(err => { console.error('❌ Erro ao carregar teams:', err); return []; })
         ]).then(results => results.map(r => r.status === 'fulfilled' ? r.value : []));
+        
+        console.log('📊 Resultados do carregamento:', {
+          players: playersData.length,
+          matches: matchesData.length,
+          assessments: assessmentsData.length,
+          schedules: schedulesData.length,
+          competitions: competitionsData.length,
+          statTargets: statTargetsData.length,
+          championshipMatches: championshipMatchesData.length,
+          teams: teamsData.length,
+        });
 
         // Usar apenas dados da API (sem fallback para dados iniciais)
         setPlayers(playersData);
@@ -252,8 +274,11 @@ export default function App() {
   }, [activeTab]);
 
   const handleLogin = (user: User) => {
+      console.log('🔐 handleLogin chamado com usuário:', user);
+      console.log('🔑 Token no localStorage:', localStorage.getItem('token') ? 'PRESENTE' : 'AUSENTE');
       setCurrentUser(user);
       setActiveTab('dashboard'); 
+      console.log('✅ currentUser atualizado, useEffect deve ser disparado');
   };
 
   const handleTabChange = (tab: string) => {

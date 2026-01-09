@@ -72,6 +72,9 @@ async function get<T>(resource: string, id?: string): Promise<T[]> {
 
     const data = result.data || [];
     console.log(`✅ GET ${resource} - ${data.length} itens retornados`);
+    if (data.length === 0) {
+      console.warn(`⚠️ GET ${resource} retornou array vazio. Verifique se há dados no banco para este tenant.`);
+    }
     return data;
   } catch (error) {
     console.error(`❌ Error fetching ${resource}:`, error);

@@ -4,6 +4,7 @@
   "private": true,
   "description": "SCOUT 21 PRO - Sistema de Gestão Esportiva (Frontend + Backend)",
   "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:frontend": "cd 21Scoutpro && npm run dev",
     "dev:backend": "cd backend && npm run dev",
     "build:frontend": "cd 21Scoutpro && npm run build",
@@ -15,6 +16,7 @@
     "node": ">=18.0.0"
   },
   "devDependencies": {
-    "@vercel/node": "^5.5.16"
+    "@vercel/node": "^5.5.16",
+    "concurrently": "^8.2.2"
   }
 }
