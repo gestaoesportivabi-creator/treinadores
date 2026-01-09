@@ -18,6 +18,7 @@ export const teamsController = {
         tecnico_id: req.tenantInfo?.tecnico_id,
         clube_id: req.tenantInfo?.clube_id,
         equipe_ids: req.tenantInfo?.equipe_ids,
+        equipe_ids_count: req.tenantInfo?.equipe_ids?.length || 0,
         user_email: req.user?.email,
         user_id: req.user?.id,
       });

@@ -13,7 +13,25 @@ export const playersController = {
    */
   getAll: async (req: Request, res: Response) => {
     try {
+      console.log('[PLAYERS_CONTROLLER] getAll - TenantInfo:', {
+        tecnico_id: req.tenantInfo?.tecnico_id,
+        clube_id: req.tenantInfo?.clube_id,
+        equipe_ids: req.tenantInfo?.equipe_ids,
+        equipe_ids_count: req.tenantInfo?.equipe_ids?.length || 0,
+        user_email: req.user?.email,
+        user_id: req.user?.id,
+      });
+      
+      if (!req.tenantInfo) {
+        console.error('[PLAYERS_CONTROLLER] getAll - ERRO: tenantInfo não está disponível');
+        return res.status(500).json({
+          success: false,
+          error: 'Tenant info não disponível',
+        });
+      }
+      
       const players = await playersService.getAll(req.tenantInfo!);
+      console.log('[PLAYERS_CONTROLLER] getAll - Jogadores retornados:', players.length);
       return res.json({ success: true, data: players });
     } catch (error) {
       if (error instanceof AppError) {
