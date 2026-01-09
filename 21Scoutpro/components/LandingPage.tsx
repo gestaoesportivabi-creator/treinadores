@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, Users, Target, TrendingUp, Clock, BarChart3, Shield, CheckCircle } from 'lucide-react';
+import { ArrowRight, Users, Target, TrendingUp, Clock, BarChart3, Shield, CheckCircle, Building2, Trophy, Sparkles, Brain, Calendar } from 'lucide-react';
 
 interface LandingPageProps {
   onGetStarted: () => void;
@@ -16,25 +16,43 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
     <div className="min-h-screen bg-black text-white">
       {/* Top Navigation Bar */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-md border-b border-zinc-800">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          {/* Logo */}
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 border-2 border-[#00f0ff] rounded-lg flex items-center justify-center bg-black shadow-[0_0_20px_rgba(0,240,255,0.3)]">
-              <span className="text-lg font-black text-[#00f0ff]">21</span>
+        <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 md:py-4">
+          <div className="flex items-center justify-between gap-4">
+            {/* Logo */}
+            <div className="flex items-center gap-2 shrink-0">
+              <img 
+                src="/public-logo.png.png" 
+                alt="SCOUT21PRO Logo" 
+                className="h-10 w-auto"
+              />
             </div>
-            <div className="text-left">
-              <h2 className="text-base font-black text-white tracking-tighter italic leading-none">SCOUT 21</h2>
-              <p className="text-[8px] font-bold text-[#00f0ff] uppercase tracking-[0.2em]">Pro Analytics</p>
+            
+            {/* Right side - Login and Instagram */}
+            <div className="flex flex-col items-end gap-2">
+              <button 
+                onClick={onGoToLogin}
+                className="px-4 md:px-6 py-2 bg-zinc-900 hover:bg-zinc-800 text-white border border-zinc-700 hover:border-[#00f0ff] rounded-lg text-xs md:text-sm font-bold uppercase tracking-wider transition-all"
+              >
+                Login
+              </button>
+              <a 
+                href="https://instagram.com/scout21pro" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-[#00f0ff] hover:text-[#00d4e6] text-[10px] md:text-xs font-medium transition-colors flex items-center gap-1.5"
+              >
+                <svg 
+                  className="w-4 h-4" 
+                  fill="currentColor" 
+                  viewBox="0 0 24 24" 
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                </svg>
+                @scout21pro
+              </a>
             </div>
           </div>
-          
-          {/* Login Button */}
-          <button 
-            onClick={onGoToLogin}
-            className="px-6 py-2 bg-zinc-900 hover:bg-zinc-800 text-white border border-zinc-700 hover:border-[#00f0ff] rounded-lg text-sm font-bold uppercase tracking-wider transition-all"
-          >
-            Login
-          </button>
         </div>
       </nav>
 
@@ -48,27 +66,32 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
         
         <div className="relative z-10 max-w-5xl mx-auto text-center space-y-8">
           {/* Logo */}
-          <div className="inline-flex items-center gap-3 mb-8">
-            <div className="w-16 h-16 border-2 border-[#00f0ff] rounded-xl flex items-center justify-center bg-black shadow-[0_0_30px_rgba(0,240,255,0.3)]">
-              <span className="text-2xl font-black text-[#00f0ff]">21</span>
-            </div>
-            <div className="text-left">
-              <h2 className="text-2xl font-black text-white tracking-tighter italic leading-none">SCOUT 21</h2>
-              <p className="text-xs font-bold text-[#00f0ff] uppercase tracking-[0.2em]">Pro Analytics</p>
-            </div>
+          <div className="inline-flex items-center justify-center mb-8">
+            <img 
+              src="/public-logo.png.png" 
+              alt="SCOUT21PRO Logo" 
+              className="h-24 md:h-32 w-auto max-w-full"
+            />
           </div>
 
+          {/* Eyebrow Headline - Tom Institucional */}
+          <p className="text-sm md:text-base font-bold text-[#00f0ff] uppercase tracking-widest mb-4">
+            Análises baseadas em dados para decisões vencedoras
+          </p>
+
+          {/* Headline Principal - Tom Institucional e Técnico */}
           <h1 className="text-5xl md:text-7xl font-black uppercase tracking-tighter leading-[0.9] text-white">
-            Profissionalize a gestão<br />
-            <span className="text-[#00f0ff]">do seu time de futsal</span>
+            Transforme informação em vantagem competitiva<br />
+            <span className="text-[#00f0ff]">no futsal</span>
           </h1>
           
-          <p className="text-xl md:text-2xl text-zinc-400 font-medium max-w-3xl mx-auto leading-relaxed">
-            Chega de planilhas soltas e anotações perdidas.<br />
-            Tenha controle real da sua equipe com dados organizados e acessíveis.
+          {/* Subheadline - Método e Confiança */}
+          <p className="text-xl md:text-2xl text-zinc-300 font-semibold max-w-3xl mx-auto leading-relaxed">
+            Indicadores, scout e análise de performance<br />
+            <span className="text-zinc-400">para transformar dados em insights poderosos para o dia a dia do clube.</span>
           </p>
           
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-8">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-6">
             <button 
               onClick={handleClick}
               type="button"
@@ -77,10 +100,24 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
               Começar Agora - É Grátis
               <ArrowRight className="group-hover:translate-x-1 transition-transform" size={24} />
             </button>
+            <button 
+              onClick={() => window.open('https://wa.me/?text=Olá,%20gostaria%20de%20agendar%20uma%20apresentação', '_blank')}
+              type="button"
+              className="group px-6 md:px-8 py-4 bg-transparent hover:bg-zinc-900 text-white border-2 border-[#00f0ff] hover:border-[#00d4e6] font-black text-sm md:text-lg uppercase tracking-wider rounded-xl transition-all flex items-center gap-2 md:gap-3 cursor-pointer"
+            >
+              <Calendar size={18} className="md:w-5 md:h-5 shrink-0" />
+              <span className="hidden sm:inline">Entre em contato e agende uma apresentação</span>
+              <span className="sm:hidden">Agende apresentação</span>
+            </button>
           </div>
 
-          <p className="text-sm text-zinc-600 font-medium">
+          <p className="text-sm text-zinc-600 font-medium pt-2">
             ✓ Sem cartão de crédito &nbsp;&nbsp; ✓ Acesso imediato &nbsp;&nbsp; ✓ Teste grátis
+          </p>
+
+          {/* Frase de Fechamento */}
+          <p className="text-lg md:text-xl text-zinc-300 font-bold max-w-3xl mx-auto pt-8 border-t border-zinc-800">
+            Largue na frente. Ganhe pontos onde seus adversários ainda não estão olhando. 🚀🧠
           </p>
         </div>
       </header>
@@ -166,7 +203,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
       <section className="py-20 px-6">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-black uppercase text-white mb-4">Por Que Scout 21?</h2>
+            <h2 className="text-4xl md:text-5xl font-black uppercase text-white mb-4">Por Que SCOUT21PRO?</h2>
             <div className="w-24 h-1 bg-[#00f0ff] mx-auto"></div>
           </div>
           
@@ -181,6 +218,102 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
               <div key={idx} className="flex items-center gap-4 bg-zinc-900/50 border border-zinc-800 rounded-xl p-6 hover:border-[#00f0ff] transition-all">
                 <CheckCircle className="text-[#00f0ff] shrink-0" size={32} />
                 <p className="text-white font-bold text-xl">{diff}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Do Vestiário ao Escritório */}
+      <section className="py-20 px-6 bg-zinc-900/30">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-black uppercase text-white mb-4">Do Vestiário ao Escritório</h2>
+            <div className="w-24 h-1 bg-[#00f0ff] mx-auto mb-8"></div>
+            <p className="text-xl text-zinc-400 font-medium max-w-3xl mx-auto">
+              Trazer a frieza dos números para a emoção do campo.<br />
+              Transformar dados em legado vencedor.
+            </p>
+          </div>
+          
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              { 
+                icon: Brain, 
+                title: 'Lógica', 
+                desc: 'Trazer a frieza dos números para a emoção do campo.',
+                emoji: '🏛️'
+              },
+              { 
+                icon: Trophy, 
+                title: 'Prática', 
+                desc: 'Transformar dados em legado vencedor.',
+                emoji: '⚽'
+              },
+              { 
+                icon: BarChart3, 
+                title: 'Método', 
+                desc: 'Gestão Esportiva de Alta Performance.',
+                emoji: '📊'
+              }
+            ].map((item, idx) => (
+              <div key={idx} className="bg-black border border-zinc-800 rounded-2xl p-8 hover:border-[#00f0ff] transition-all text-center">
+                <div className="text-4xl mb-4">{item.emoji}</div>
+                <item.icon className="text-[#00f0ff] mb-4 mx-auto" size={40} />
+                <h3 className="text-xl font-black text-white mb-4 uppercase">{item.title}</h3>
+                <p className="text-zinc-400 font-medium leading-relaxed">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* O DNA do Idealizador */}
+      <section className="py-20 px-6">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-black uppercase text-white mb-4">O DNA do Idealizador</h2>
+            <div className="w-24 h-1 bg-[#00f0ff] mx-auto"></div>
+          </div>
+          
+          <div className="grid md:grid-cols-2 gap-8">
+            {[
+              { 
+                icon: Trophy, 
+                title: 'Atleta (Vestiário)', 
+                desc: 'Vivência da dor real: falta de profissionalismo e gestão.',
+                emoji: '⚽'
+              },
+              { 
+                icon: Building2, 
+                title: 'Executivo (Logística)', 
+                desc: 'Gestão baseada em KPIs, SLA e Nível de Serviço ao Cliente.',
+                emoji: '🏢'
+              },
+              { 
+                icon: Sparkles, 
+                title: 'Alta Performance', 
+                desc: 'A aplicação de indicadores de alta performance com metodologia corporativa.',
+                emoji: '🚀'
+              },
+              { 
+                icon: Brain, 
+                title: 'Expertise em BI', 
+                desc: 'Expertise em transformar dados brutos de 20.000 linhas de excel em insights poderosos.',
+                emoji: '📊'
+              }
+            ].map((item, idx) => (
+              <div key={idx} className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8 hover:border-[#00f0ff] transition-all">
+                <div className="flex items-start gap-4">
+                  <div className="text-3xl shrink-0">{item.emoji}</div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-4">
+                      <item.icon className="text-[#00f0ff]" size={32} />
+                      <h3 className="text-2xl font-black text-white uppercase">{item.title}</h3>
+                    </div>
+                    <p className="text-zinc-300 font-medium text-lg leading-relaxed">{item.desc}</p>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
@@ -224,10 +357,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
             <span className="text-[#00f0ff]">sua equipe?</span>
           </h2>
           
-          <p className="text-xl text-zinc-400 font-medium max-w-2xl mx-auto">
-            Junte-se aos clubes que estão modernizando a gestão do futsal brasileiro
-          </p>
-          
           <button 
             onClick={handleClick}
             type="button"
@@ -246,14 +375,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
       {/* Footer */}
       <footer className="py-12 px-6 bg-black border-t border-zinc-800">
         <div className="max-w-5xl mx-auto text-center space-y-4">
-          <div className="inline-flex items-center gap-3">
-            <div className="w-12 h-12 border-2 border-[#00f0ff] rounded-xl flex items-center justify-center bg-black">
-              <span className="text-lg font-black text-[#00f0ff]">21</span>
-            </div>
-            <div className="text-left">
-              <h2 className="text-lg font-black text-white tracking-tighter italic leading-none">SCOUT 21</h2>
-              <p className="text-[8px] font-bold text-[#00f0ff] uppercase tracking-[0.2em]">Pro Analytics</p>
-            </div>
+          <div className="inline-flex items-center justify-center">
+            <img 
+              src="/public-logo.png.png" 
+              alt="SCOUT21PRO Logo" 
+              className="h-12 w-auto"
+            />
           </div>
           
           <p className="text-zinc-500 font-medium">
@@ -266,7 +393,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
           
           <div className="pt-8 border-t border-zinc-900">
             <p className="text-zinc-700 text-xs">
-              © 2026 Scout 21 Pro Analytics. Todos os direitos reservados.
+              © 2026 SCOUT21PRO. Todos os direitos reservados.
             </p>
           </div>
         </div>
@@ -274,4 +401,3 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
     </div>
   );
 };
-
