@@ -111,14 +111,14 @@ export default function App() {
         console.log('🔄 Carregando dados da API...');
         
         // Carregar todos os dados em paralelo com tratamento individual de erros
-        const [playersData, matchesData, assessmentsData, schedulesData, competitionsData, statTargetsData, timeControlsData, championshipMatchesData, teamsData] = await Promise.allSettled([
+        // Nota: timeControls não tem getAll(), só getByMatchId, então será carregado por jogo quando necessário
+        const [playersData, matchesData, assessmentsData, schedulesData, competitionsData, statTargetsData, championshipMatchesData, teamsData] = await Promise.allSettled([
           playersApi.getAll().catch(err => { console.error('Erro ao carregar players:', err); return []; }),
           matchesApi.getAll().catch(err => { console.error('Erro ao carregar matches:', err); return []; }),
           assessmentsApi.getAll().catch(err => { console.error('Erro ao carregar assessments:', err); return []; }),
           schedulesApi.getAll().catch(err => { console.error('Erro ao carregar schedules:', err); return []; }),
           competitionsApi.getAll().catch(err => { console.error('Erro ao carregar competitions:', err); return []; }),
           statTargetsApi.getAll().catch(err => { console.error('Erro ao carregar statTargets:', err); return []; }),
-          timeControlsApi.getAll().catch(err => { console.error('Erro ao carregar timeControls:', err); return []; }),
           championshipMatchesApi.getAll().catch(err => { console.error('Erro ao carregar championshipMatches:', err); return []; }),
           teamsApi.getAll().catch(err => { console.error('Erro ao carregar teams:', err); return []; })
         ]).then(results => results.map(r => r.status === 'fulfilled' ? r.value : []));
@@ -172,7 +172,8 @@ export default function App() {
         });
         console.log('📋 Schedules carregados (após remover duplicatas):', validSchedules.length, '| Ativos:', validSchedules.filter(s => s.isActive).length);
         setSchedules(validSchedules);
-        setTimeControls(timeControlsData);
+        // TimeControls não tem getAll(), será carregado por jogo quando necessário
+        setTimeControls([]);
         console.log('📋 Championship Matches carregados:', championshipMatchesData?.length || 0, championshipMatchesData);
         console.log('📋 Tipo de championshipMatchesData:', typeof championshipMatchesData, Array.isArray(championshipMatchesData));
         if (championshipMatchesData && championshipMatchesData.length > 0) {
