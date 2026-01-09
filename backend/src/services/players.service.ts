@@ -154,7 +154,10 @@ export const playersService = {
 
       // Remover equipeId, id e injuryHistory dos dados antes de criar o jogador
       // (equipeId não é campo da tabela jogadores, id é gerado pelo banco, injuryHistory é criado separadamente)
-      const { equipeId, id, injuryHistory, ...dadosRecebidos } = data;
+      const { equipeId, ...dadosRecebidos } = data as any;
+      // Remover id e injuryHistory se existirem
+      delete (dadosRecebidos as any).id;
+      delete (dadosRecebidos as any).injuryHistory;
 
       // Validar que o nome está presente
       const nome = dadosRecebidos.nome || (dadosRecebidos as any).name;
@@ -175,36 +178,52 @@ export const playersService = {
         dataNascimento: (dadosRecebidos.dataNascimento && dadosRecebidos.dataNascimento.toString().trim() !== '')
           ? new Date(dadosRecebidos.dataNascimento)
           : undefined,
-        idade: (dadosRecebidos.idade !== undefined && dadosRecebidos.idade !== null && dadosRecebidos.idade !== '')
+        idade: (dadosRecebidos.idade !== undefined && dadosRecebidos.idade !== null && dadosRecebidos.idade !== '' && typeof dadosRecebidos.idade !== 'string')
           ? Number(dadosRecebidos.idade) 
-          : ((dadosRecebidos as any).age !== undefined && (dadosRecebidos as any).age !== null && (dadosRecebidos as any).age !== '')
+          : ((dadosRecebidos as any).age !== undefined && (dadosRecebidos as any).age !== null && (dadosRecebidos as any).age !== '' && typeof (dadosRecebidos as any).age !== 'string')
             ? Number((dadosRecebidos as any).age) 
-            : undefined,
+            : (typeof dadosRecebidos.idade === 'string' && dadosRecebidos.idade.trim() !== '')
+              ? Number(dadosRecebidos.idade)
+              : (typeof (dadosRecebidos as any).age === 'string' && (dadosRecebidos as any).age.trim() !== '')
+                ? Number((dadosRecebidos as any).age)
+                : undefined,
         funcaoEmQuadra: (dadosRecebidos.funcaoEmQuadra && dadosRecebidos.funcaoEmQuadra.toString().trim() !== '')
           ? dadosRecebidos.funcaoEmQuadra.toString().trim()
           : ((dadosRecebidos as any).position && (dadosRecebidos as any).position.toString().trim() !== '')
             ? (dadosRecebidos as any).position.toString().trim()
             : undefined,
-        numeroCamisa: (dadosRecebidos.numeroCamisa !== undefined && dadosRecebidos.numeroCamisa !== null && dadosRecebidos.numeroCamisa !== '')
+        numeroCamisa: (dadosRecebidos.numeroCamisa !== undefined && dadosRecebidos.numeroCamisa !== null && dadosRecebidos.numeroCamisa !== '' && typeof dadosRecebidos.numeroCamisa !== 'string')
           ? Number(dadosRecebidos.numeroCamisa) 
-          : ((dadosRecebidos as any).jerseyNumber !== undefined && (dadosRecebidos as any).jerseyNumber !== null && (dadosRecebidos as any).jerseyNumber !== '')
+          : ((dadosRecebidos as any).jerseyNumber !== undefined && (dadosRecebidos as any).jerseyNumber !== null && (dadosRecebidos as any).jerseyNumber !== '' && typeof (dadosRecebidos as any).jerseyNumber !== 'string')
             ? Number((dadosRecebidos as any).jerseyNumber) 
-            : undefined,
+            : (typeof dadosRecebidos.numeroCamisa === 'string' && dadosRecebidos.numeroCamisa.trim() !== '')
+              ? Number(dadosRecebidos.numeroCamisa)
+              : (typeof (dadosRecebidos as any).jerseyNumber === 'string' && (dadosRecebidos as any).jerseyNumber.trim() !== '')
+                ? Number((dadosRecebidos as any).jerseyNumber)
+                : undefined,
         peDominante: (dadosRecebidos.peDominante && dadosRecebidos.peDominante.toString().trim() !== '')
           ? dadosRecebidos.peDominante.toString().trim()
           : ((dadosRecebidos as any).dominantFoot && (dadosRecebidos as any).dominantFoot.toString().trim() !== '')
             ? (dadosRecebidos as any).dominantFoot.toString().trim()
             : undefined,
-        altura: (dadosRecebidos.altura !== undefined && dadosRecebidos.altura !== null && dadosRecebidos.altura !== '')
+        altura: (dadosRecebidos.altura !== undefined && dadosRecebidos.altura !== null && dadosRecebidos.altura !== '' && typeof dadosRecebidos.altura !== 'string')
           ? Number(dadosRecebidos.altura) 
-          : ((dadosRecebidos as any).height !== undefined && (dadosRecebidos as any).height !== null && (dadosRecebidos as any).height !== '')
+          : ((dadosRecebidos as any).height !== undefined && (dadosRecebidos as any).height !== null && (dadosRecebidos as any).height !== '' && typeof (dadosRecebidos as any).height !== 'string')
             ? Number((dadosRecebidos as any).height) 
-            : undefined,
-        peso: (dadosRecebidos.peso !== undefined && dadosRecebidos.peso !== null && dadosRecebidos.peso !== '')
+            : (typeof dadosRecebidos.altura === 'string' && dadosRecebidos.altura.trim() !== '')
+              ? Number(dadosRecebidos.altura)
+              : (typeof (dadosRecebidos as any).height === 'string' && (dadosRecebidos as any).height.trim() !== '')
+                ? Number((dadosRecebidos as any).height)
+                : undefined,
+        peso: (dadosRecebidos.peso !== undefined && dadosRecebidos.peso !== null && dadosRecebidos.peso !== '' && typeof dadosRecebidos.peso !== 'string')
           ? Number(dadosRecebidos.peso) 
-          : ((dadosRecebidos as any).weight !== undefined && (dadosRecebidos as any).weight !== null && (dadosRecebidos as any).weight !== '')
+          : ((dadosRecebidos as any).weight !== undefined && (dadosRecebidos as any).weight !== null && (dadosRecebidos as any).weight !== '' && typeof (dadosRecebidos as any).weight !== 'string')
             ? Number((dadosRecebidos as any).weight) 
-            : undefined,
+            : (typeof dadosRecebidos.peso === 'string' && dadosRecebidos.peso.trim() !== '')
+              ? Number(dadosRecebidos.peso)
+              : (typeof (dadosRecebidos as any).weight === 'string' && (dadosRecebidos as any).weight.trim() !== '')
+                ? Number((dadosRecebidos as any).weight)
+                : undefined,
         ultimoClube: (dadosRecebidos.ultimoClube && dadosRecebidos.ultimoClube.toString().trim() !== '')
           ? dadosRecebidos.ultimoClube.toString().trim()
           : ((dadosRecebidos as any).lastClub && (dadosRecebidos as any).lastClub.toString().trim() !== '')
