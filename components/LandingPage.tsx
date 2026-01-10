@@ -210,7 +210,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
           <div className="space-y-6">
             {[
               'Foco exclusivo em esportes de quadra (futsal)',
-              'Pensado para clubes pequenos e médios do Brasil',
+              'Pensado para clubes que desejam uma solução descomplicada em sua gestão',
               'Interface simples, sem complexidade desnecessária',
               'Personalizável conforme a realidade do seu clube',
               'Plataforma brasileira, próxima da sua realidade'
@@ -281,13 +281,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
               { 
                 icon: Trophy, 
                 title: 'Atleta (Vestiário)', 
-                desc: 'Vivência da dor real: falta de profissionalismo e gestão.',
+                desc: 'Vivência das quadras de futsal: experiência com as realidades dos clubes e suas dores reais.',
                 emoji: '⚽'
               },
               { 
                 icon: Building2, 
-                title: 'Executivo (Logística)', 
-                desc: 'Gestão baseada em KPIs, SLA e Nível de Serviço ao Cliente.',
+                title: 'Corporativo (Logística)', 
+                desc: 'Experiência em Gestão baseada em KPIs, SLA e Nível de Serviço ao Cliente.',
                 emoji: '🏢'
               },
               { 
