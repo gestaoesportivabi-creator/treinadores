@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, StatTargets } from '../types';
-import { Save, User as UserIcon, Lock, Image as ImageIcon, CheckCircle, Trophy, Plus, Trash2, Target } from 'lucide-react';
+import { useTheme } from '../contexts/ThemeContext';
+import { Save, User as UserIcon, Lock, Image as ImageIcon, CheckCircle, Trophy, Plus, Trash2, Target, Sun, Moon } from 'lucide-react';
 
 interface SettingsProps {
   currentUser: User | null;
@@ -12,6 +13,7 @@ interface SettingsProps {
 }
 
 export const Settings: React.FC<SettingsProps> = ({ currentUser, onUpdateUser, competitions, onUpdateCompetitions, statTargets, onUpdateTargets }) => {
+  const { theme, toggleTheme, isLight } = useTheme();
   const [name, setName] = useState('');
   const [photoUrl, setPhotoUrl] = useState('');
   const [password, setPassword] = useState('');
@@ -150,6 +152,34 @@ export const Settings: React.FC<SettingsProps> = ({ currentUser, onUpdateUser, c
                                 className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-white outline-none focus:border-[#10b981] file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-zinc-800 file:text-white hover:file:bg-zinc-700"
                             />
                         </div>
+                    </div>
+                </div>
+
+                <div className="space-y-4 pt-4">
+                    <h3 className="text-white font-bold uppercase text-sm tracking-widest border-b border-zinc-800 pb-2 flex items-center gap-2">
+                        <Sun size={16} className="text-[#10b981]" /> Aparência
+                    </h3>
+                    
+                    <div className="flex items-center justify-between p-4 bg-zinc-950 border border-zinc-800 rounded-xl">
+                        <div className="flex items-center gap-3">
+                            {isLight ? <Sun size={20} className="text-yellow-500" /> : <Moon size={20} className="text-blue-400" />}
+                            <div>
+                                <p className="text-white font-bold text-sm">Modo {isLight ? 'Claro' : 'Escuro'}</p>
+                                <p className="text-zinc-500 text-xs">Altere a aparência do sistema</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={toggleTheme}
+                            className={`relative w-14 h-8 rounded-full transition-colors duration-300 ${
+                                isLight ? 'bg-[#10b981]' : 'bg-zinc-700'
+                            }`}
+                        >
+                            <div
+                                className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-300 ${
+                                    isLight ? 'translate-x-6' : 'translate-x-0'
+                                }`}
+                            />
+                        </button>
                     </div>
                 </div>
 

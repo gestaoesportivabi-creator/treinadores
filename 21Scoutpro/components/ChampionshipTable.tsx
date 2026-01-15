@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, Users, Trophy, Plus, Save, Trash2, Edit2, RefreshCw } from 'lucide-react';
+import { Calendar, Clock, Users, Trophy, Plus, Save, Trash2, Edit2, RefreshCw, X, Upload } from 'lucide-react';
+import { Championship, ChampionshipMatch as ChampionshipMatchType } from '../types';
 
 export interface ChampionshipMatch {
     id: string;
@@ -7,6 +8,8 @@ export interface ChampionshipMatch {
     time: string; // HH:MM
     opponent: string;
     competition: string;
+    location?: string; // Mandante/Visitante
+    scoreTarget?: string; // Meta de pontuação esperada
 }
 
 interface ChampionshipTableProps {
@@ -16,6 +19,8 @@ interface ChampionshipTableProps {
     onDelete?: (id: string) => void;
     onUseForInput?: (match: ChampionshipMatch) => void; // Callback para usar na aba Input de Dados
     onRefresh?: () => void; // Callback para recarregar dados da API
+    championships?: Championship[]; // Campeonatos cadastrados
+    onSaveChampionship?: (championship: Championship) => void; // Callback para salvar campeonato
 }
 
 export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({ 
@@ -24,7 +29,9 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
     onSave, 
     onDelete,
     onUseForInput,
-    onRefresh
+    onRefresh,
+    championships = [],
+    onSaveChampionship
 }) => {
     // Debug: log matches
     useEffect(() => {
@@ -41,8 +48,30 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
         date: new Date().toISOString().split('T')[0],
         time: '20:00',
         opponent: '',
-        competition: competitions.length > 0 ? competitions[0] : ''
+        competition: competitions.length > 0 ? competitions[0] : '',
+        location: '',
+        scoreTarget: ''
     });
+    
+    // Estados para modal de cadastro de campeonato
+    const [showChampionshipModal, setShowChampionshipModal] = useState(false);
+    const [championshipForm, setChampionshipForm] = useState<Championship>({
+        id: '',
+        name: '',
+        phase: '',
+        suspensionRules: {
+            yellowCardsForSuspension: 3,
+            redCardSuspension: 1,
+            yellowAccumulationSuspension: 1
+        }
+    });
+    const [showChampionshipMatchesForm, setShowChampionshipMatchesForm] = useState(false);
+    const [currentChampionshipId, setCurrentChampionshipId] = useState<string | null>(null);
+    const [championshipMatchesForm, setChampionshipMatchesForm] = useState<ChampionshipMatch[]>([]);
+    
+    // Estados para importação
+    const [showImportModal, setShowImportModal] = useState(false);
+    const [importData, setImportData] = useState<string>('');
 
     const handleSave = () => {
         if (!formData.opponent.trim()) {
@@ -65,7 +94,9 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
             date: new Date().toISOString().split('T')[0],
             time: '20:00',
             opponent: '',
-            competition: 'Copa Santa Catarina'
+            competition: competitions.length > 0 ? competitions[0] : '',
+            location: 'Mandante',
+            scoreTarget: ''
         });
         setIsCreating(false);
         setEditingId(null);
@@ -83,7 +114,9 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
             date: new Date().toISOString().split('T')[0],
             time: '20:00',
             opponent: '',
-            competition: competitions.length > 0 ? competitions[0] : ''
+            competition: competitions.length > 0 ? competitions[0] : '',
+            location: 'Mandante',
+            scoreTarget: ''
         });
         setIsCreating(false);
         setEditingId(null);
@@ -92,6 +125,146 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
     const handleUseForInput = (match: ChampionshipMatch) => {
         if (onUseForInput) {
             onUseForInput(match);
+        }
+    };
+    
+    // Funções para cadastro de campeonato
+    const handleSaveChampionship = () => {
+        if (!championshipForm.name.trim()) {
+            alert('Por favor, preencha o nome da competição.');
+            return;
+        }
+        
+        const championshipToSave: Championship = {
+            ...championshipForm,
+            id: championshipForm.id || Date.now().toString(),
+            createdAt: new Date().toISOString()
+        };
+        
+        if (onSaveChampionship) {
+            onSaveChampionship(championshipToSave);
+        }
+        
+        // Salvar no localStorage também
+        const savedChampionships = JSON.parse(localStorage.getItem('championships') || '[]');
+        const updatedChampionships = savedChampionships.filter((c: Championship) => c.id !== championshipToSave.id);
+        updatedChampionships.push(championshipToSave);
+        localStorage.setItem('championships', JSON.stringify(updatedChampionships));
+        
+        // Fechar modal e abrir formulário de partidas
+        setShowChampionshipModal(false);
+        setCurrentChampionshipId(championshipToSave.id);
+        setChampionshipMatchesForm([{
+            id: '',
+            date: new Date().toISOString().split('T')[0],
+            time: '20:00',
+            opponent: '',
+            competition: championshipToSave.name,
+            location: 'Mandante',
+            scoreTarget: ''
+        }]);
+        setShowChampionshipMatchesForm(true);
+    };
+    
+    const handleAddChampionshipMatch = () => {
+        const championship = championships.find(c => c.id === currentChampionshipId);
+        setChampionshipMatchesForm([...championshipMatchesForm, {
+            id: '',
+            date: new Date().toISOString().split('T')[0],
+            time: '20:00',
+            opponent: '',
+            competition: championship?.name || '',
+            location: 'Mandante',
+            scoreTarget: ''
+        }]);
+    };
+    
+    const handleSaveChampionshipMatches = () => {
+        if (championshipMatchesForm.length === 0) {
+            alert('Adicione pelo menos uma partida.');
+            return;
+        }
+        
+        // Validar que todas as partidas têm adversário
+        const invalidMatches = championshipMatchesForm.filter(m => !m.opponent.trim());
+        if (invalidMatches.length > 0) {
+            alert('Por favor, preencha o adversário em todas as partidas.');
+            return;
+        }
+        
+        // Salvar todas as partidas
+        championshipMatchesForm.forEach(match => {
+            if (match.opponent.trim()) {
+                const matchToSave: ChampionshipMatch = {
+                    ...match,
+                    id: match.id || Date.now().toString() + Math.random()
+                };
+                if (onSave) {
+                    onSave(matchToSave);
+                }
+            }
+        });
+        
+        alert(`✅ ${championshipMatchesForm.length} partida(s) cadastrada(s) com sucesso!`);
+        setShowChampionshipMatchesForm(false);
+        setChampionshipMatchesForm([]);
+        setCurrentChampionshipId(null);
+    };
+    
+    // Funções para importação
+    const handleImportData = () => {
+        if (!importData.trim()) {
+            alert('Por favor, cole os dados da tabela.');
+            return;
+        }
+        
+        // Parsear dados (formato TSV/CSV básico)
+        const lines = importData.split('\n').filter(line => line.trim());
+        const importedMatches: ChampionshipMatch[] = [];
+        
+        lines.forEach((line, index) => {
+            if (index === 0) return; // Pular cabeçalho se houver
+            
+            const columns = line.split('\t').length > 1 ? line.split('\t') : line.split(',');
+            
+            if (columns.length >= 3) {
+                // Tentar identificar colunas: Data, Hora, Adversário, Campeonato
+                const date = columns[0]?.trim() || '';
+                const time = columns[1]?.trim() || '20:00';
+                const opponent = columns[2]?.trim() || '';
+                const competition = columns[3]?.trim() || competitions[0] || '';
+                
+                if (date && opponent) {
+                    importedMatches.push({
+                        id: Date.now().toString() + index,
+                        date: date,
+                        time: time,
+                        opponent: opponent,
+                        competition: competition,
+                        location: 'Mandante',
+                        scoreTarget: ''
+                    });
+                }
+            }
+        });
+        
+        if (importedMatches.length === 0) {
+            alert('Nenhuma partida válida encontrada nos dados importados. Verifique o formato.');
+            return;
+        }
+        
+        // Preview e confirmação
+        const confirmMessage = `Foram encontradas ${importedMatches.length} partida(s). Deseja importar?\n\n${importedMatches.map(m => `- ${m.date} ${m.time} vs ${m.opponent}`).join('\n')}`;
+        
+        if (window.confirm(confirmMessage)) {
+            importedMatches.forEach(match => {
+                if (onSave) {
+                    onSave(match);
+                }
+            });
+            alert(`✅ ${importedMatches.length} partida(s) importada(s) com sucesso!`);
+            setShowImportModal(false);
+            setImportData('');
         }
     };
 
@@ -140,7 +313,7 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
                         </p>
                     </div>
                     {!isCreating && (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                             {onRefresh && (
                                 <button
                                     onClick={onRefresh}
@@ -150,6 +323,30 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
                                     <RefreshCw size={16} /> Recarregar
                                 </button>
                             )}
+                            <button
+                                onClick={() => setShowImportModal(true)}
+                                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 font-bold uppercase text-xs rounded-xl transition-colors shadow-[0_0_15px_rgba(37,99,235,0.3)]"
+                            >
+                                <Upload size={16} /> Importar Tabela
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setChampionshipForm({
+                                        id: '',
+                                        name: '',
+                                        phase: '',
+                                        suspensionRules: {
+                                            yellowCardsForSuspension: 3,
+                                            redCardSuspension: 1,
+                                            yellowAccumulationSuspension: 1
+                                        }
+                                    });
+                                    setShowChampionshipModal(true);
+                                }}
+                                className="flex items-center gap-2 bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 font-bold uppercase text-xs rounded-xl transition-colors shadow-[0_0_15px_rgba(147,51,234,0.3)]"
+                            >
+                                <Trophy size={16} /> Cadastrar Campeonato
+                            </button>
                             <button
                                 onClick={() => setIsCreating(true)}
                                 className="flex items-center gap-2 bg-[#10b981] hover:bg-[#34d399] text-white px-4 py-2 font-bold uppercase text-xs rounded-xl transition-colors shadow-[0_0_15px_rgba(16,185,129,0.3)]"
@@ -166,7 +363,7 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
                         <h3 className="text-white font-bold text-sm mb-4 uppercase">
                             {editingId ? 'Editar Partida' : 'Nova Partida'}
                         </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
                                 <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Data</label>
                                 <input
@@ -206,6 +403,27 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
                                         <option key={comp} value={comp}>{comp}</option>
                                     ))}
                                 </select>
+                            </div>
+                            <div>
+                                <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Local</label>
+                                <select
+                                    value={formData.location || 'Mandante'}
+                                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                                    className="w-full bg-black border border-zinc-700 rounded-lg p-2 text-white text-xs outline-none focus:border-[#10b981]"
+                                >
+                                    <option value="Mandante">Mandante</option>
+                                    <option value="Visitante">Visitante</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Meta de Pontuação</label>
+                                <input
+                                    type="text"
+                                    value={formData.scoreTarget || ''}
+                                    onChange={(e) => setFormData({ ...formData, scoreTarget: e.target.value })}
+                                    placeholder="Ex: Vencer por 2 gols"
+                                    className="w-full bg-black border border-zinc-700 rounded-lg p-2 text-white text-xs outline-none focus:border-[#10b981]"
+                                />
                             </div>
                         </div>
                         <div className="flex gap-2 mt-4">
@@ -312,6 +530,338 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
                     </table>
                 </div>
             </div>
+            
+            {/* Modal de Cadastro de Campeonato */}
+            {showChampionshipModal && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-white font-black text-xl uppercase flex items-center gap-2">
+                                <Trophy className="text-purple-500" size={24} /> Cadastrar Campeonato
+                            </h3>
+                            <button
+                                onClick={() => setShowChampionshipModal(false)}
+                                className="text-zinc-400 hover:text-white transition-colors"
+                            >
+                                <X size={24} />
+                            </button>
+                        </div>
+                        
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Nome da Competição *</label>
+                                <input
+                                    type="text"
+                                    value={championshipForm.name}
+                                    onChange={(e) => setChampionshipForm({ ...championshipForm, name: e.target.value })}
+                                    placeholder="Ex: Copa Santa Catarina"
+                                    className="w-full bg-black border border-zinc-700 rounded-lg p-3 text-white text-sm outline-none focus:border-purple-500"
+                                />
+                            </div>
+                            
+                            <div>
+                                <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Fase da Competição</label>
+                                <input
+                                    type="text"
+                                    value={championshipForm.phase || ''}
+                                    onChange={(e) => setChampionshipForm({ ...championshipForm, phase: e.target.value })}
+                                    placeholder="Ex: Fase de Grupos, Quartas de Final, etc."
+                                    className="w-full bg-black border border-zinc-700 rounded-lg p-3 text-white text-sm outline-none focus:border-purple-500"
+                                />
+                            </div>
+                            
+                            <div className="border-t border-zinc-800 pt-4">
+                                <h4 className="text-white font-bold text-sm mb-4 uppercase">Regras de Suspensão</h4>
+                                
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">
+                                            Quantidade de cartões amarelos para suspensão
+                                        </label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            value={championshipForm.suspensionRules.yellowCardsForSuspension}
+                                            onChange={(e) => setChampionshipForm({
+                                                ...championshipForm,
+                                                suspensionRules: {
+                                                    ...championshipForm.suspensionRules,
+                                                    yellowCardsForSuspension: parseInt(e.target.value) || 3
+                                                }
+                                            })}
+                                            className="w-full bg-black border border-zinc-700 rounded-lg p-3 text-white text-sm outline-none focus:border-purple-500"
+                                        />
+                                    </div>
+                                    
+                                    <div>
+                                        <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">
+                                            Jogos de suspensão por cartão vermelho
+                                        </label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            value={championshipForm.suspensionRules.redCardSuspension}
+                                            onChange={(e) => setChampionshipForm({
+                                                ...championshipForm,
+                                                suspensionRules: {
+                                                    ...championshipForm.suspensionRules,
+                                                    redCardSuspension: parseInt(e.target.value) || 1
+                                                }
+                                            })}
+                                            className="w-full bg-black border border-zinc-700 rounded-lg p-3 text-white text-sm outline-none focus:border-purple-500"
+                                        />
+                                    </div>
+                                    
+                                    <div>
+                                        <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">
+                                            Jogos de suspensão por acumulação de amarelos
+                                        </label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            value={championshipForm.suspensionRules.yellowAccumulationSuspension}
+                                            onChange={(e) => setChampionshipForm({
+                                                ...championshipForm,
+                                                suspensionRules: {
+                                                    ...championshipForm.suspensionRules,
+                                                    yellowAccumulationSuspension: parseInt(e.target.value) || 1
+                                                }
+                                            })}
+                                            className="w-full bg-black border border-zinc-700 rounded-lg p-3 text-white text-sm outline-none focus:border-purple-500"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div className="flex gap-2 mt-6">
+                            <button
+                                onClick={handleSaveChampionship}
+                                className="flex-1 flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 font-bold uppercase text-xs rounded-xl transition-colors"
+                            >
+                                <Save size={16} /> Salvar e Abrir Tabela
+                            </button>
+                            <button
+                                onClick={() => setShowChampionshipModal(false)}
+                                className="bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-3 font-bold uppercase text-xs rounded-xl transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            
+            {/* Modal de Formulário de Partidas do Campeonato */}
+            {showChampionshipMatchesForm && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 max-w-5xl w-full max-h-[90vh] overflow-y-auto">
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-white font-black text-xl uppercase flex items-center gap-2">
+                                <Trophy className="text-purple-500" size={24} /> Preencher Tabela do Campeonato
+                            </h3>
+                            <button
+                                onClick={() => {
+                                    setShowChampionshipMatchesForm(false);
+                                    setChampionshipMatchesForm([]);
+                                    setCurrentChampionshipId(null);
+                                }}
+                                className="text-zinc-400 hover:text-white transition-colors"
+                            >
+                                <X size={24} />
+                            </button>
+                        </div>
+                        
+                        <div className="space-y-4">
+                            {championshipMatchesForm.map((match, index) => (
+                                <div key={index} className="bg-black border border-zinc-800 rounded-xl p-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+                                        <div>
+                                            <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Data</label>
+                                            <input
+                                                type="date"
+                                                value={match.date}
+                                                onChange={(e) => {
+                                                    const newMatches = [...championshipMatchesForm];
+                                                    newMatches[index].date = e.target.value;
+                                                    setChampionshipMatchesForm(newMatches);
+                                                }}
+                                                className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-2 text-white text-xs outline-none focus:border-purple-500"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Hora</label>
+                                            <input
+                                                type="time"
+                                                value={match.time}
+                                                onChange={(e) => {
+                                                    const newMatches = [...championshipMatchesForm];
+                                                    newMatches[index].time = e.target.value;
+                                                    setChampionshipMatchesForm(newMatches);
+                                                }}
+                                                className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-2 text-white text-xs outline-none focus:border-purple-500"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Adversário *</label>
+                                            <input
+                                                type="text"
+                                                value={match.opponent}
+                                                onChange={(e) => {
+                                                    const newMatches = [...championshipMatchesForm];
+                                                    newMatches[index].opponent = e.target.value;
+                                                    setChampionshipMatchesForm(newMatches);
+                                                }}
+                                                placeholder="Nome do time"
+                                                className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-2 text-white text-xs outline-none focus:border-purple-500"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Local</label>
+                                            <select
+                                                value={match.location || 'Mandante'}
+                                                onChange={(e) => {
+                                                    const newMatches = [...championshipMatchesForm];
+                                                    newMatches[index].location = e.target.value;
+                                                    setChampionshipMatchesForm(newMatches);
+                                                }}
+                                                className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-2 text-white text-xs outline-none focus:border-purple-500"
+                                            >
+                                                <option value="Mandante">Mandante</option>
+                                                <option value="Visitante">Visitante</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Campeonato</label>
+                                            <input
+                                                type="text"
+                                                value={match.competition}
+                                                readOnly
+                                                className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-2 text-zinc-500 text-xs outline-none cursor-not-allowed"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Meta de Pontuação</label>
+                                            <input
+                                                type="text"
+                                                value={match.scoreTarget || ''}
+                                                onChange={(e) => {
+                                                    const newMatches = [...championshipMatchesForm];
+                                                    newMatches[index].scoreTarget = e.target.value;
+                                                    setChampionshipMatchesForm(newMatches);
+                                                }}
+                                                placeholder="Ex: Vencer por 2 gols"
+                                                className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-2 text-white text-xs outline-none focus:border-purple-500"
+                                            />
+                                        </div>
+                                    </div>
+                                    {championshipMatchesForm.length > 1 && (
+                                        <button
+                                            onClick={() => {
+                                                const newMatches = championshipMatchesForm.filter((_, i) => i !== index);
+                                                setChampionshipMatchesForm(newMatches);
+                                            }}
+                                            className="mt-2 text-red-400 hover:text-red-300 text-xs font-bold uppercase"
+                                        >
+                                            Remover
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                            
+                            <button
+                                onClick={handleAddChampionshipMatch}
+                                className="w-full flex items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 font-bold uppercase text-xs rounded-xl transition-colors border border-zinc-700"
+                            >
+                                <Plus size={16} /> Adicionar Partida
+                            </button>
+                        </div>
+                        
+                        <div className="flex gap-2 mt-6">
+                            <button
+                                onClick={handleSaveChampionshipMatches}
+                                className="flex-1 flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 font-bold uppercase text-xs rounded-xl transition-colors"
+                            >
+                                <Save size={16} /> Salvar Todas as Partidas
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShowChampionshipMatchesForm(false);
+                                    setChampionshipMatchesForm([]);
+                                    setCurrentChampionshipId(null);
+                                }}
+                                className="bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-3 font-bold uppercase text-xs rounded-xl transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            
+            {/* Modal de Importação */}
+            {showImportModal && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-white font-black text-xl uppercase flex items-center gap-2">
+                                <Upload className="text-blue-500" size={24} /> Importar Tabela
+                            </h3>
+                            <button
+                                onClick={() => {
+                                    setShowImportModal(false);
+                                    setImportData('');
+                                }}
+                                className="text-zinc-400 hover:text-white transition-colors"
+                            >
+                                <X size={24} />
+                            </button>
+                        </div>
+                        
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">
+                                    Cole os dados da tabela (formato TSV/CSV)
+                                </label>
+                                <p className="text-zinc-400 text-xs mb-2">
+                                    Formato esperado: Data | Hora | Adversário | Campeonato (separados por tabulação ou vírgula)
+                                </p>
+                                <textarea
+                                    value={importData}
+                                    onChange={(e) => setImportData(e.target.value)}
+                                    placeholder="Exemplo:&#10;2024-01-15	20:00	Time A	Copa Santa Catarina&#10;2024-01-22	20:00	Time B	Copa Santa Catarina"
+                                    className="w-full bg-black border border-zinc-700 rounded-lg p-3 text-white text-sm outline-none focus:border-blue-500 font-mono h-48"
+                                />
+                            </div>
+                            
+                            <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-4">
+                                <p className="text-zinc-400 text-xs">
+                                    <strong className="text-white">Dica:</strong> Você pode copiar dados de uma planilha Excel e colar aqui. 
+                                    O sistema tentará identificar automaticamente as colunas de Data, Hora, Adversário e Campeonato.
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <div className="flex gap-2 mt-6">
+                            <button
+                                onClick={handleImportData}
+                                className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 font-bold uppercase text-xs rounded-xl transition-colors"
+                            >
+                                <Upload size={16} /> Importar Dados
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShowImportModal(false);
+                                    setImportData('');
+                                }}
+                                className="bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-3 font-bold uppercase text-xs rounded-xl transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

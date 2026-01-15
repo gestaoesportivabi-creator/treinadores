@@ -1,4 +1,89 @@
-import { Player, MatchRecord, SportConfig, InjuryRecord, TrainingSession, PhysicalAssessment } from './types';
+import { Player, MatchRecord, SportConfig, InjuryRecord, TrainingSession, PhysicalAssessment, LoadType } from './types';
+
+// Exercise Types
+export interface Exercise {
+  id: string;
+  name: string;
+  category: string;
+  defaultLoadType: LoadType;
+}
+
+export const EXERCISE_CATEGORIES = [
+  'Peito',
+  'Costas',
+  'Pernas',
+  'Ombros',
+  'Braços',
+  'Core',
+  'Cardio'
+];
+
+export const EXERCISES: Exercise[] = [
+  // Peito
+  { id: 'supino-reto', name: 'Supino Reto', category: 'Peito', defaultLoadType: 'Kg' },
+  { id: 'supino-inclinado', name: 'Supino Inclinado', category: 'Peito', defaultLoadType: 'Kg' },
+  { id: 'supino-declinado', name: 'Supino Declinado', category: 'Peito', defaultLoadType: 'Kg' },
+  { id: 'supino-halteres', name: 'Supino com Halteres', category: 'Peito', defaultLoadType: 'Kg' },
+  { id: 'crucifixo', name: 'Crucifixo', category: 'Peito', defaultLoadType: 'Kg' },
+  { id: 'flexao-braco', name: 'Flexão de Braço', category: 'Peito', defaultLoadType: 'Repetições' },
+  { id: 'paralelas', name: 'Paralelas', category: 'Peito', defaultLoadType: 'Repetições' },
+  
+  // Costas
+  { id: 'barra-fixa', name: 'Barra Fixa', category: 'Costas', defaultLoadType: 'Repetições' },
+  { id: 'puxada-frente', name: 'Puxada Frontal', category: 'Costas', defaultLoadType: 'Kg' },
+  { id: 'puxada-costas', name: 'Puxada Atrás', category: 'Costas', defaultLoadType: 'Kg' },
+  { id: 'remada-curvada', name: 'Remada Curvada', category: 'Costas', defaultLoadType: 'Kg' },
+  { id: 'remada-sentado', name: 'Remada Sentado', category: 'Costas', defaultLoadType: 'Kg' },
+  { id: 'remada-unilateral', name: 'Remada Unilateral', category: 'Costas', defaultLoadType: 'Kg' },
+  { id: 'serrote', name: 'Serrote', category: 'Costas', defaultLoadType: 'Kg' },
+  { id: 'puxada-alta', name: 'Puxada Alta', category: 'Costas', defaultLoadType: 'Kg' },
+  
+  // Pernas
+  { id: 'agachamento', name: 'Agachamento', category: 'Pernas', defaultLoadType: 'Kg' },
+  { id: 'agachamento-livre', name: 'Agachamento Livre', category: 'Pernas', defaultLoadType: 'Kg' },
+  { id: 'leg-press', name: 'Leg Press', category: 'Pernas', defaultLoadType: 'Kg' },
+  { id: 'extensora', name: 'Cadeira Extensora', category: 'Pernas', defaultLoadType: 'Kg' },
+  { id: 'flexora', name: 'Cadeira Flexora', category: 'Pernas', defaultLoadType: 'Kg' },
+  { id: 'stiff', name: 'Stiff', category: 'Pernas', defaultLoadType: 'Kg' },
+  { id: 'afundo', name: 'Afundo', category: 'Pernas', defaultLoadType: 'Kg' },
+  { id: 'elevacao-pelvica', name: 'Elevação Pélvica', category: 'Pernas', defaultLoadType: 'Kg' },
+  { id: 'agachamento-bulgaro', name: 'Agachamento Búlgaro', category: 'Pernas', defaultLoadType: 'Kg' },
+  { id: 'panturrilha', name: 'Panturrilha em Pé', category: 'Pernas', defaultLoadType: 'Kg' },
+  { id: 'panturrilha-sentado', name: 'Panturrilha Sentado', category: 'Pernas', defaultLoadType: 'Kg' },
+  
+  // Ombros
+  { id: 'desenvolvimento', name: 'Desenvolvimento', category: 'Ombros', defaultLoadType: 'Kg' },
+  { id: 'elevacao-lateral', name: 'Elevação Lateral', category: 'Ombros', defaultLoadType: 'Kg' },
+  { id: 'elevacao-frontal', name: 'Elevação Frontal', category: 'Ombros', defaultLoadType: 'Kg' },
+  { id: 'remada-alta', name: 'Remada Alta', category: 'Ombros', defaultLoadType: 'Kg' },
+  { id: 'crucifixo-invertido', name: 'Crucifixo Invertido', category: 'Ombros', defaultLoadType: 'Kg' },
+  { id: 'desenvolvimento-halteres', name: 'Desenvolvimento com Halteres', category: 'Ombros', defaultLoadType: 'Kg' },
+  
+  // Braços
+  { id: 'rosca-direta', name: 'Rosca Direta', category: 'Braços', defaultLoadType: 'Kg' },
+  { id: 'rosca-martelo', name: 'Rosca Martelo', category: 'Braços', defaultLoadType: 'Kg' },
+  { id: 'rosca-concentrada', name: 'Rosca Concentrada', category: 'Braços', defaultLoadType: 'Kg' },
+  { id: 'triceps-pulley', name: 'Tríceps Pulley', category: 'Braços', defaultLoadType: 'Kg' },
+  { id: 'triceps-frances', name: 'Tríceps Francês', category: 'Braços', defaultLoadType: 'Kg' },
+  { id: 'triceps-coice', name: 'Tríceps Coice', category: 'Braços', defaultLoadType: 'Kg' },
+  { id: 'triceps-paralela', name: 'Tríceps na Paralela', category: 'Braços', defaultLoadType: 'Repetições' },
+  { id: 'rosca-21', name: 'Rosca 21', category: 'Braços', defaultLoadType: 'Kg' },
+  
+  // Core
+  { id: 'abdominal', name: 'Abdominal', category: 'Core', defaultLoadType: 'Repetições' },
+  { id: 'prancha', name: 'Prancha', category: 'Core', defaultLoadType: 'Repetições' },
+  { id: 'abdominal-inverso', name: 'Abdominal Inverso', category: 'Core', defaultLoadType: 'Repetições' },
+  { id: 'russian-twist', name: 'Russian Twist', category: 'Core', defaultLoadType: 'Repetições' },
+  { id: 'mountain-climber', name: 'Mountain Climber', category: 'Core', defaultLoadType: 'Repetições' },
+  { id: 'abdominal-bicicleta', name: 'Abdominal Bicicleta', category: 'Core', defaultLoadType: 'Repetições' },
+  { id: 'leg-raise', name: 'Elevação de Pernas', category: 'Core', defaultLoadType: 'Repetições' },
+  
+  // Cardio
+  { id: 'esteira', name: 'Esteira', category: 'Cardio', defaultLoadType: 'Repetições' },
+  { id: 'bicicleta-ergometrica', name: 'Bicicleta Ergométrica', category: 'Cardio', defaultLoadType: 'Repetições' },
+  { id: 'eliptico', name: 'Elíptico', category: 'Cardio', defaultLoadType: 'Repetições' },
+  { id: 'remador', name: 'Remador', category: 'Cardio', defaultLoadType: 'Repetições' },
+];
 
 export const SPORT_CONFIGS: Record<string, SportConfig> = {
   futsal: {

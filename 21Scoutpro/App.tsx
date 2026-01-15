@@ -17,9 +17,12 @@ import { LoadingMessage } from './components/LoadingMessage';
 import { ChampionshipTable, ChampionshipMatch } from './components/ChampionshipTable';
 import { ScheduleAlerts } from './components/ScheduleAlerts';
 import { TabBackgroundWrapper } from './components/TabBackgroundWrapper';
+import { ManagementReport } from './components/ManagementReport';
+import { NextMatchAlert } from './components/NextMatchAlert';
+import { useTheme } from './contexts/ThemeContext';
 import { SPORT_CONFIGS } from './constants';
-import { Activity, BarChart3, Clock, Database, PlayCircle, ArrowRight, User as UserIcon, Quote, Trophy } from 'lucide-react';
-import { User, MatchRecord, Player, PhysicalAssessment, WeeklySchedule, StatTargets, PlayerTimeControl, Team } from './types';
+import { Activity, BarChart3, Clock, Database, PlayCircle, ArrowRight, User as UserIcon, Quote, Trophy, HeartPulse, FileText } from 'lucide-react';
+import { User, MatchRecord, Player, PhysicalAssessment, WeeklySchedule, StatTargets, PlayerTimeControl, Team, Championship } from './types';
 import { playersApi, matchesApi, assessmentsApi, schedulesApi, competitionsApi, statTargetsApi, timeControlsApi, championshipMatchesApi, teamsApi } from './services/api';
 
 const SLIDES = [
@@ -66,6 +69,8 @@ const SLIDES = [
 ];
 
 export default function App() {
+  const { isLight } = useTheme();
+  
   // Route state: 'landing' | 'login' | 'register' | 'app'
   const [currentRoute, setCurrentRoute] = useState<'landing' | 'login' | 'register' | 'app'>('landing');
   
@@ -85,6 +90,7 @@ export default function App() {
   const [competitions, setCompetitions] = useState<string[]>([]);
   const [timeControls, setTimeControls] = useState<PlayerTimeControl[]>([]);
   const [championshipMatches, setChampionshipMatches] = useState<ChampionshipMatch[]>([]);
+  const [championships, setChampionships] = useState<Championship[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   
   // Stats Targets State
@@ -218,6 +224,10 @@ export default function App() {
         setCompetitions(competitionsData.length > 0 ? competitionsData : []);
         // Teams: carregar equipes
         setTeams(teamsData);
+        
+        // Campeonatos: carregar do localStorage
+        const savedChampionships = JSON.parse(localStorage.getItem('championships') || '[]');
+        setChampionships(savedChampionships);
         
         // Stat targets (pegar o primeiro ou usar default)
         if (statTargetsData.length > 0 && statTargetsData[0]) {
@@ -750,6 +760,15 @@ export default function App() {
             <ChampionshipTable
             matches={championshipMatches}
             competitions={competitions}
+            championships={championships}
+            onSaveChampionship={(championship) => {
+              setChampionships(prev => {
+                const updated = prev.filter(c => c.id !== championship.id);
+                updated.push(championship);
+                localStorage.setItem('championships', JSON.stringify(updated));
+                return updated;
+              });
+            }}
             onSave={async (match) => {
               try {
                 if (match.id && championshipMatches.find(m => m.id === match.id)) {
@@ -784,8 +803,15 @@ export default function App() {
             onUseForInput={(match) => {
               // Navegar para Input de Dados e preencher automaticamente
               setActiveTab('table');
-              // Armazenar o match selecionado para uso no ScoutTable
-              (window as any).selectedChampionshipMatch = match;
+              // Armazenar o match selecionado para uso no ScoutTable com todos os dados
+              (window as any).selectedChampionshipMatch = {
+                date: match.date,
+                opponent: match.opponent,
+                competition: match.competition,
+                location: match.location,
+                scoreTarget: match.scoreTarget,
+                time: match.time
+              };
             }}
             onRefresh={async () => {
               try {
@@ -815,6 +841,7 @@ export default function App() {
             delete (window as any).selectedChampionshipMatch;
           }}
           championshipMatches={championshipMatches}
+          teams={teams}
             />
           </TabBackgroundWrapper>
         );
@@ -822,6 +849,17 @@ export default function App() {
         return (
           <TabBackgroundWrapper>
             <Academia />
+          </TabBackgroundWrapper>
+        );
+      case 'management-report':
+        return (
+          <TabBackgroundWrapper>
+            <ManagementReport 
+              players={players} 
+              matches={matches} 
+              assessments={assessments}
+              timeControls={timeControls}
+            />
           </TabBackgroundWrapper>
         );
       case 'settings':
@@ -840,7 +878,7 @@ export default function App() {
       case 'dashboard':
       default:
         return (
-          <div className="h-full w-full relative rounded-3xl overflow-hidden flex flex-col p-8 md:p-16 group shadow-2xl border border-zinc-900 bg-black animate-fade-in">
+          <div className={`h-full w-full relative rounded-3xl overflow-hidden flex flex-col p-8 md:p-16 group shadow-2xl border ${isLight ? 'border-zinc-200 bg-white' : 'border-zinc-900 bg-black'} animate-fade-in`}>
             {/* Background Carousel */}
             {SLIDES.map((slide, index) => (
                 <div 
@@ -863,6 +901,7 @@ export default function App() {
                 
                 {/* Schedule Alerts - Top Section */}
                 <div className="flex-1 overflow-y-auto">
+                    <NextMatchAlert matches={championshipMatches} />
                     <ScheduleAlerts schedules={schedules} />
                 </div>
                 
@@ -879,10 +918,10 @@ export default function App() {
 
                 {/* Quote Carousel Text */}
                 <div className="mb-8 min-h-[200px] flex flex-col justify-end">
-                     <h1 className="text-4xl md:text-5xl lg:text-7xl font-black text-white leading-[1.1] tracking-tighter drop-shadow-2xl italic uppercase mb-6 animate-fade-in-up transition-all duration-700">
+                     <h1 className={`text-4xl md:text-5xl lg:text-7xl font-black ${isLight ? 'text-gray-900' : 'text-white'} leading-[1.1] tracking-tighter drop-shadow-2xl italic uppercase mb-6 animate-fade-in-up transition-all duration-700`}>
                         "{SLIDES[currentSlide].quote}"
                     </h1>
-                    <p className="text-zinc-400 font-bold text-lg uppercase tracking-widest flex items-center gap-2 animate-fade-in">
+                    <p className={`${isLight ? 'text-gray-600' : 'text-zinc-400'} font-bold text-lg uppercase tracking-widest flex items-center gap-2 animate-fade-in`}>
                         — {SLIDES[currentSlide].author}
                     </p>
                 </div>
@@ -892,13 +931,14 @@ export default function App() {
                     {SLIDES.map((_, idx) => (
                         <div 
                             key={idx} 
-                            className={`h-1 rounded-full transition-all duration-500 ${idx === currentSlide ? 'w-12 bg-[#00f0ff]' : 'w-4 bg-zinc-800'}`}
+                            className={`h-1 rounded-full transition-all duration-500 ${idx === currentSlide ? 'w-12 bg-[#00f0ff]' : isLight ? 'w-4 bg-gray-300' : 'w-4 bg-zinc-800'}`}
                         ></div>
                     ))}
                 </div>
 
                 {/* Quick Navigation - Modern Design with New Palette (65% opacity) */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* Performance → Scout Coletivo */}
                     <button 
                         onClick={() => handleTabChange('general')}
                         className="relative bg-[#00f0ff]/65 border border-[#00f0ff]/40 p-6 rounded-2xl text-left hover:bg-[#00f0ff]/75 hover:border-[#00f0ff]/60 transition-all group/btn overflow-hidden shadow-lg hover:shadow-xl hover:shadow-[#00f0ff]/40 backdrop-blur-sm"
@@ -909,37 +949,39 @@ export default function App() {
                             <BarChart3 className="text-black mb-4 group-hover/btn:scale-110 group-hover/btn:rotate-3 transition-all duration-300 drop-shadow-lg" size={32} />
                             <h3 className="text-black font-black uppercase text-sm tracking-wider drop-shadow-md">Scout Coletivo</h3>
                             <div className="flex items-center gap-2 text-[10px] text-black/80 font-bold uppercase mt-2">
-                                Análise Tática <ArrowRight size={12} className="group-hover/btn:translate-x-2 transition-transform duration-300" />
+                                Performance <ArrowRight size={12} className="group-hover/btn:translate-x-2 transition-transform duration-300" />
                             </div>
                         </div>
                     </button>
 
+                    {/* Fisiologia → Bem-Estar */}
                     <button 
-                        onClick={() => handleTabChange('ranking')}
-                        className="relative bg-[#3b82f6]/65 border border-[#3b82f6]/40 p-6 rounded-2xl text-left hover:bg-[#3b82f6]/75 hover:border-[#3b82f6]/60 transition-all group/btn overflow-hidden shadow-lg hover:shadow-xl hover:shadow-[#3b82f6]/40 backdrop-blur-sm"
+                        onClick={() => handleTabChange('assessment')}
+                        className="relative bg-[#10b981]/65 border border-[#10b981]/40 p-6 rounded-2xl text-left hover:bg-[#10b981]/75 hover:border-[#10b981]/60 transition-all group/btn overflow-hidden shadow-lg hover:shadow-xl hover:shadow-[#10b981]/40 backdrop-blur-sm"
                     >
-                        <div className="absolute inset-0 bg-gradient-to-br from-[#3b82f6]/65 via-[#3b82f6]/50 to-[#3b82f6]/80 opacity-0 group-hover/btn:opacity-100 transition-opacity duration-300"></div>
+                        <div className="absolute inset-0 bg-gradient-to-br from-[#10b981]/65 via-[#10b981]/50 to-[#10b981]/80 opacity-0 group-hover/btn:opacity-100 transition-opacity duration-300"></div>
                         <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl opacity-0 group-hover/btn:opacity-100 transition-opacity duration-500"></div>
                         <div className="relative z-10">
-                            <Trophy className="text-white mb-4 group-hover/btn:scale-110 group-hover/btn:rotate-3 transition-all duration-300 drop-shadow-lg" size={32} />
-                            <h3 className="text-white font-black uppercase text-sm tracking-wider drop-shadow-md">Ranking</h3>
+                            <HeartPulse className="text-white mb-4 group-hover/btn:scale-110 group-hover/btn:rotate-3 transition-all duration-300 drop-shadow-lg" size={32} />
+                            <h3 className="text-white font-black uppercase text-sm tracking-wider drop-shadow-md">Bem-Estar</h3>
                             <div className="flex items-center gap-2 text-[10px] text-white/90 font-bold uppercase mt-2">
-                                Destaques da Equipe <ArrowRight size={12} className="group-hover/btn:translate-x-2 transition-transform duration-300" />
+                                Fisiologia <ArrowRight size={12} className="group-hover/btn:translate-x-2 transition-transform duration-300" />
                             </div>
                         </div>
                     </button>
 
+                    {/* Gestão → Relatório Gerencial */}
                     <button 
-                         onClick={() => handleTabChange('individual')}
-                        className="relative bg-[#60a5fa]/65 border border-[#60a5fa]/40 p-6 rounded-2xl text-left hover:bg-[#60a5fa]/75 hover:border-[#60a5fa]/60 transition-all group/btn overflow-hidden shadow-lg hover:shadow-xl hover:shadow-[#60a5fa]/40 backdrop-blur-sm"
+                         onClick={() => handleTabChange('management-report')}
+                        className="relative bg-[#8b5cf6]/65 border border-[#8b5cf6]/40 p-6 rounded-2xl text-left hover:bg-[#8b5cf6]/75 hover:border-[#8b5cf6]/60 transition-all group/btn overflow-hidden shadow-lg hover:shadow-xl hover:shadow-[#8b5cf6]/40 backdrop-blur-sm"
                     >
-                        <div className="absolute inset-0 bg-gradient-to-br from-[#60a5fa]/65 via-[#60a5fa]/50 to-[#60a5fa]/80 opacity-0 group-hover/btn:opacity-100 transition-opacity duration-300"></div>
+                        <div className="absolute inset-0 bg-gradient-to-br from-[#8b5cf6]/65 via-[#8b5cf6]/50 to-[#8b5cf6]/80 opacity-0 group-hover/btn:opacity-100 transition-opacity duration-300"></div>
                         <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl opacity-0 group-hover/btn:opacity-100 transition-opacity duration-500"></div>
                         <div className="relative z-10">
-                            <UserIcon className="text-white mb-4 group-hover/btn:scale-110 group-hover/btn:rotate-3 transition-all duration-300 drop-shadow-lg" size={32} />
-                            <h3 className="text-white font-black uppercase text-sm tracking-wider drop-shadow-md">Performance Atletas</h3>
+                            <FileText className="text-white mb-4 group-hover/btn:scale-110 group-hover/btn:rotate-3 transition-all duration-300 drop-shadow-lg" size={32} />
+                            <h3 className="text-white font-black uppercase text-sm tracking-wider drop-shadow-md">Relatório Gerencial</h3>
                             <div className="flex items-center gap-2 text-[10px] text-white/90 font-bold uppercase mt-2">
-                                Dados Individuais <ArrowRight size={12} className="group-hover/btn:translate-x-2 transition-transform duration-300" />
+                                Gestão <ArrowRight size={12} className="group-hover/btn:translate-x-2 transition-transform duration-300" />
                             </div>
                         </div>
                     </button>
@@ -960,7 +1002,7 @@ export default function App() {
 
   // Rota 'app' - renderizar com Sidebar
   return (
-    <div className="flex min-h-screen bg-black text-zinc-100 font-sans">
+    <div className={`flex min-h-screen ${isLight ? 'bg-gray-50 text-gray-900' : 'bg-black text-zinc-100'} font-sans`}>
       <Sidebar 
         activeTab={activeTab} 
         setActiveTab={handleTabChange} 

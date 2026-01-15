@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Table, Printer, Plus, Trash2, Save, ChevronDown, ChevronUp, X, Minus, Clock, Goal, Shield, Zap, AlertTriangle, ArrowRightLeft, Target, Users, Activity, Gauge, Square, ArrowUpDown } from 'lucide-react';
-import { MatchRecord, MatchStats, Player, PlayerTimeControl } from '../types';
+import { MatchRecord, MatchStats, Player, PlayerTimeControl, Team } from '../types';
 import { timeControlsApi } from '../services/api';
 import { TimeSelectionModal } from './TimeSelectionModal';
 
@@ -88,12 +88,13 @@ interface ScoutTableProps {
     players: Player[];
     competitions: string[];
     matches?: MatchRecord[]; // Partidas salvas
-    initialData?: { date: string; opponent: string; competition: string }; // Dados iniciais da Tabela de Campeonato
+    initialData?: { date: string; opponent: string; competition: string; location?: string; scoreTarget?: string; time?: string }; // Dados iniciais da Tabela de Campeonato
     onInitialDataUsed?: () => void; // Callback quando dados iniciais forem usados
     championshipMatches?: ChampionshipMatch[]; // Partidas da tabela de campeonato
+    teams?: Team[]; // Equipes cadastradas
 }
 
-export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competitions, matches = [], initialData, onInitialDataUsed, championshipMatches = [] }) => {
+export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competitions, matches = [], initialData, onInitialDataUsed, championshipMatches = [], teams = [] }) => {
     // Debug: log initialData quando recebido
     useEffect(() => {
         if (initialData) {
@@ -105,17 +106,22 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
     // Estado para controlar quais partidas estão expandidas
     const [expandedMatches, setExpandedMatches] = useState<Set<string>>(new Set());
     const [isCreatingNew, setIsCreatingNew] = useState(true); // Começar criando nova partida
+    const [savedMatchId, setSavedMatchId] = useState<string | null>(null); // ID da partida salva
+    const [isViewMode, setIsViewMode] = useState(false); // Modo visualização (após salvar)
     
     // Header state for the Match Record - tudo neutro por padrão
     const [opponent, setOpponent] = useState('');
     const [competition, setCompetition] = useState(''); // Vazio por padrão
     const [location, setLocation] = useState(''); // Vazio por padrão (Mandante/Visitante/vazio)
+    const [scoreTarget, setScoreTarget] = useState(''); // Meta de pontuação esperada
     const [matchResult, setMatchResult] = useState<'Vitória' | 'Derrota' | 'Empate' | 'Sem informação'>('Sem informação');
     const [goalsConceded, setGoalsConceded] = useState<GoalConceded[]>([]); // Array de gols tomados com tempo e método
     const [goalsConcededSaved, setGoalsConcededSaved] = useState(false); // Flag para indicar se gols tomados foram salvos
     const [showGoalPeriodsList, setShowGoalPeriodsList] = useState(false); // Controlar exibição da lista de períodos de gol
     const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null); // Jogador selecionado para registrar estatísticas
     const [awaitingGoalPeriod, setAwaitingGoalPeriod] = useState<boolean>(false); // Controlar quando está aguardando seleção de período após clicar em GOL
+    const [awaitingGoalMethod, setAwaitingGoalMethod] = useState<boolean>(false); // Controlar quando está aguardando seleção de método após selecionar período
+    const [pendingGoalTime, setPendingGoalTime] = useState<string>(''); // Armazenar tempo do gol pendente
     
     // Estados para Entradas e Saídas (TimeControl integrado)
     const [timeControls, setTimeControls] = useState<PlayerTimeControl[]>([]);
@@ -228,6 +234,192 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
         }
     }, [entries.map(e => e.goals).join(','), goalsConceded.length]);
 
+    // Função para obter o próximo jogo programado
+    const getNextScheduledMatch = (): ChampionshipMatch | null => {
+        if (!championshipMatches || championshipMatches.length === 0) return null;
+        
+        const now = new Date();
+        const currentTime = now.getTime();
+        
+        // Filtrar partidas futuras
+        const futureMatches = championshipMatches.filter(match => {
+            if (!match.date || !match.time) return false;
+            
+            try {
+                const matchDateStr = match.date;
+                const matchTimeStr = match.time;
+                
+                // Parsear data (formato YYYY-MM-DD)
+                const [year, month, day] = matchDateStr.split('-').map(Number);
+                
+                // Parsear hora (formato HH:MM)
+                let hours = 0;
+                let minutes = 0;
+                
+                if (matchTimeStr.includes(':')) {
+                    const [h, m] = matchTimeStr.split(':').map(Number);
+                    hours = h || 0;
+                    minutes = m || 0;
+                } else {
+                    try {
+                        const timeDate = new Date(matchTimeStr);
+                        if (!isNaN(timeDate.getTime())) {
+                            hours = timeDate.getHours();
+                            minutes = timeDate.getMinutes();
+                        }
+                    } catch {
+                        hours = 20;
+                        minutes = 0;
+                    }
+                }
+                
+                const matchDateTime = new Date(year, month - 1, day, hours, minutes);
+                const matchTime = matchDateTime.getTime();
+                
+                return matchTime > currentTime;
+            } catch (error) {
+                console.warn('Erro ao processar data/hora da partida:', match, error);
+                return false;
+            }
+        });
+        
+        if (futureMatches.length === 0) return null;
+        
+        // Ordenar por data e hora (mais próxima primeiro)
+        futureMatches.sort((a, b) => {
+            try {
+                const dateA = new Date(a.date);
+                const dateB = new Date(b.date);
+                
+                if (dateA.getTime() !== dateB.getTime()) {
+                    return dateA.getTime() - dateB.getTime();
+                }
+                
+                // Se mesma data, ordenar por hora
+                const timeA = a.time || '00:00';
+                const timeB = b.time || '00:00';
+                
+                const [hA, mA] = timeA.split(':').map(Number);
+                const [hB, mB] = timeB.split(':').map(Number);
+                
+                const timeAValue = (hA || 0) * 60 + (mA || 0);
+                const timeBValue = (hB || 0) * 60 + (mB || 0);
+                
+                return timeAValue - timeBValue;
+            } catch {
+                return 0;
+            }
+        });
+        
+        return futureMatches[0];
+    };
+    
+    // Carregamento automático do próximo jogo programado
+    useEffect(() => {
+        // Só executar se não houver initialData (para não sobrescrever dados manualmente selecionados)
+        if (initialData) return;
+        
+        // Só executar se não houver dados já preenchidos
+        if (opponent.trim() !== '' || competition.trim() !== '') return;
+        
+        // Só executar se não estiver em modo visualização
+        if (isViewMode) return;
+        
+        // Só executar uma vez ao montar o componente (quando entries está vazio ou tem apenas entrada vazia)
+        const hasValidEntries = entries.some(e => e.athleteId && e.athleteId.trim() !== '');
+        if (hasValidEntries) return;
+        
+        const nextMatch = getNextScheduledMatch();
+        if (!nextMatch) return;
+        
+        console.log('✅ Carregando automaticamente próximo jogo:', nextMatch);
+        
+        // Preencher dados do próximo jogo
+        if (nextMatch.competition && nextMatch.competition.trim() !== '') {
+            setCompetition(nextMatch.competition);
+        }
+        
+        if (nextMatch.opponent && nextMatch.opponent.trim() !== '') {
+            setOpponent(nextMatch.opponent);
+        }
+        
+        if (nextMatch.location && nextMatch.location.trim() !== '') {
+            setLocation(nextMatch.location);
+        } else {
+            setLocation('Mandante');
+        }
+        
+        if (nextMatch.scoreTarget && nextMatch.scoreTarget.trim() !== '') {
+            setScoreTarget(nextMatch.scoreTarget);
+        }
+        
+        // Preencher data e hora
+        if (nextMatch.date) {
+            const newEntries = entries.length > 0 ? entries.map((entry, index) => ({
+                ...entry,
+                date: nextMatch.date,
+                id: index === 0 ? entry.id : Date.now().toString() + index
+            })) : [{
+                id: Date.now().toString(),
+                date: nextMatch.date,
+                athleteId: '',
+                athleteName: '',
+                jerseyNumber: '',
+                position: '',
+                status: 'Ativo' as const,
+                goals: 0,
+                goalTimes: [],
+                assists: 0,
+                passesCorrect: 0,
+                passesWrong: 0,
+                shotsOn: 0,
+                shotsOff: 0,
+                tacklesPossession: 0,
+                tacklesNoPossession: 0,
+                tacklesCounter: 0,
+                transitionError: 0,
+                card: 'Nenhum' as const,
+                rpe: 5,
+            }];
+            setEntries(newEntries);
+        }
+        
+        // Preencher atletas ativos
+        const activePlayers = players.filter(p => {
+            if ((p as any).status) {
+                return (p as any).status === 'Ativo';
+            }
+            return true;
+        });
+        
+        if (activePlayers.length > 0 && nextMatch.date) {
+            const newEntries = activePlayers.map((player, index) => ({
+                id: `${Date.now()}-auto-${index}`,
+                date: nextMatch.date,
+                athleteId: String(player.id).trim(),
+                athleteName: player.name,
+                jerseyNumber: player.jerseyNumber,
+                position: player.position,
+                status: 'Ativo' as const,
+                goals: 0,
+                goalTimes: [],
+                assists: 0,
+                passesCorrect: 0,
+                passesWrong: 0,
+                shotsOn: 0,
+                shotsOff: 0,
+                tacklesPossession: 0,
+                tacklesNoPossession: 0,
+                tacklesCounter: 0,
+                transitionError: 0,
+                card: 'Nenhum' as const,
+                rpe: 5,
+            }));
+            setEntries(newEntries);
+            setIsCreatingNew(true);
+        }
+    }, [championshipMatches, players, initialData, isViewMode]); // Executar quando championshipMatches ou players mudarem
+    
     // Preencher automaticamente quando initialData for fornecido (vindo da Tabela de Campeonato)
     useEffect(() => {
         if (initialData) {
@@ -246,7 +438,17 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                 setOpponent(initialData.opponent);
             }
             
-            setLocation('Mandante'); // Padrão
+            // Preencher location se disponível
+            if (initialData.location && initialData.location.trim() !== '') {
+                setLocation(initialData.location);
+            } else {
+                setLocation('Mandante'); // Padrão
+            }
+            
+            // Preencher scoreTarget se disponível
+            if (initialData.scoreTarget && initialData.scoreTarget.trim() !== '') {
+                setScoreTarget(initialData.scoreTarget);
+            }
             
             // Preencher data
             const formattedDate = initialData.date;
@@ -355,8 +557,15 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
             }
             
             // Preencher location apenas se não estiver preenchido
-            if (location.trim() === '') {
+            if (location.trim() === '' && matchingMatch.location) {
+                setLocation(matchingMatch.location);
+            } else if (location.trim() === '') {
                 setLocation('Mandante'); // Padrão apenas se location estiver vazio
+            }
+            
+            // Preencher scoreTarget se disponível
+            if (matchingMatch.scoreTarget && matchingMatch.scoreTarget.trim() !== '' && scoreTarget.trim() === '') {
+                setScoreTarget(matchingMatch.scoreTarget);
             }
             
             // Preencher atletas ativos se ainda não houver entries válidas
@@ -573,8 +782,12 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
 
     // Função para registrar estatística via botão (método dinâmico)
     const handleStatButtonClick = (statField: keyof ScoutEntry) => {
+        if (isViewMode) {
+            alert('A partida está salva e bloqueada para edição.');
+            return;
+        }
         if (!selectedPlayerId) {
-            alert('Selecione um jogador primeiro clicando na foto!');
+            alert('Selecione um jogador primeiro!');
             return;
         }
 
@@ -625,7 +838,7 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
 
     // Função para decrementar estatística específica
     const handleStatButtonDecrement = (statField: keyof ScoutEntry) => {
-        if (!selectedPlayerId) {
+        if (isViewMode || !selectedPlayerId) {
             return;
         }
 
@@ -640,8 +853,12 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
 
     // Função para registrar cartão (amarelo ou vermelho)
     const handleCardClick = (cardType: 'Amarelo' | 'Vermelho') => {
+        if (isViewMode) {
+            alert('A partida está salva e bloqueada para edição.');
+            return;
+        }
         if (!selectedPlayerId) {
-            alert('Selecione um jogador primeiro clicando na foto!');
+            alert('Selecione um jogador primeiro!');
             return;
         }
 
@@ -672,7 +889,7 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                 tacklesNoPossession: 0,
                 tacklesCounter: 0,
                 transitionError: 0,
-                card: cardType,
+                card: cardType === 'Amarelo' ? 'Amarelo' : 'Vermelho',
                 rpe: 5,
             };
             setEntries([...entries, newEntry]);
@@ -681,14 +898,22 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
             const newEntries = [...entries];
             const currentCard = newEntries[entryIndex].card;
             
-            // Lógica de cartões: Nenhum -> Amarelo -> Amarelo/Vermelho -> Vermelho
+            // Lógica de cartões com conversão automática de 2 amarelos = vermelho
             if (cardType === 'Amarelo') {
                 if (currentCard === 'Nenhum') {
                     newEntries[entryIndex].card = 'Amarelo';
                 } else if (currentCard === 'Amarelo') {
+                    // 2 amarelos = vermelho automático
                     newEntries[entryIndex].card = 'Amarelo/Amarelo/Vermelho';
-                } else if (currentCard === 'Amarelo/Vermelho') {
-                    // Já tem amarelo/vermelho, não muda
+                    alert(`⚠️ ${newEntries[entryIndex].athleteName} recebeu 2 cartões amarelos e foi automaticamente expulso!`);
+                } else if (currentCard === 'Amarelo/Vermelho' || currentCard === 'Amarelo/Amarelo/Vermelho') {
+                    // Já tem vermelho, não pode receber mais amarelos
+                    alert('Este jogador já foi expulso e não pode receber mais cartões.');
+                    return;
+                } else if (currentCard === 'Vermelho') {
+                    // Já tem vermelho direto, não pode receber amarelo
+                    alert('Este jogador já foi expulso e não pode receber mais cartões.');
+                    return;
                 } else {
                     newEntries[entryIndex].card = 'Amarelo';
                 }
@@ -697,6 +922,10 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                     newEntries[entryIndex].card = 'Vermelho';
                 } else if (currentCard === 'Amarelo') {
                     newEntries[entryIndex].card = 'Amarelo/Vermelho';
+                } else if (currentCard === 'Amarelo/Vermelho' || currentCard === 'Amarelo/Amarelo/Vermelho' || currentCard === 'Vermelho') {
+                    // Já tem vermelho, não pode receber mais
+                    alert('Este jogador já foi expulso e não pode receber mais cartões.');
+                    return;
                 } else {
                     newEntries[entryIndex].card = 'Vermelho';
                 }
@@ -709,6 +938,16 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
     // Função para registrar gol com período selecionado
     const handleGoalWithPeriod = (periodValue: string) => {
         if (!selectedPlayerId) return;
+
+        // Armazenar tempo e aguardar seleção de método
+        setPendingGoalTime(periodValue);
+        setAwaitingGoalPeriod(false);
+        setAwaitingGoalMethod(true);
+    };
+    
+    // Função para registrar gol com método selecionado
+    const handleGoalWithMethod = (method: string) => {
+        if (!selectedPlayerId || !pendingGoalTime) return;
 
         // Encontrar o índice do entry correspondente ao jogador selecionado
         let entryIndex = entries.findIndex(e => String(e.athleteId).trim() === String(selectedPlayerId).trim());
@@ -729,8 +968,8 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                 goals: 1,
                 goalTimes: [{
                     id: Date.now().toString(),
-                    time: periodValue,
-                    method: ''
+                    time: pendingGoalTime,
+                    method: method
                 }],
                 assists: 0,
                 passesCorrect: 0,
@@ -746,12 +985,12 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
             };
             setEntries([...entries, newEntry]);
         } else {
-            // Adicionar gol com período ao entry existente
+            // Adicionar gol com período e método ao entry existente
             const newEntries = [...entries];
             const newGoalTime: GoalTime = {
                 id: Date.now().toString(),
-                time: periodValue,
-                method: ''
+                time: pendingGoalTime,
+                method: method
             };
             newEntries[entryIndex].goalTimes = [...newEntries[entryIndex].goalTimes, newGoalTime];
             newEntries[entryIndex].goals = newEntries[entryIndex].goalTimes.length;
@@ -759,7 +998,8 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
         }
 
         // Voltar ao estado normal após registrar
-        setAwaitingGoalPeriod(false);
+        setAwaitingGoalMethod(false);
+        setPendingGoalTime('');
     };
 
     const addGoalTime = (index: number) => {
@@ -1021,8 +1261,15 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
     };
 
     const handleNewMatch = () => {
+        // Não permitir criar nova partida se estiver em modo visualização
+        if (isViewMode) {
+            alert('Não é possível criar nova partida. A partida salva está bloqueada para edição.');
+            return;
+        }
         setIsCreatingNew(true);
         setExpandedMatches(new Set());
+        setSavedMatchId(null);
+        setIsViewMode(false);
         // Reset form
         setOpponent('');
         setCompetition('');
@@ -1084,6 +1331,51 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
         if (goalsConceded.length > 0 && !goalsConcededSaved) {
             alert("Por favor, clique em 'Salvar Gols Tomados' antes de salvar a partida completa.");
             return;
+        }
+
+        // Verificar regras de suspensão do campeonato (avisos informativos)
+        const suspensionWarnings: string[] = [];
+        if (competition) {
+            // Carregar campeonatos do localStorage
+            const savedChampionships = JSON.parse(localStorage.getItem('championships') || '[]');
+            const championship = savedChampionships.find((c: any) => c.name === competition);
+            
+            if (championship && championship.suspensionRules) {
+                const rules = championship.suspensionRules;
+                
+                // Contar cartões por jogador nesta partida
+                entries.forEach(entry => {
+                    if (!entry.athleteId || !entry.athleteName) return;
+                    
+                    const yellowCards = entry.card.includes('Amarelo') ? 1 : 0;
+                    const redCards = entry.card.includes('Vermelho') ? 1 : 0;
+                    
+                    // Verificar se jogador recebeu cartão vermelho
+                    if (redCards > 0) {
+                        suspensionWarnings.push(
+                            `⚠️ ${entry.athleteName} recebeu cartão vermelho e será suspenso por ${rules.redCardSuspension} jogo(s)`
+                        );
+                    }
+                    
+                    // Verificar acumulação de amarelos (se houver histórico)
+                    // Nota: Para uma implementação completa, seria necessário rastrear histórico de cartões
+                    // Por enquanto, apenas avisar sobre cartões nesta partida
+                    if (yellowCards > 0 && rules.yellowCardsForSuspension) {
+                        const remaining = rules.yellowCardsForSuspension - yellowCards;
+                        if (remaining <= 1) {
+                            suspensionWarnings.push(
+                                `⚠️ ${entry.athleteName} está próximo da suspensão por acumulação de amarelos (${yellowCards}/${rules.yellowCardsForSuspension})`
+                            );
+                        }
+                    }
+                });
+            }
+        }
+        
+        // Mostrar avisos se houver (não bloqueia o salvamento)
+        if (suspensionWarnings.length > 0) {
+            const warningsText = suspensionWarnings.join('\n');
+            alert(`Avisos de Suspensão:\n\n${warningsText}\n\nVocê pode continuar salvando a partida.`);
         }
 
         if (!onSave) {
@@ -1293,7 +1585,9 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
         setCurrentMatchId(newMatch.id);
         loadTimeControls(newMatch.id);
         
-        // Fechar formulário de criação e mostrar partida salva
+        // Bloquear para edição após salvar
+        setSavedMatchId(newMatch.id);
+        setIsViewMode(true);
         setIsCreatingNew(false);
         setExpandedMatches(new Set([newMatch.id])); // Expandir a partida recém-salva
         
@@ -1339,6 +1633,54 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
         if (!dateStr) return '';
         const date = new Date(dateStr);
         return date.toLocaleDateString('pt-BR');
+    };
+    
+    // Calcular placar em tempo real
+    const totalGoalsScored = useMemo(() => {
+        return entries.reduce((sum, entry) => sum + entry.goals, 0);
+    }, [entries]);
+    
+    const totalGoalsConceded = goalsConceded.length;
+    const scoreDifference = totalGoalsScored - totalGoalsConceded;
+    
+    // Mensagem de status baseada no placar
+    const getScoreMessage = () => {
+        if (scoreDifference > 0) {
+            return { text: 'Vantagem', color: 'text-green-400', bgColor: 'bg-green-400/20', borderColor: 'border-green-400' };
+        } else if (scoreDifference === 0) {
+            return { text: 'Empatado', color: 'text-yellow-400', bgColor: 'bg-yellow-400/20', borderColor: 'border-yellow-400' };
+        } else {
+            return { text: 'Desvantagem', color: 'text-red-400', bgColor: 'bg-red-400/20', borderColor: 'border-red-400' };
+        }
+    };
+    
+    const scoreMessage = getScoreMessage();
+    const teamName = teams.length > 0 ? teams[0].nome : 'Nossa Equipe';
+    
+    // Funções auxiliares para verificar status do atleta
+    const isPlayerInjured = (player: Player): boolean => {
+        if (!player.injuryHistory || player.injuryHistory.length === 0) return false;
+        const now = new Date();
+        return player.injuryHistory.some(injury => {
+            if (!injury.endDate) return true; // Lesão sem data de fim = ativa
+            const endDate = new Date(injury.endDate);
+            return endDate > now; // Lesão com data futura = ativa
+        });
+    };
+    
+    const isPlayerSuspended = (playerId: string): boolean => {
+        const entry = entries.find(e => String(e.athleteId).trim() === String(playerId).trim());
+        if (!entry) return false;
+        // Suspenso se recebeu vermelho ou 2 amarelos
+        return entry.card.includes('Vermelho') || entry.card === 'Amarelo/Amarelo/Vermelho';
+    };
+    
+    const getYellowCardCount = (playerId: string): number => {
+        const entry = entries.find(e => String(e.athleteId).trim() === String(playerId).trim());
+        if (!entry) return 0;
+        if (entry.card === 'Amarelo') return 1;
+        if (entry.card === 'Amarelo/Vermelho' || entry.card === 'Amarelo/Amarelo/Vermelho') return 2;
+        return 0;
     };
 
     // Componente helper para botões de estatística
@@ -1423,9 +1765,58 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                 </div>
             )}
 
+            {/* Badge de Partida Salva */}
+            {isViewMode && savedMatchId && (
+                <div className="bg-green-500/20 border-2 border-green-500 rounded-xl p-4 mb-6">
+                    <div className="flex items-center justify-center gap-2">
+                        <Save className="text-green-400" size={20} />
+                        <span className="text-green-400 font-black text-sm uppercase">Partida Salva - Modo Visualização</span>
+                    </div>
+                    <p className="text-zinc-400 text-xs text-center mt-2">Esta partida está bloqueada para edição. Nenhuma alteração pode ser feita.</p>
+                </div>
+            )}
+            
             {/* Formulário de Nova Partida */}
             {isCreatingNew && (
                 <>
+                    {/* Placar Centralizado */}
+                    {opponent && (
+                        <div className="bg-gradient-to-r from-zinc-900 via-zinc-950 to-zinc-900 border-2 border-[#00f0ff]/30 rounded-3xl p-6 shadow-2xl mb-6">
+                            <div className="flex flex-col items-center justify-center">
+                                {/* Nomes das Equipes */}
+                                <div className="flex items-center justify-center gap-4 mb-4">
+                                    <div className="text-center">
+                                        <p className="text-zinc-400 text-xs font-bold uppercase mb-1">Nossa Equipe</p>
+                                        <p className="text-white text-xl font-black">{teamName}</p>
+                                    </div>
+                                    <div className="text-[#00f0ff] text-3xl font-black">X</div>
+                                    <div className="text-center">
+                                        <p className="text-zinc-400 text-xs font-bold uppercase mb-1">Adversário</p>
+                                        <p className="text-white text-xl font-black">{opponent}</p>
+                                    </div>
+                                </div>
+                                
+                                {/* Placar */}
+                                <div className="flex items-center justify-center gap-6 mb-4">
+                                    <div className="text-center">
+                                        <p className="text-zinc-500 text-xs font-bold uppercase mb-1">Gols Feitos</p>
+                                        <p className="text-[#00f0ff] text-5xl font-black">{totalGoalsScored}</p>
+                                    </div>
+                                    <div className="text-zinc-600 text-2xl font-black">-</div>
+                                    <div className="text-center">
+                                        <p className="text-zinc-500 text-xs font-bold uppercase mb-1">Gols Tomados</p>
+                                        <p className="text-red-400 text-5xl font-black">{totalGoalsConceded}</p>
+                                    </div>
+                                </div>
+                                
+                                {/* Mensagem de Status */}
+                                <div className={`${scoreMessage.bgColor} ${scoreMessage.borderColor} border-2 rounded-xl px-6 py-2 ${scoreMessage.color} font-black text-sm uppercase`}>
+                                    {scoreMessage.text}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    
                     {/* Header / Controls */}
                     <div className="bg-black p-6 rounded-3xl border border-zinc-900 shadow-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-4 print:hidden">
                 <div className="flex-1">
@@ -1455,11 +1846,44 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                         {awaitingGoalPeriod && (
                             <div className="mt-2 text-center">
                                 <button
-                                    onClick={() => setAwaitingGoalPeriod(false)}
+                                    onClick={() => {
+                                        setAwaitingGoalPeriod(false);
+                                        setPendingGoalTime('');
+                                    }}
                                     className="text-zinc-400 hover:text-white text-[9px] font-bold uppercase"
                                 >
                                     Cancelar
                                 </button>
+                            </div>
+                        )}
+                        {awaitingGoalMethod && (
+                            <div className="mt-4 p-4 bg-zinc-900 border border-[#ccff00] rounded-xl">
+                                <p className="text-[#ccff00] text-xs font-bold uppercase mb-3 text-center">
+                                    Selecione o método do gol:
+                                </p>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                    {GOAL_METHODS.map(method => (
+                                        <button
+                                            key={method}
+                                            onClick={() => handleGoalWithMethod(method)}
+                                            className="bg-[#ccff00] hover:bg-[#ccff00]/80 text-black font-bold uppercase text-xs py-2 px-3 rounded-lg transition-all"
+                                        >
+                                            {method}
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className="mt-3 text-center">
+                                    <button
+                                        onClick={() => {
+                                            handleGoalWithMethod('');
+                                            setAwaitingGoalMethod(false);
+                                            setPendingGoalTime('');
+                                        }}
+                                        className="text-zinc-400 hover:text-white text-xs font-bold uppercase"
+                                    >
+                                        Sem método / Cancelar
+                                    </button>
+                                </div>
                             </div>
                         )}
                     </div>
@@ -1471,7 +1895,8 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                         <select 
                             value={competition} 
                             onChange={(e) => setCompetition(e.target.value)}
-                            className="bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-white text-xs outline-none focus:border-[#00f0ff] uppercase"
+                            disabled={isViewMode}
+                            className="bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-white text-xs outline-none focus:border-[#00f0ff] uppercase disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <option value="">Selecione...</option>
                             {competitions.map((c, i) => <option key={i} value={c}>{c}</option>)}
@@ -1482,7 +1907,8 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                         <select 
                             value={location} 
                             onChange={(e) => setLocation(e.target.value)}
-                            className="bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-white text-xs outline-none focus:border-[#00f0ff] uppercase"
+                            disabled={isViewMode}
+                            className="bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-white text-xs outline-none focus:border-[#00f0ff] uppercase disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <option value="">Selecione...</option>
                             <option value="Mandante">Mandante</option>
@@ -1496,7 +1922,8 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                             value={opponent} 
                             onChange={(e) => setOpponent(e.target.value)}
                             placeholder="Nome do Time"
-                            className="bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-white text-xs outline-none focus:border-[#00f0ff]"
+                            disabled={isViewMode}
+                            className="bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-white text-xs outline-none focus:border-[#00f0ff] disabled:opacity-50 disabled:cursor-not-allowed"
                         />
                     </div>
                      <div className="flex flex-col">
@@ -1504,7 +1931,8 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                         <select 
                             value={matchResult} 
                             onChange={(e) => setMatchResult(e.target.value as any)}
-                            className="bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-white text-xs outline-none focus:border-[#00f0ff]"
+                            disabled={isViewMode}
+                            className="bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-white text-xs outline-none focus:border-[#00f0ff] disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <option value="Sem informação">Sem informação</option>
                             <option value="Vitória">Vitória</option>
@@ -1512,94 +1940,182 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                             <option value="Derrota">Derrota</option>
                         </select>
                     </div>
+                    <div className="flex flex-col">
+                        <label className="text-[10px] text-zinc-500 font-bold uppercase mb-1">Meta de Pontuação</label>
+                        <input
+                            type="text"
+                            value={scoreTarget}
+                            onChange={(e) => setScoreTarget(e.target.value)}
+                            placeholder="Ex: Vencer por 2 gols"
+                            disabled={isViewMode}
+                            className="bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-white text-xs outline-none focus:border-[#00f0ff] disabled:opacity-50 disabled:cursor-not-allowed"
+                        />
+                    </div>
 
                     <div className="flex gap-2">
                         {isCreatingNew ? (
                             <>
                                 <button 
-                                    onClick={addRow}
-                                    className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 font-bold uppercase text-xs rounded-xl transition-colors h-[34px]"
-                                >
-                                    <Plus size={16} /> <span className="hidden sm:inline">Add Linha</span>
-                                </button>
-                                <button 
                                     onClick={handleSave}
-                                    className="flex items-center gap-2 bg-green-500 hover:bg-green-400 text-black px-4 py-2 font-bold uppercase text-xs rounded-xl transition-colors h-[34px] shadow-[0_0_15px_rgba(34,197,94,0.3)]"
+                                    disabled={isViewMode}
+                                    className="flex items-center gap-2 bg-green-500 hover:bg-green-400 disabled:bg-zinc-800 disabled:opacity-50 text-black disabled:text-zinc-500 px-4 py-2 font-bold uppercase text-xs rounded-xl transition-colors h-[34px] shadow-[0_0_15px_rgba(34,197,94,0.3)] disabled:shadow-none"
                                 >
                                     <Save size={16} /> Salvar no Sistema
                                 </button>
                             </>
-                        ) : (
-                            <button 
-                                onClick={handleNewMatch}
-                                className="flex items-center gap-2 bg-[#00f0ff] hover:bg-[#60a5fa] text-black px-4 py-2 font-bold uppercase text-xs rounded-xl transition-colors h-[34px]"
-                            >
-                                <Plus size={16} /> Nova Partida
-                            </button>
-                        )}
+                        ) : null}
                     </div>
                 </div>
             </div>
 
-            {/* Interface Dinâmica - Grid de Jogadores + Botões de Estatísticas */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Grid de Jogadores (Lado Esquerdo) */}
+            {/* Interface Dinâmica - Atletas Fixos + Estatísticas */}
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                {/* Lista Fixa de Atletas (Lado Esquerdo) */}
                 <div className="lg:col-span-1 bg-black rounded-3xl border border-zinc-900 p-4">
                     <h3 className="text-white font-bold uppercase text-sm mb-4 flex items-center gap-2">
-                        <Users size={16} className="text-[#00f0ff]" /> Selecionar Jogador
+                        <Users size={16} className="text-[#00f0ff]" /> Atletas
                     </h3>
-                    <div className="grid grid-cols-2 gap-3 max-h-[600px] overflow-y-auto">
+                    <div className="space-y-3 max-h-[700px] overflow-y-auto">
                         {players.filter(p => (p as any).status === 'Ativo' || !(p as any).status).map(player => {
                             const entry = entries.find(e => String(e.athleteId).trim() === String(player.id).trim());
                             const isSelected = selectedPlayerId === String(player.id).trim();
+                            const isInjured = isPlayerInjured(player);
+                            const isSuspended = isPlayerSuspended(player.id);
+                            const yellowCards = getYellowCardCount(player.id);
+                            const isDisabled = isSuspended || isInjured;
                             
                             return (
-                                <button
+                                <div
                                     key={player.id}
-                                    onClick={() => setSelectedPlayerId(String(player.id).trim())}
-                                    className={`relative p-3 rounded-xl border-2 transition-all ${
+                                    className={`relative rounded-xl border-2 transition-all ${
                                         isSelected 
                                             ? 'border-[#00f0ff] bg-[#00f0ff]/10 shadow-[0_0_20px_rgba(0,240,255,0.5)]' 
-                                            : 'border-zinc-800 bg-zinc-950 hover:border-zinc-700'
-                                    }`}
+                                            : 'border-zinc-800 bg-zinc-950'
+                                    } ${isDisabled ? 'opacity-60' : ''}`}
                                 >
-                                    {/* Foto Grande do Jogador */}
-                                    <div className="w-20 h-20 mx-auto mb-2 rounded-full overflow-hidden border-2 border-zinc-700 bg-zinc-900">
-                                        {player.photoUrl ? (
-                                            <img src={player.photoUrl} alt={player.name} className="w-full h-full object-cover" />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-zinc-500 text-lg font-bold">
-                                                {player.name?.substring(0, 2).toUpperCase() || '??'}
-                                            </div>
-                                        )}
-                                    </div>
+                                    {/* Overlay cinza se suspenso */}
+                                    {isSuspended && (
+                                        <div className="absolute inset-0 bg-zinc-900/80 rounded-xl z-10 flex items-center justify-center">
+                                            <span className="text-red-400 font-black text-xs uppercase">Suspenso</span>
+                                        </div>
+                                    )}
                                     
-                                    {/* Nome e Número */}
-                                    <div className="text-center">
-                                        <p className="text-white font-bold text-xs truncate">{player.name}</p>
-                                        <p className="text-zinc-400 text-[10px]">#{player.jerseyNumber}</p>
-                                        
-                                        {/* Indicador de seleção */}
-                                        {isSelected && (
-                                            <div className="mt-1 text-[#00f0ff] text-[10px] font-bold">✓ SELECIONADO</div>
-                                        )}
-                                        
-                                        {/* Contadores rápidos */}
-                                        {entry && (
-                                            <div className="mt-1 flex items-center justify-center gap-1 text-[9px]">
-                                                {entry.goals > 0 && <span className="text-[#ccff00]">⚽{entry.goals}</span>}
-                                                {entry.assists > 0 && <span className="text-blue-400">🎯{entry.assists}</span>}
+                                    <div className="p-3">
+                                        {/* Foto e Identificação */}
+                                        <div className="flex items-center gap-3 mb-3">
+                                            <div className={`w-16 h-16 rounded-full overflow-hidden border-2 ${isSelected ? 'border-[#00f0ff]' : 'border-zinc-700'} bg-zinc-900 flex-shrink-0`}>
+                                                {player.photoUrl ? (
+                                                    <img src={player.photoUrl} alt={player.name} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center text-zinc-500 text-sm font-bold">
+                                                        {player.name?.substring(0, 2).toUpperCase() || '??'}
+                                                    </div>
+                                                )}
                                             </div>
-                                        )}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <p className="text-white font-bold text-sm truncate">{player.name}</p>
+                                                    {isInjured && (
+                                                        <span className="bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded uppercase">Lesionado</span>
+                                                    )}
+                                                    {isSuspended && (
+                                                        <span className="bg-orange-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded uppercase">Suspenso</span>
+                                                    )}
+                                                </div>
+                                                <p className="text-zinc-400 text-xs">#{player.jerseyNumber} • {player.position}</p>
+                                                {entry && (
+                                                    <div className="flex items-center gap-2 mt-1 text-[10px]">
+                                                        {entry.goals > 0 && <span className="text-[#ccff00] font-bold">⚽{entry.goals}</span>}
+                                                        {entry.assists > 0 && <span className="text-blue-400 font-bold">🎯{entry.assists}</span>}
+                                                        {yellowCards > 0 && <span className="text-yellow-400 font-bold">🟨{yellowCards}</span>}
+                                                        {entry.card.includes('Vermelho') && <span className="text-red-400 font-bold">🟥</span>}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                        
+                                        {/* Botões de Ação */}
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <button
+                                                onClick={() => {
+                                                    if (isDisabled || isViewMode) return;
+                                                    setSelectedPlayerId(String(player.id).trim());
+                                                    if (currentMatchId) {
+                                                        setTimeModalType('entry');
+                                                        setShowTimeModal(true);
+                                                    } else {
+                                                        alert('Salve a partida primeiro para registrar entradas.');
+                                                    }
+                                                }}
+                                                disabled={isDisabled || isViewMode}
+                                                className="bg-green-600 hover:bg-green-500 disabled:bg-zinc-800 disabled:opacity-50 text-white font-bold uppercase text-xs py-2 rounded-lg transition-all flex items-center justify-center gap-1"
+                                            >
+                                                <ArrowUpDown size={14} /> Entrada
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    if (isDisabled || isViewMode) return;
+                                                    setSelectedPlayerId(String(player.id).trim());
+                                                    if (currentMatchId) {
+                                                        setTimeModalType('exit');
+                                                        setShowTimeModal(true);
+                                                    } else {
+                                                        alert('Salve a partida primeiro para registrar saídas.');
+                                                    }
+                                                }}
+                                                disabled={isDisabled || isViewMode}
+                                                className="bg-red-600 hover:bg-red-500 disabled:bg-zinc-800 disabled:opacity-50 text-white font-bold uppercase text-xs py-2 rounded-lg transition-all flex items-center justify-center gap-1"
+                                            >
+                                                <ArrowUpDown size={14} /> Saída
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    if (isDisabled || isViewMode) return;
+                                                    setSelectedPlayerId(String(player.id).trim());
+                                                    handleCardClick('Amarelo');
+                                                }}
+                                                disabled={isDisabled || isViewMode}
+                                                className="bg-yellow-500 hover:bg-yellow-400 disabled:bg-zinc-800 disabled:opacity-50 text-black font-bold uppercase text-xs py-2 rounded-lg transition-all"
+                                            >
+                                                🟨 Amarelo
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    if (isDisabled || isViewMode) return;
+                                                    setSelectedPlayerId(String(player.id).trim());
+                                                    handleCardClick('Vermelho');
+                                                }}
+                                                disabled={isDisabled || isViewMode}
+                                                className="bg-red-600 hover:bg-red-500 disabled:bg-zinc-800 disabled:opacity-50 text-white font-bold uppercase text-xs py-2 rounded-lg transition-all"
+                                            >
+                                                🟥 Vermelho
+                                            </button>
+                                        </div>
+                                        
+                                        {/* Botão para selecionar e registrar estatísticas */}
+                                        <button
+                                            onClick={() => {
+                                                if (isViewMode) return;
+                                                setSelectedPlayerId(String(player.id).trim());
+                                            }}
+                                            disabled={isDisabled || isViewMode}
+                                            className={`w-full mt-2 py-2 rounded-lg font-bold uppercase text-xs transition-all ${
+                                                isSelected
+                                                    ? 'bg-[#00f0ff] text-black'
+                                                    : 'bg-zinc-800 hover:bg-zinc-700 text-white disabled:opacity-50'
+                                            }`}
+                                        >
+                                            {isSelected ? '✓ Selecionado' : 'Selecionar para Estatísticas'}
+                                        </button>
                                     </div>
-                                </button>
+                                </div>
                             );
                         })}
                     </div>
                 </div>
 
                 {/* Botões de Estatísticas (Lado Direito) */}
-                <div className="lg:col-span-2 bg-black rounded-3xl border border-zinc-900 p-6">
+                <div className="lg:col-span-3 bg-black rounded-3xl border border-zinc-900 p-6">
                     <h3 className="text-white font-bold uppercase text-sm mb-4 flex items-center gap-2">
                         <Target size={16} className="text-[#00f0ff]" /> Estatísticas
                         {selectedPlayerId && (

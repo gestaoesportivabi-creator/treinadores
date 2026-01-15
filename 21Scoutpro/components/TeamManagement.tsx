@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Player, Position, SportConfig, InjuryRecord, Team } from '../types';
-import { Shirt, Save, Plus, User, FileText, Edit2, ShieldAlert, Activity, ArrowRightLeft, Calendar, Clock, Upload, AlertTriangle, X, Users, Trash2 } from 'lucide-react';
+import { Player, Position, SportConfig, InjuryRecord, Team, MaxLoad, LoadType } from '../types';
+import { EXERCISES, EXERCISE_CATEGORIES } from '../constants';
+import { Shirt, Save, Plus, User, FileText, Edit2, ShieldAlert, Activity, ArrowRightLeft, Calendar, Clock, Upload, AlertTriangle, X, Users, Trash2, Dumbbell } from 'lucide-react';
 
 interface TeamManagementProps {
     players: Player[];
@@ -17,7 +18,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, teams, 
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editMode, setEditMode] = useState(false);
     const [editPlayerId, setEditPlayerId] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState<'profile' | 'status' | 'medical'>('profile');
+    const [activeTab, setActiveTab] = useState<'profile' | 'status' | 'medical' | 'maxLoad'>('profile');
     
     // Team States
     const [selectedTeamId, setSelectedTeamId] = useState<string>('');
@@ -37,6 +38,8 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, teams, 
     const [height, setHeight] = useState('');
     const [lastClub, setLastClub] = useState('');
     const [photoUrl, setPhotoUrl] = useState('');
+    const [birthDate, setBirthDate] = useState('');
+    const [cpf, setCpf] = useState('');
     
     // Status (Edit Only)
     const [isTransferred, setIsTransferred] = useState(false);
@@ -47,53 +50,47 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, teams, 
     
     // New Injury Form
     const [newInjuryType, setNewInjuryType] = useState('Muscular');
-    const [newInjuryLocation, setNewInjuryLocation] = useState('Coxa Posterior Direita');
+    const [newInjuryLocation, setNewInjuryLocation] = useState('Coxa Posterior');
     const [newInjurySide, setNewInjurySide] = useState<'Direito' | 'Esquerdo' | 'Bilateral' | 'N/A'>('Direito');
     const [newInjurySeverity, setNewInjurySeverity] = useState('Leve');
     const [newInjuryOrigin, setNewInjuryOrigin] = useState<'Treino' | 'Jogo' | 'Outros'>('Treino');
     const [newInjuryStart, setNewInjuryStart] = useState('');
     const [newInjuryEnd, setNewInjuryEnd] = useState('');
 
-    // Complete list of injury locations
+    // Max Load States
+    const [maxLoads, setMaxLoads] = useState<MaxLoad[]>([]);
+    const [isAddingMaxLoad, setIsAddingMaxLoad] = useState(false);
+    const [editingMaxLoadId, setEditingMaxLoadId] = useState<string | null>(null);
+    const [newMaxLoadCategory, setNewMaxLoadCategory] = useState('');
+    const [newMaxLoadExercise, setNewMaxLoadExercise] = useState('');
+    const [newMaxLoadType, setNewMaxLoadType] = useState<'Kg' | 'Repetições'>('Kg');
+    const [newMaxLoadValue, setNewMaxLoadValue] = useState('');
+
+    // Complete list of injury locations (sem indicações de lado - lado é tratado em campo separado)
     const INJURY_LOCATIONS = [
-        // Membros Inferiores - Direita
-        'Coxa Posterior Direita', 'Coxa Anterior Direita', 'Quadríceps Direito', 'Isquiostibiais Direito',
-        'Panturrilha Direita', 'Tornozelo Direito', 'Joelho Direito', 'Pé Direito', 
-        'Dedos Pé Direito', 'Calcâneo Direito', 'Metatarso Direito', 'Fêmur Direito',
-        'Tíbia Direita', 'Fíbula Direita', 'Glúteo Direito', 'Adutor Direito',
-        // Membros Inferiores - Esquerda
-        'Coxa Posterior Esquerda', 'Coxa Anterior Esquerda', 'Quadríceps Esquerdo', 'Isquiostibiais Esquerdo',
-        'Panturrilha Esquerda', 'Tornozelo Esquerdo', 'Joelho Esquerdo', 'Pé Esquerdo',
-        'Dedos Pé Esquerdo', 'Calcâneo Esquerdo', 'Metatarso Esquerdo', 'Fêmur Esquerdo',
-        'Tíbia Esquerda', 'Fíbula Esquerda', 'Glúteo Esquerdo', 'Adutor Esquerdo',
-        // Membros Superiores - Direita
-        'Ombro Direito', 'Braço Direito', 'Bíceps Braquial Direito', 'Tríceps Direito',
-        'Antebraço Direito', 'Punho Direito', 'Mão Direita', 'Dedos Mão Direita',
-        'Úmero Direito', 'Rádio Direito', 'Ulna Direita', 'Clavícula Direita',
-        'Escápula Direita',
-        // Membros Superiores - Esquerda
-        'Ombro Esquerdo', 'Braço Esquerdo', 'Bíceps Braquial Esquerdo', 'Tríceps Esquerdo',
-        'Antebraço Esquerdo', 'Punho Esquerdo', 'Mão Esquerda', 'Dedos Mão Esquerda',
-        'Úmero Esquerdo', 'Rádio Esquerdo', 'Ulna Esquerda', 'Clavícula Esquerda',
-        'Escápula Esquerda',
+        // Membros Inferiores
+        'Coxa Posterior', 'Coxa Anterior', 'Quadríceps', 'Isquiostibiais',
+        'Panturrilha', 'Tornozelo', 'Joelho', 'Pé', 
+        'Dedos do Pé', 'Calcâneo', 'Metatarso', 'Fêmur',
+        'Tíbia', 'Fíbula', 'Glúteo', 'Adutor',
+        // Membros Superiores
+        'Ombro', 'Braço', 'Bíceps Braquial', 'Tríceps',
+        'Antebraço', 'Punho', 'Mão', 'Dedos da Mão',
+        'Úmero', 'Rádio', 'Ulna', 'Clavícula',
+        'Escápula',
         // Tronco e Coluna
         'Tórax', 'Costas', 'Lombar', 'Coluna Cervical', 'Coluna Torácica',
-        'Coluna Lombar', 'Pescoço', 'Esternão', 'Costelas Direitas', 'Costelas Esquerda',
+        'Coluna Lombar', 'Pescoço', 'Esternão', 'Costelas',
         'Pelve', 'Sacro',
         // Cabeça e Face
         'Cabeça', 'Face', 'Mandíbula', 'Dentes', 'Nariz',
-        'Olho Direito', 'Olho Esquerdo', 'Orelha Direita', 'Orelha Esquerda',
-        // Ligamentos e Tendões - Joelho Direito
-        'Ligamento Cruzado Anterior Direito', 'Ligamento Cruzado Posterior Direito',
-        'Ligamento Colateral Medial Direito', 'Ligamento Colateral Lateral Direito',
-        'Menisco Direito',
-        // Ligamentos e Tendões - Joelho Esquerdo
-        'Ligamento Cruzado Anterior Esquerdo', 'Ligamento Cruzado Posterior Esquerdo',
-        'Ligamento Colateral Medial Esquerdo', 'Ligamento Colateral Lateral Esquerdo',
-        'Menisco Esquerdo',
+        'Olho', 'Orelha',
+        // Ligamentos e Tendões - Joelho
+        'Ligamento Cruzado Anterior', 'Ligamento Cruzado Posterior',
+        'Ligamento Colateral Medial', 'Ligamento Colateral Lateral',
+        'Menisco',
         // Tendões
-        'Tendão de Aquiles Direito', 'Tendão de Aquiles Esquerdo',
-        'Tendão Patelar Direito', 'Tendão Patelar Esquerdo',
+        'Tendão de Aquiles', 'Tendão Patelar',
         // Outros
         'Outros'
     ];
@@ -106,6 +103,41 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, teams, 
             setIsCreatingTeam(true);
         }
     }, [teams]);
+
+    // Função para validar CPF
+    const validateCPF = (cpf: string): boolean => {
+        // Remove formatação
+        const cleanCPF = cpf.replace(/\D/g, '');
+        
+        // Verifica se tem 11 dígitos
+        if (cleanCPF.length !== 11) return false;
+        
+        // Verifica se todos os dígitos são iguais (CPF inválido)
+        if (/^(\d)\1{10}$/.test(cleanCPF)) return false;
+        
+        // Validação dos dígitos verificadores
+        let sum = 0;
+        let remainder;
+        
+        // Valida primeiro dígito
+        for (let i = 1; i <= 9; i++) {
+            sum += parseInt(cleanCPF.substring(i - 1, i)) * (11 - i);
+        }
+        remainder = (sum * 10) % 11;
+        if (remainder === 10 || remainder === 11) remainder = 0;
+        if (remainder !== parseInt(cleanCPF.substring(9, 10))) return false;
+        
+        // Valida segundo dígito
+        sum = 0;
+        for (let i = 1; i <= 10; i++) {
+            sum += parseInt(cleanCPF.substring(i - 1, i)) * (12 - i);
+        }
+        remainder = (sum * 10) % 11;
+        if (remainder === 10 || remainder === 11) remainder = 0;
+        if (remainder !== parseInt(cleanCPF.substring(10, 11))) return false;
+        
+        return true;
+    };
 
     const resetForm = () => {
         setName('');
@@ -121,12 +153,21 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, teams, 
         setTransferDate('');
         setInjuryHistory([]);
         setNewInjuryType('Muscular');
-        setNewInjuryLocation('Coxa Posterior Direita');
+        setNewInjuryLocation('Coxa Posterior');
         setNewInjurySide('Direito');
         setNewInjurySeverity('Leve');
         setNewInjuryOrigin('Treino');
         setNewInjuryStart('');
         setNewInjuryEnd('');
+        setBirthDate('');
+        setCpf('');
+        setMaxLoads([]);
+        setIsAddingMaxLoad(false);
+        setEditingMaxLoadId(null);
+        setNewMaxLoadCategory('');
+        setNewMaxLoadExercise('');
+        setNewMaxLoadType('Kg');
+        setNewMaxLoadValue('');
         setEditPlayerId(null);
         setEditMode(false);
         setActiveTab('profile');
@@ -191,6 +232,39 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, teams, 
         }
     };
 
+    const handleUpdateTeamSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        
+        if (!editingTeamId || !teamName || teamName.trim().length === 0) {
+            alert('Nome da equipe é obrigatório');
+            return;
+        }
+
+        try {
+            const existingTeam = teams.find(t => t.id === editingTeamId);
+            if (!existingTeam) {
+                alert('Equipe não encontrada');
+                return;
+            }
+
+            const updatedTeam = await onUpdateTeam({
+                ...existingTeam,
+                nome: teamName.trim(),
+                categoria: teamCategory.trim() || undefined,
+            });
+
+            if (updatedTeam) {
+                alert('Equipe atualizada com sucesso!');
+                resetTeamForm();
+            } else {
+                alert('Erro ao atualizar equipe. Tente novamente.');
+            }
+        } catch (error) {
+            console.error('Erro ao atualizar equipe:', error);
+            alert('Erro ao atualizar equipe. Tente novamente.');
+        }
+    };
+
     const handleEditClick = (player: Player) => {
         setEditMode(true);
         setEditPlayerId(player.id);
@@ -208,6 +282,9 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, teams, 
         setIsTransferred(player.isTransferred || false);
         setTransferDate(player.transferDate || '');
         setInjuryHistory(player.injuryHistory || []);
+        setBirthDate(player.birthDate || '');
+        setCpf(player.cpf || '');
+        setMaxLoads(player.maxLoads || []);
         
         setIsFormOpen(true);
     };
@@ -271,6 +348,14 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, teams, 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         
+        // Validar CPF se preenchido
+        if (cpf && cpf.trim() !== '') {
+            if (!validateCPF(cpf)) {
+                alert('CPF inválido. Verifique os dígitos e tente novamente.');
+                return;
+            }
+        }
+        
         // Validar equipe selecionada (apenas ao criar, não ao editar)
         if (!editMode && !selectedTeamId) {
             if (teams.length === 0) {
@@ -319,6 +404,9 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, teams, 
             isTransferred: isTransferred,
             transferDate: isTransferred ? transferDate : undefined,
             injuryHistory: updatedInjuryHistory,
+            birthDate: birthDate || undefined,
+            cpf: cpf || undefined,
+            maxLoads: maxLoads.length > 0 ? maxLoads : undefined,
             equipeId: !editMode ? selectedTeamId : undefined
         };
 
@@ -645,6 +733,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, teams, 
                                 <button onClick={() => setActiveTab('profile')} className={`px-3 py-1 rounded-lg text-xs font-bold uppercase ${activeTab === 'profile' ? 'bg-zinc-800 text-white' : 'text-zinc-500'}`}>Perfil</button>
                                 <button onClick={() => setActiveTab('status')} className={`px-3 py-1 rounded-lg text-xs font-bold uppercase ${activeTab === 'status' ? 'bg-zinc-800 text-white' : 'text-zinc-500'}`}>Status</button>
                                 <button onClick={() => setActiveTab('medical')} className={`px-3 py-1 rounded-lg text-xs font-bold uppercase ${activeTab === 'medical' ? 'bg-zinc-800 text-white' : 'text-zinc-500'}`}>Médico</button>
+                                <button onClick={() => setActiveTab('maxLoad')} className={`px-3 py-1 rounded-lg text-xs font-bold uppercase ${activeTab === 'maxLoad' ? 'bg-zinc-800 text-white' : 'text-zinc-500'}`}>Carga Máxima</button>
                             </div>
                         )}
                     </div>
@@ -724,6 +813,53 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, teams, 
                                 <div>
                                     <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Idade</label>
                                     <input required type="number" value={age} onChange={e => setAge(e.target.value)} className="w-full bg-black border border-zinc-800 rounded-xl p-3 text-white outline-none focus:border-[#10b981]" placeholder="Anos" />
+                                </div>
+
+                                <div>
+                                    <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Data de Nascimento</label>
+                                    <input 
+                                        type="date" 
+                                        value={birthDate} 
+                                        onChange={e => {
+                                            setBirthDate(e.target.value);
+                                            // Calcular idade automaticamente se data fornecida
+                                            if (e.target.value) {
+                                                const birth = new Date(e.target.value);
+                                                const today = new Date();
+                                                let calculatedAge = today.getFullYear() - birth.getFullYear();
+                                                const monthDiff = today.getMonth() - birth.getMonth();
+                                                if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+                                                    calculatedAge--;
+                                                }
+                                                if (calculatedAge > 0 && calculatedAge < 100) {
+                                                    setAge(calculatedAge.toString());
+                                                }
+                                            }
+                                        }} 
+                                        max={new Date().toISOString().split('T')[0]}
+                                        className="w-full bg-black border border-zinc-800 rounded-xl p-3 text-white outline-none focus:border-[#10b981]" 
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">CPF</label>
+                                    <input 
+                                        type="text" 
+                                        value={cpf} 
+                                        onChange={e => {
+                                            // Aplicar máscara de CPF
+                                            let value = e.target.value.replace(/\D/g, '');
+                                            if (value.length <= 11) {
+                                                value = value.replace(/(\d{3})(\d)/, '$1.$2');
+                                                value = value.replace(/(\d{3})(\d)/, '$1.$2');
+                                                value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+                                                setCpf(value);
+                                            }
+                                        }}
+                                        placeholder="000.000.000-00"
+                                        maxLength={14}
+                                        className="w-full bg-black border border-zinc-800 rounded-xl p-3 text-white outline-none focus:border-[#10b981]" 
+                                    />
                                 </div>
 
                                 <div>
@@ -867,6 +1003,263 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, teams, 
                                                 ))}
                                             </tbody>
                                         </table>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* TAB: MAX LOAD */}
+                        {activeTab === 'maxLoad' && (
+                            <div className="space-y-6 animate-fade-in">
+                                {/* Botão Adicionar Exercício */}
+                                {!isAddingMaxLoad && !editingMaxLoadId && (
+                                    <div className="flex justify-start">
+                                        <button
+                                            onClick={() => setIsAddingMaxLoad(true)}
+                                            className="flex items-center gap-2 bg-[#10b981] hover:bg-[#34d399] text-white px-6 py-3 font-bold uppercase text-xs rounded-xl transition-colors shadow-[0_0_15px_rgba(16,185,129,0.4)]"
+                                        >
+                                            <Plus size={16} /> Adicionar Exercício
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* Formulário de Adicionar/Editar Carga Máxima */}
+                                {(isAddingMaxLoad || editingMaxLoadId) && (
+                                    <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <h4 className="text-white font-bold uppercase tracking-wider flex items-center gap-2">
+                                                <Dumbbell size={18} className="text-[#10b981]" />
+                                                {editingMaxLoadId ? 'Editar Carga Máxima' : 'Nova Carga Máxima'}
+                                            </h4>
+                                            <button
+                                                onClick={() => {
+                                                    setIsAddingMaxLoad(false);
+                                                    setEditingMaxLoadId(null);
+                                                    setNewMaxLoadCategory('');
+                                                    setNewMaxLoadExercise('');
+                                                    setNewMaxLoadType('Kg');
+                                                    setNewMaxLoadValue('');
+                                                }}
+                                                className="text-zinc-500 hover:text-white transition-colors"
+                                            >
+                                                <X size={18} />
+                                            </button>
+                                        </div>
+                                        
+                                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                            <div>
+                                                <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Categoria</label>
+                                                <select
+                                                    value={newMaxLoadCategory}
+                                                    onChange={(e) => {
+                                                        setNewMaxLoadCategory(e.target.value);
+                                                        setNewMaxLoadExercise(''); // Reset exercício ao mudar categoria
+                                                    }}
+                                                    className="w-full bg-black border border-zinc-700 rounded-lg p-2 text-white text-xs"
+                                                >
+                                                    <option value="">Selecione...</option>
+                                                    {EXERCISE_CATEGORIES.map(cat => (
+                                                        <option key={cat} value={cat}>{cat}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            
+                                            <div>
+                                                <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Exercício</label>
+                                                <select
+                                                    value={newMaxLoadExercise}
+                                                    onChange={(e) => {
+                                                        const exerciseId = e.target.value;
+                                                        const exercise = EXERCISES.find(ex => ex.id === exerciseId);
+                                                        if (exercise) {
+                                                            setNewMaxLoadExercise(exerciseId);
+                                                            setNewMaxLoadType(exercise.defaultLoadType);
+                                                        }
+                                                    }}
+                                                    disabled={!newMaxLoadCategory}
+                                                    className="w-full bg-black border border-zinc-700 rounded-lg p-2 text-white text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                    <option value="">Selecione...</option>
+                                                    {newMaxLoadCategory && EXERCISES
+                                                        .filter(ex => ex.category === newMaxLoadCategory)
+                                                        .sort((a, b) => a.name.localeCompare(b.name))
+                                                        .map(ex => (
+                                                            <option key={ex.id} value={ex.id}>{ex.name}</option>
+                                                        ))}
+                                                </select>
+                                            </div>
+                                            
+                                            <div>
+                                                <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Tipo de Carga</label>
+                                                <select
+                                                    value={newMaxLoadType}
+                                                    onChange={(e) => setNewMaxLoadType(e.target.value as LoadType)}
+                                                    className="w-full bg-black border border-zinc-700 rounded-lg p-2 text-white text-xs"
+                                                >
+                                                    <option value="Kg">Kg</option>
+                                                    <option value="Repetições">Repetições</option>
+                                                </select>
+                                            </div>
+                                            
+                                            <div>
+                                                <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Valor</label>
+                                                <input
+                                                    type="number"
+                                                    value={newMaxLoadValue}
+                                                    onChange={(e) => setNewMaxLoadValue(e.target.value)}
+                                                    placeholder={newMaxLoadType === 'Kg' ? 'Ex: 100' : 'Ex: 12'}
+                                                    className="w-full bg-black border border-zinc-700 rounded-lg p-2 text-white text-xs"
+                                                    min="0"
+                                                    step={newMaxLoadType === 'Kg' ? '0.5' : '1'}
+                                                />
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="flex gap-2 mt-4">
+                                            <button
+                                                onClick={() => {
+                                                    if (!newMaxLoadCategory || !newMaxLoadExercise || !newMaxLoadValue) {
+                                                        alert('Preencha todos os campos');
+                                                        return;
+                                                    }
+                                                    
+                                                    const exercise = EXERCISES.find(ex => ex.id === newMaxLoadExercise);
+                                                    if (!exercise) return;
+                                                    
+                                                    const value = parseFloat(newMaxLoadValue);
+                                                    if (isNaN(value) || value <= 0) {
+                                                        alert('Valor inválido');
+                                                        return;
+                                                    }
+                                                    
+                                                    if (editingMaxLoadId) {
+                                                        // Editar carga existente
+                                                        setMaxLoads(prev => prev.map(load => 
+                                                            load.id === editingMaxLoadId
+                                                                ? {
+                                                                    ...load,
+                                                                    exerciseId: newMaxLoadExercise,
+                                                                    exerciseName: exercise.name,
+                                                                    category: newMaxLoadCategory,
+                                                                    loadType: newMaxLoadType,
+                                                                    value: value,
+                                                                    date: new Date().toISOString().split('T')[0]
+                                                                }
+                                                                : load
+                                                        ));
+                                                        setEditingMaxLoadId(null);
+                                                    } else {
+                                                        // Adicionar nova carga
+                                                        const newLoad: MaxLoad = {
+                                                            id: `ml${Date.now()}`,
+                                                            exerciseId: newMaxLoadExercise,
+                                                            exerciseName: exercise.name,
+                                                            category: newMaxLoadCategory,
+                                                            loadType: newMaxLoadType,
+                                                            value: value,
+                                                            date: new Date().toISOString().split('T')[0]
+                                                        };
+                                                        setMaxLoads([...maxLoads, newLoad]);
+                                                    }
+                                                    
+                                                    // Reset form
+                                                    setIsAddingMaxLoad(false);
+                                                    setNewMaxLoadCategory('');
+                                                    setNewMaxLoadExercise('');
+                                                    setNewMaxLoadType('Kg');
+                                                    setNewMaxLoadValue('');
+                                                }}
+                                                className="flex-1 bg-[#10b981] hover:bg-[#34d399] text-white px-4 py-2 rounded-lg text-xs font-bold uppercase transition-colors"
+                                            >
+                                                {editingMaxLoadId ? 'Salvar Alterações' : 'Adicionar'}
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setIsAddingMaxLoad(false);
+                                                    setEditingMaxLoadId(null);
+                                                    setNewMaxLoadCategory('');
+                                                    setNewMaxLoadExercise('');
+                                                    setNewMaxLoadType('Kg');
+                                                    setNewMaxLoadValue('');
+                                                }}
+                                                className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg text-xs font-bold uppercase transition-colors"
+                                            >
+                                                Cancelar
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Lista de Cargas Máximas */}
+                                {maxLoads.length > 0 && (
+                                    <div className="bg-black border border-zinc-900 rounded-2xl overflow-hidden">
+                                        <table className="w-full text-left">
+                                            <thead className="bg-zinc-900 text-[10px] text-zinc-500 uppercase">
+                                                <tr>
+                                                    <th className="p-3">Categoria</th>
+                                                    <th className="p-3">Exercício</th>
+                                                    <th className="p-3">Tipo</th>
+                                                    <th className="p-3">Valor</th>
+                                                    <th className="p-3">Data</th>
+                                                    <th className="p-3 text-right">Ações</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="text-xs text-zinc-300 divide-y divide-zinc-900">
+                                                {maxLoads.map((load) => {
+                                                    const exercise = EXERCISES.find(ex => ex.id === load.exerciseId);
+                                                    return (
+                                                        <tr key={load.id}>
+                                                            <td className="p-3">{load.category}</td>
+                                                            <td className="p-3 font-bold">{load.exerciseName}</td>
+                                                            <td className="p-3">{load.loadType}</td>
+                                                            <td className="p-3 font-bold text-[#10b981]">
+                                                                {load.value} {load.loadType === 'Kg' ? 'kg' : 'rep'}
+                                                            </td>
+                                                            <td className="p-3 text-zinc-500">
+                                                                {load.date ? new Date(load.date).toLocaleDateString('pt-BR') : '-'}
+                                                            </td>
+                                                            <td className="p-3 text-right">
+                                                                <div className="flex justify-end gap-2">
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            setEditingMaxLoadId(load.id);
+                                                                            setIsAddingMaxLoad(false);
+                                                                            setNewMaxLoadCategory(load.category);
+                                                                            setNewMaxLoadExercise(load.exerciseId);
+                                                                            setNewMaxLoadType(load.loadType);
+                                                                            setNewMaxLoadValue(load.value.toString());
+                                                                        }}
+                                                                        className="text-blue-400 hover:text-blue-300 transition-colors"
+                                                                        title="Editar"
+                                                                    >
+                                                                        <Edit2 size={14} />
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            if (confirm('Tem certeza que deseja remover esta carga máxima?')) {
+                                                                                setMaxLoads(prev => prev.filter(l => l.id !== load.id));
+                                                                            }
+                                                                        }}
+                                                                        className="text-red-400 hover:text-red-300 transition-colors"
+                                                                        title="Remover"
+                                                                    >
+                                                                        <Trash2 size={14} />
+                                                                    </button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+
+                                {maxLoads.length === 0 && !isAddingMaxLoad && !editingMaxLoadId && (
+                                    <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-12 text-center">
+                                        <Dumbbell size={48} className="text-zinc-700 mx-auto mb-4" />
+                                        <p className="text-zinc-500 font-bold uppercase text-sm mb-2">Nenhuma carga máxima registrada</p>
+                                        <p className="text-zinc-600 text-xs mb-6">Adicione exercícios para registrar as cargas máximas do atleta</p>
                                     </div>
                                 )}
                             </div>

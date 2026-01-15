@@ -267,22 +267,34 @@ export const ScheduleAlerts: React.FC<ScheduleAlertsProps> = ({ schedules }) => 
                         const style = getActivityStyle(alert.activity);
                         
                         return (
-                            <div key={index} className={`${style.bgColor} border-l-4 ${style.borderColor} rounded-r-lg px-4 py-2 backdrop-blur-sm`}>
+                            <div 
+                                key={index} 
+                                className={`
+                                    ${style.bgColor} 
+                                    border-l-4 ${style.borderColor} 
+                                    rounded-r-lg px-4 py-3 
+                                    backdrop-blur-sm
+                                    shadow-lg
+                                    animate-pulse
+                                    transition-all duration-300
+                                    hover:shadow-xl
+                                `}
+                            >
                                 <div className="flex items-center gap-2 text-xs flex-wrap">
-                                    <Bell className={`w-3.5 h-3.5 ${style.textColor} flex-shrink-0`} />
-                                    <span className={`${style.textColor} font-semibold`}>
+                                    <Bell className={`w-4 h-4 ${style.textColor} flex-shrink-0 animate-pulse`} />
+                                    <span className={`${style.textColor} font-bold`}>
                                         {style.emoji} {alert.activity}
                                     </span>
-                                    {alert.location && <span className={`${style.textColorSecondary} text-[10px]`}>({alert.location})</span>}
-                                    <span className={style.textColorSecondary}>{formatTime(alert.time)}</span>
+                                    {alert.location && <span className={`${style.textColorSecondary} text-[10px] font-medium`}>({alert.location})</span>}
+                                    <span className={`${style.textColorSecondary} font-semibold`}>{formatTime(alert.time)}</span>
                                     {hoursUntil >= 0 && minutesUntil >= 0 && (
-                                        <span className={`${style.textColorSecondary} text-[10px]`}>
+                                        <span className={`${style.textColorSecondary} text-[10px] font-bold`}>
                                             {hoursUntil > 0 ? `${hoursUntil}h` : ''} {minutesUntil > 0 ? `${minutesUntil}min` : 'agora'}
                                         </span>
                                     )}
                                     <button
                                         onClick={() => handleDismiss(alertKey)}
-                                        className={`${style.textColorSecondary} hover:opacity-100 transition-colors ml-1 text-xs`}
+                                        className={`${style.textColorSecondary} hover:opacity-100 hover:text-white transition-colors ml-auto text-base font-bold leading-none`}
                                         title="Dispensar"
                                     >
                                         ×
@@ -300,14 +312,21 @@ export const ScheduleAlerts: React.FC<ScheduleAlertsProps> = ({ schedules }) => 
                     const firstEvent = todayEvents[0];
                     const style = getActivityStyle(firstEvent.activity);
                     return (
-                        <div className={`${style.bgColor} border-l-4 ${style.borderColor} rounded-r-lg px-4 py-2 backdrop-blur-sm`}>
+                        <div className={`
+                            ${style.bgColor} 
+                            border-l-4 ${style.borderColor} 
+                            rounded-r-lg px-4 py-3 
+                            backdrop-blur-sm
+                            shadow-md ${style.borderColor}/20
+                            transition-all duration-300
+                        `}>
                             <div className="flex items-center gap-2 text-xs flex-wrap">
-                                <CheckCircle className={`w-3.5 h-3.5 ${style.textColor} flex-shrink-0`} />
-                                <span className={`${style.textColor} font-semibold`}>
+                                <CheckCircle className={`w-4 h-4 ${style.textColor} flex-shrink-0`} />
+                                <span className={`${style.textColor} font-bold`}>
                                     Hoje o compromisso da nossa equipe é <span className="uppercase">{style.emoji} {firstEvent.activity}</span>
                                     {firstEvent.time && ` às ${formatTime(firstEvent.time)}`}
                                     {firstEvent.notes && (
-                                        <span className={`${style.textColorSecondary} italic ml-2`}>
+                                        <span className={`${style.textColorSecondary} italic ml-2 font-medium`}>
                                             • {firstEvent.notes}
                                         </span>
                                     )}

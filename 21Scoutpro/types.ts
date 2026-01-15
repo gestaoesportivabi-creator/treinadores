@@ -17,6 +17,20 @@ export interface ChampionshipMatch {
   team: string; // Nome da equipe
   opponent: string; // Nome do adversário
   competition: string; // Nome da competição
+  location?: string; // Mandante/Visitante
+  scoreTarget?: string; // Meta de pontuação esperada (texto livre)
+}
+
+export interface Championship {
+  id: string;
+  name: string;
+  phase?: string; // Fase da competição
+  suspensionRules: {
+    yellowCardsForSuspension: number; // Quantidade de amarelos para suspensão
+    redCardSuspension: number; // Jogos de suspensão por vermelho
+    yellowAccumulationSuspension: number; // Jogos de suspensão por acumulação de amarelos
+  };
+  createdAt?: string;
 }
 
 // Player Types
@@ -36,6 +50,19 @@ export interface InjuryRecord {
   daysOut?: number;
 }
 
+// Max Load Types
+export type LoadType = 'Kg' | 'Repetições';
+
+export interface MaxLoad {
+  id: string;
+  exerciseId: string;
+  exerciseName: string;
+  category: string;
+  loadType: LoadType;
+  value: number;
+  date?: string; // Data do registro YYYY-MM-DD
+}
+
 export interface Player {
   id: string;
   name: string;
@@ -50,6 +77,9 @@ export interface Player {
   isTransferred?: boolean;
   transferDate?: string;
   injuryHistory?: InjuryRecord[];
+  birthDate?: string; // YYYY-MM-DD
+  cpf?: string; // Formato: XXX.XXX.XXX-XX
+  maxLoads?: MaxLoad[];
 }
 
 // Match Types

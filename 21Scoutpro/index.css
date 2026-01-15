@@ -1,6 +1,57 @@
 /* Custom Styles */
 /* Tailwind is loaded via CDN in index.html, so @tailwind directives are not needed */
 
+/* Theme Variables */
+:root {
+  --bg-primary-dark: #000000;
+  --bg-secondary-dark: #09090b;
+  --text-primary-dark: #ffffff;
+  --text-secondary-dark: #a1a1aa;
+  --border-dark: #27272a;
+  
+  --bg-primary-light: #f8f9fa; /* Branco gelo */
+  --bg-secondary-light: #ffffff;
+  --text-primary-light: #1a1a1a;
+  --text-secondary-light: #52525b;
+  --border-light: #e4e4e7;
+}
+
+.theme-dark {
+  background-color: var(--bg-primary-dark);
+  color: var(--text-primary-dark);
+}
+
+.theme-light {
+  background-color: var(--bg-primary-light);
+  color: var(--text-primary-light);
+}
+
+/* Custom Scrollbar - Dark Theme */
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #09090b;
+}
+
+.theme-light .custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #27272a;
+  border-radius: 4px;
+}
+
+.theme-light .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #3f3f46;
+}
+
+.theme-light .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
 /* Animations */
 @keyframes fade-in {
   from {
