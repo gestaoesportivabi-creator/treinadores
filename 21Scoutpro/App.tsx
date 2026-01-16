@@ -761,6 +761,7 @@ export default function App() {
             matches={championshipMatches}
             competitions={competitions}
             championships={championships}
+            allMatches={matches}
             onSaveChampionship={(championship) => {
               setChampionships(prev => {
                 const updated = prev.filter(c => c.id !== championship.id);

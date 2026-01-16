@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, Users, Trophy, Plus, Save, Trash2, Edit2, RefreshCw, X, Upload } from 'lucide-react';
-import { Championship, ChampionshipMatch as ChampionshipMatchType } from '../types';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Calendar, Clock, Users, Trophy, Plus, Save, Trash2, Edit2, RefreshCw, X, Upload, Target, TrendingUp, Award, BarChart3 } from 'lucide-react';
+import { Championship, ChampionshipMatch as ChampionshipMatchType, MatchRecord } from '../types';
 
 export interface ChampionshipMatch {
     id: string;
@@ -21,6 +21,7 @@ interface ChampionshipTableProps {
     onRefresh?: () => void; // Callback para recarregar dados da API
     championships?: Championship[]; // Campeonatos cadastrados
     onSaveChampionship?: (championship: Championship) => void; // Callback para salvar campeonato
+    allMatches?: MatchRecord[]; // Partidas salvas (MatchRecord) para calcular estatísticas
 }
 
 export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({ 
@@ -31,7 +32,8 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
     onUseForInput,
     onRefresh,
     championships = [],
-    onSaveChampionship
+    onSaveChampionship,
+    allMatches = []
 }) => {
     // Debug: log matches
     useEffect(() => {
@@ -300,6 +302,86 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
         }
     };
 
+    // Calcular estatísticas do campeonato
+    const championshipStats = useMemo(() => {
+        if (!allMatches || allMatches.length === 0 || !matches || matches.length === 0) {
+            return {
+                totalMatches: matches.length,
+                matchesWithResult: 0,
+                wins: 0,
+                draws: 0,
+                losses: 0,
+                pointsConquered: 0,
+                pointsPossible: matches.length * 3,
+                aproveitamento: 0
+            };
+        }
+
+        // Agrupar matches por competição
+        const matchesByCompetition = new Map<string, ChampionshipMatch[]>();
+        matches.forEach(match => {
+            const comp = match.competition || 'Sem Competição';
+            if (!matchesByCompetition.has(comp)) {
+                matchesByCompetition.set(comp, []);
+            }
+            matchesByCompetition.get(comp)!.push(match);
+        });
+
+        // Calcular estatísticas agregadas de todas as competições
+        let totalMatches = matches.length;
+        let matchesWithResult = 0;
+        let wins = 0;
+        let draws = 0;
+        let losses = 0;
+
+        // Para cada partida cadastrada, verificar se existe correspondência em allMatches
+        matches.forEach(championshipMatch => {
+            // Buscar correspondência por competition, date e opponent
+            const correspondingMatch = allMatches.find(savedMatch => {
+                // Normalizar datas para comparação (apenas YYYY-MM-DD)
+                const championshipDate = championshipMatch.date.split('T')[0];
+                const savedDate = savedMatch.date.split('T')[0];
+                
+                return (
+                    savedMatch.competition === championshipMatch.competition &&
+                    savedDate === championshipDate &&
+                    savedMatch.opponent === championshipMatch.opponent
+                );
+            });
+
+            if (correspondingMatch) {
+                matchesWithResult++;
+                // Verificar resultado (pode ser 'V'/'D'/'E' ou 'Vitória'/'Derrota'/'Empate')
+                const result = correspondingMatch.result;
+                if (result === 'Vitória' || result === 'V') {
+                    wins++;
+                } else if (result === 'Empate' || result === 'E') {
+                    draws++;
+                } else if (result === 'Derrota' || result === 'D') {
+                    losses++;
+                }
+            }
+        });
+
+        // Calcular pontos (padrão: Vitória = 3, Empate = 1, Derrota = 0)
+        const pointsConquered = (wins * 3) + (draws * 1) + (losses * 0);
+        const pointsPossible = totalMatches * 3;
+        const aproveitamento = pointsPossible > 0 
+            ? ((pointsConquered / pointsPossible) * 100).toFixed(1)
+            : '0.0';
+
+        return {
+            totalMatches,
+            matchesWithResult,
+            wins,
+            draws,
+            losses,
+            pointsConquered,
+            pointsPossible,
+            aproveitamento: parseFloat(aproveitamento)
+        };
+    }, [matches, allMatches]);
+
     return (
         <div className="space-y-6 animate-fade-in pb-12">
             <div className="bg-black p-6 rounded-3xl border border-zinc-900 shadow-lg">
@@ -356,6 +438,86 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
                         </div>
                     )}
                 </div>
+
+                {/* Cards de Estatísticas */}
+                {matches.length > 0 && (
+                    <div className="mb-6">
+                        <h3 className="text-white font-bold text-sm mb-4 uppercase tracking-wider">Estatísticas do Campeonato</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            {/* Card: Partidas Cadastradas */}
+                            <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
+                                <div className="flex items-center justify-between mb-2">
+                                    <Calendar className="text-blue-400" size={20} />
+                                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Partidas Cadastradas</span>
+                                </div>
+                                <p className="text-3xl font-black text-white italic">{championshipStats.totalMatches}</p>
+                            </div>
+
+                            {/* Card: Jogos com Resultado */}
+                            <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
+                                <div className="flex items-center justify-between mb-2">
+                                    <Target className="text-green-400" size={20} />
+                                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Jogos com Resultado</span>
+                                </div>
+                                <p className="text-3xl font-black text-white italic">{championshipStats.matchesWithResult}</p>
+                            </div>
+
+                            {/* Card: Vitórias */}
+                            <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
+                                <div className="flex items-center justify-between mb-2">
+                                    <Trophy className="text-yellow-400" size={20} />
+                                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Vitórias</span>
+                                </div>
+                                <p className="text-3xl font-black text-green-400 italic">{championshipStats.wins}</p>
+                            </div>
+
+                            {/* Card: Empates */}
+                            <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
+                                <div className="flex items-center justify-between mb-2">
+                                    <BarChart3 className="text-blue-400" size={20} />
+                                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Empates</span>
+                                </div>
+                                <p className="text-3xl font-black text-blue-400 italic">{championshipStats.draws}</p>
+                            </div>
+
+                            {/* Card: Derrotas */}
+                            <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
+                                <div className="flex items-center justify-between mb-2">
+                                    <Award className="text-red-400" size={20} />
+                                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Derrotas</span>
+                                </div>
+                                <p className="text-3xl font-black text-red-400 italic">{championshipStats.losses}</p>
+                            </div>
+
+                            {/* Card: Pontos Conquistados */}
+                            <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
+                                <div className="flex items-center justify-between mb-2">
+                                    <TrendingUp className="text-[#10b981]" size={20} />
+                                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Pontos Conquistados</span>
+                                </div>
+                                <p className="text-3xl font-black text-[#10b981] italic">{championshipStats.pointsConquered}</p>
+                            </div>
+
+                            {/* Card: Pontos Possíveis */}
+                            <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
+                                <div className="flex items-center justify-between mb-2">
+                                    <Target className="text-purple-400" size={20} />
+                                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Pontos Possíveis</span>
+                                </div>
+                                <p className="text-3xl font-black text-purple-400 italic">{championshipStats.pointsPossible}</p>
+                            </div>
+
+                            {/* Card: Aproveitamento */}
+                            <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
+                                <div className="flex items-center justify-between mb-2">
+                                    <BarChart3 className="text-[#00f0ff]" size={20} />
+                                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Aproveitamento</span>
+                                </div>
+                                <p className="text-3xl font-black text-[#00f0ff] italic">{championshipStats.aproveitamento.toFixed(1)}%</p>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Formulário de criação/edição */}
                 {isCreating && (
