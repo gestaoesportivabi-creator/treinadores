@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ArrowRight, Users, Target, TrendingUp, Clock, BarChart3, Shield, CheckCircle, Building2, Trophy, Sparkles, Brain, Calendar } from 'lucide-react';
 
 interface LandingPageProps {
@@ -6,11 +6,139 @@ interface LandingPageProps {
   onGoToLogin?: () => void;
 }
 
+// Hook para animações ao scroll
+const useInView = (threshold = 0.1) => {
+  const [isInView, setIsInView] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsInView(true);
+        }
+      },
+      { threshold }
+    );
+
+    if (ref.current) {
+      observer.observe(ref.current);
+    }
+
+    return () => {
+      if (ref.current) {
+        observer.unobserve(ref.current);
+      }
+    };
+  }, [threshold]);
+
+  return [ref, isInView] as const;
+};
+
+// Componente de Carrossel
+const ImageCarousel: React.FC = () => {
+  const images = [
+    '/ChatGPT Image 20 de jan. de 2026, 15_18_24.png',
+    '/ChatGPT Image 20 de jan. de 2026, 15_20_07.png',
+    '/ChatGPT Image 20 de jan. de 2026, 15_21_34.png',
+    '/ChatGPT Image 20 de jan. de 2026, 15_23_12.png',
+    '/ChatGPT Image 20 de jan. de 2026, 15_25_30.png',
+    '/ChatGPT Image 20 de jan. de 2026, 15_28_11.png',
+    '/ChatGPT Image 20 de jan. de 2026, 15_31_43.png',
+  ];
+
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [touchStart, setTouchStart] = useState(0);
+  const [touchEnd, setTouchEnd] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % images.length);
+    }, 6000);
+
+    return () => clearInterval(interval);
+  }, [images.length]);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+
+    if (isLeftSwipe) {
+      setCurrentIndex((prev) => (prev + 1) % images.length);
+    }
+    if (isRightSwipe) {
+      setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
+    }
+  };
+
+  return (
+    <div 
+      className="relative w-full h-[400px] sm:h-[500px] md:h-[600px] overflow-hidden rounded-2xl"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      {images.map((img, idx) => (
+        <div
+          key={idx}
+          className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
+            idx === currentIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'
+          }`}
+        >
+          <img
+            src={img}
+            alt={`SCOUT21PRO - ${idx + 1}`}
+            className="w-full h-full object-cover"
+            loading="lazy"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+        </div>
+      ))}
+      
+      {/* Indicadores */}
+      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2 z-20">
+        {images.map((_, idx) => (
+          <button
+            key={idx}
+            onClick={() => setCurrentIndex(idx)}
+            className={`h-1.5 rounded-full transition-all duration-300 ${
+              idx === currentIndex
+                ? 'w-8 bg-[#00f0ff]'
+                : 'w-1.5 bg-zinc-600 hover:bg-zinc-500'
+            }`}
+            aria-label={`Slide ${idx + 1}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
 export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLogin }) => {
   const handleClick = () => {
     console.log('🚀 Botão Começar Agora clicado!');
     onGetStarted();
   };
+
+  // Refs para animações
+  const [refParaQuem, inViewParaQuem] = useInView(0.1);
+  const [refDesafio, inViewDesafio] = useInView(0.1);
+  const [refSolucao, inViewSolucao] = useInView(0.1);
+  const [refDiferenciais, inViewDiferenciais] = useInView(0.1);
+  const [refVestiario, inViewVestiario] = useInView(0.1);
+  const [refDNA, inViewDNA] = useInView(0.1);
+  const [refComoFunciona, inViewComoFunciona] = useInView(0.1);
+  const [refCarousel, inViewCarousel] = useInView(0.1);
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -57,7 +185,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
       </nav>
 
       {/* Hero Section */}
-      <header className="relative min-h-screen flex items-center justify-center px-6 py-20 pt-24">
+      <header className="relative min-h-screen flex items-center justify-center px-4 sm:px-6 py-20 pt-24">
         {/* Background gradient */}
         <div className="absolute inset-0 bg-gradient-to-br from-black via-zinc-900 to-black"></div>
         
@@ -95,15 +223,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
             <button 
               onClick={handleClick}
               type="button"
-              className="group px-8 py-4 bg-[#00f0ff] hover:bg-[#00d4e6] text-black font-black text-lg uppercase tracking-wider rounded-xl transition-all shadow-[0_0_30px_rgba(0,240,255,0.4)] hover:shadow-[0_0_50px_rgba(0,240,255,0.6)] flex items-center gap-3 cursor-pointer"
+              className="group px-8 py-4 bg-[#00f0ff] hover:bg-[#00d4e6] active:scale-[0.98] text-black font-black text-lg uppercase tracking-wider rounded-xl transition-all duration-300 shadow-[0_0_30px_rgba(0,240,255,0.4)] hover:shadow-[0_0_50px_rgba(0,240,255,0.6)] hover:scale-[1.02] flex items-center gap-3 cursor-pointer"
             >
               Começar Agora - É Grátis
-              <ArrowRight className="group-hover:translate-x-1 transition-transform" size={24} />
+              <ArrowRight className="group-hover:translate-x-1 transition-transform duration-300" size={24} />
             </button>
             <button 
               onClick={() => window.open('https://wa.me/?text=Olá,%20gostaria%20de%20agendar%20uma%20apresentação', '_blank')}
               type="button"
-              className="group px-6 md:px-8 py-4 bg-transparent hover:bg-zinc-900 text-white border-2 border-[#00f0ff] hover:border-[#00d4e6] font-black text-sm md:text-lg uppercase tracking-wider rounded-xl transition-all flex items-center gap-2 md:gap-3 cursor-pointer"
+              className="group px-6 md:px-8 py-4 bg-transparent hover:bg-zinc-900 active:scale-[0.98] text-white border-2 border-[#00f0ff] hover:border-[#00d4e6] font-black text-sm md:text-lg uppercase tracking-wider rounded-xl transition-all duration-300 hover:scale-[1.02] flex items-center gap-2 md:gap-3 cursor-pointer"
             >
               <Calendar size={18} className="md:w-5 md:h-5 shrink-0" />
               <span className="hidden sm:inline">Entre em contato e agende uma apresentação</span>
@@ -123,7 +251,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
       </header>
 
       {/* Para Quem É */}
-      <section className="py-20 px-6 bg-zinc-900/50 border-y border-zinc-800">
+      <section ref={refParaQuem} className={`py-24 px-4 sm:px-6 bg-zinc-900/50 border-y border-zinc-800 transition-all duration-700 ${inViewParaQuem ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-black uppercase text-white mb-4">Para Quem É</h2>
@@ -136,7 +264,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
               { icon: Target, title: 'Times Universitários', desc: 'Projetos esportivos acadêmicos e competitivos' },
               { icon: Shield, title: 'Comissões Técnicas', desc: 'Treinadores que querem dados organizados para decisões' }
             ].map((item, idx) => (
-              <div key={idx} className="bg-black border border-zinc-800 rounded-2xl p-8 hover:border-[#00f0ff] transition-all">
+              <div 
+                key={idx} 
+                className={`bg-black border border-zinc-800 rounded-2xl p-8 hover:border-[#00f0ff] transition-all duration-300 hover:scale-[1.02] ${inViewParaQuem ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+                style={{ transitionDelay: `${idx * 100}ms` }}
+              >
                 <item.icon className="text-[#00f0ff] mb-4" size={48} />
                 <h3 className="text-xl font-black text-white mb-3 uppercase">{item.title}</h3>
                 <p className="text-zinc-400 font-medium">{item.desc}</p>
@@ -147,7 +279,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
       </section>
 
       {/* O Problema Atual */}
-      <section className="py-20 px-6">
+      <section ref={refDesafio} className={`py-24 px-4 sm:px-6 transition-all duration-700 ${inViewDesafio ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-black uppercase text-white mb-4">O Desafio Atual</h2>
@@ -155,7 +287,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
             <p className="text-xl text-zinc-400 font-medium">Gestão informal prejudica o desenvolvimento da equipe</p>
           </div>
           
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid md:grid-cols-2 gap-4 md:gap-6">
             {[
               'Planilhas desorganizadas e dados perdidos',
               'Falta de histórico completo dos atletas',
@@ -164,7 +296,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
               'Avaliações subjetivas sem base de dados',
               'Falta de profissionalização na gestão técnica'
             ].map((problem, idx) => (
-              <div key={idx} className="flex items-start gap-4 bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
+              <div 
+                key={idx} 
+                className={`flex items-start gap-4 bg-zinc-900/50 border border-zinc-800 rounded-xl p-6 transition-all duration-300 ${inViewDesafio ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+                style={{ transitionDelay: `${idx * 100}ms` }}
+              >
                 <div className="w-2 h-2 bg-red-500 rounded-full mt-2 shrink-0"></div>
                 <p className="text-zinc-300 font-medium text-lg">{problem}</p>
               </div>
@@ -174,7 +310,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
       </section>
 
       {/* A Solução */}
-      <section className="py-20 px-6 bg-zinc-900/30">
+      <section ref={refSolucao} className={`py-24 px-4 sm:px-6 bg-zinc-900/30 transition-all duration-700 ${inViewSolucao ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-black uppercase text-white mb-4">A Solução</h2>
@@ -182,14 +318,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
             <p className="text-xl text-zinc-400 font-medium">Gestão profissional, simples e completa</p>
           </div>
           
-          <div className="grid md:grid-cols-2 gap-8">
+          <div className="grid md:grid-cols-2 gap-6 md:gap-8">
             {[
               { icon: Users, title: 'Gestão de Equipe', desc: 'Cadastro completo de atletas, comissão técnica e histórico' },
               { icon: Clock, title: 'Programação', desc: 'Organize treinos, jogos e convocações em um só lugar' },
               { icon: BarChart3, title: 'Scout de Jogo', desc: 'Registre dados individuais e coletivos de cada partida' },
               { icon: TrendingUp, title: 'Evolução e Ranking', desc: 'Acompanhe performance e compare atletas com dados reais' }
             ].map((feature, idx) => (
-              <div key={idx} className="bg-black border border-zinc-800 rounded-2xl p-8 hover:border-[#00f0ff] transition-all">
+              <div 
+                key={idx} 
+                className={`bg-black border border-zinc-800 rounded-2xl p-8 hover:border-[#00f0ff] transition-all duration-300 hover:scale-[1.02] ${inViewSolucao ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+                style={{ transitionDelay: `${idx * 100}ms` }}
+              >
                 <feature.icon className="text-[#00f0ff] mb-4" size={40} />
                 <h3 className="text-2xl font-black text-white mb-3 uppercase">{feature.title}</h3>
                 <p className="text-zinc-400 font-medium text-lg leading-relaxed">{feature.desc}</p>
@@ -199,8 +339,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
         </div>
       </section>
 
+      {/* Carrossel de Imagens */}
+      <section ref={refCarousel} className={`py-24 px-4 sm:px-6 transition-all duration-700 ${inViewCarousel ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-black uppercase text-white mb-4">Gestão de Alta Performance</h2>
+            <div className="w-24 h-1 bg-[#00f0ff] mx-auto"></div>
+          </div>
+          <ImageCarousel />
+        </div>
+      </section>
+
       {/* Diferenciais */}
-      <section className="py-20 px-6">
+      <section ref={refDiferenciais} className={`py-24 px-4 sm:px-6 transition-all duration-700 ${inViewDiferenciais ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-black uppercase text-white mb-4">Por Que SCOUT21PRO?</h2>
@@ -215,7 +366,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
               'Personalizável conforme a realidade do seu clube',
               'Plataforma brasileira, próxima da sua realidade'
             ].map((diff, idx) => (
-              <div key={idx} className="flex items-center gap-4 bg-zinc-900/50 border border-zinc-800 rounded-xl p-6 hover:border-[#00f0ff] transition-all">
+              <div 
+                key={idx} 
+                className={`flex items-center gap-4 bg-zinc-900/50 border border-zinc-800 rounded-xl p-6 hover:border-[#00f0ff] transition-all duration-300 hover:scale-[1.01] ${inViewDiferenciais ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+                style={{ transitionDelay: `${idx * 100}ms` }}
+              >
                 <CheckCircle className="text-[#00f0ff] shrink-0" size={32} />
                 <p className="text-white font-bold text-xl">{diff}</p>
               </div>
@@ -225,7 +380,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
       </section>
 
       {/* Do Vestiário ao Escritório */}
-      <section className="py-20 px-6 bg-zinc-900/30">
+      <section ref={refVestiario} className={`py-24 px-4 sm:px-6 bg-zinc-900/30 transition-all duration-700 ${inViewVestiario ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-black uppercase text-white mb-4">Do Vestiário ao Escritório</h2>
@@ -236,7 +391,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
             </p>
           </div>
           
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-3 gap-6 md:gap-8">
             {[
               { 
                 icon: Brain, 
@@ -257,7 +412,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
                 emoji: '📊'
               }
             ].map((item, idx) => (
-              <div key={idx} className="bg-black border border-zinc-800 rounded-2xl p-8 hover:border-[#00f0ff] transition-all text-center">
+              <div 
+                key={idx} 
+                className={`bg-black border border-zinc-800 rounded-2xl p-8 hover:border-[#00f0ff] transition-all duration-300 hover:scale-[1.02] text-center ${inViewVestiario ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+                style={{ transitionDelay: `${idx * 100}ms` }}
+              >
                 <div className="text-4xl mb-4">{item.emoji}</div>
                 <item.icon className="text-[#00f0ff] mb-4 mx-auto" size={40} />
                 <h3 className="text-xl font-black text-white mb-4 uppercase">{item.title}</h3>
@@ -269,7 +428,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
       </section>
 
       {/* O DNA do Idealizador */}
-      <section className="py-20 px-6">
+      <section ref={refDNA} className={`py-24 px-4 sm:px-6 transition-all duration-700 ${inViewDNA ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-black uppercase text-white mb-4">O DNA do Idealizador</h2>
@@ -303,7 +462,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
                 emoji: '📊'
               }
             ].map((item, idx) => (
-              <div key={idx} className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8 hover:border-[#00f0ff] transition-all">
+              <div 
+                key={idx} 
+                className={`bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8 hover:border-[#00f0ff] transition-all duration-300 hover:scale-[1.01] ${inViewDNA ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+                style={{ transitionDelay: `${idx * 100}ms` }}
+              >
                 <div className="flex items-start gap-4">
                   <div className="text-3xl shrink-0">{item.emoji}</div>
                   <div className="flex-1">
@@ -321,7 +484,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
       </section>
 
       {/* Como Funciona */}
-      <section className="py-20 px-6 bg-zinc-900/30">
+      <section ref={refComoFunciona} className={`py-24 px-4 sm:px-6 bg-zinc-900/30 transition-all duration-700 ${inViewComoFunciona ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-black uppercase text-white mb-4">Como Funciona</h2>
@@ -329,7 +492,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
             <p className="text-xl text-zinc-400 font-medium">Simples e direto ao ponto</p>
           </div>
           
-          <div className="grid md:grid-cols-5 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-5 gap-6">
             {[
               { num: '1', title: 'Crie sua conta', desc: 'Cadastro rápido e gratuito' },
               { num: '2', title: 'Monte sua equipe', desc: 'Adicione atletas e comissão' },
@@ -337,8 +500,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
               { num: '4', title: 'Acompanhe evolução', desc: 'Dados e ranking em tempo real' },
               { num: '5', title: 'Tome decisões', desc: 'Base sólida para escolhas técnicas' }
             ].map((step, idx) => (
-              <div key={idx} className="text-center">
-                <div className="w-16 h-16 bg-[#00f0ff] rounded-full flex items-center justify-center mx-auto mb-4 text-black font-black text-2xl">
+              <div 
+                key={idx} 
+                className={`text-center transition-all duration-300 ${inViewComoFunciona ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+                style={{ transitionDelay: `${idx * 100}ms` }}
+              >
+                <div className="w-16 h-16 bg-[#00f0ff] rounded-full flex items-center justify-center mx-auto mb-4 text-black font-black text-2xl transition-transform duration-300 hover:scale-110">
                   {step.num}
                 </div>
                 <h3 className="text-lg font-black text-white mb-2 uppercase">{step.title}</h3>
@@ -350,7 +517,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
       </section>
 
       {/* CTA Final */}
-      <section className="py-32 px-6 bg-gradient-to-br from-zinc-900 to-black border-y border-zinc-800">
+      <section className="py-32 px-4 sm:px-6 bg-gradient-to-br from-zinc-900 to-black border-y border-zinc-800">
         <div className="max-w-4xl mx-auto text-center space-y-8">
           <h2 className="text-5xl md:text-6xl font-black uppercase text-white leading-tight">
             Pronto para profissionalizar<br />
@@ -360,10 +527,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
           <button 
             onClick={handleClick}
             type="button"
-            className="group px-10 py-5 bg-[#00f0ff] hover:bg-[#00d4e6] text-black font-black text-xl uppercase tracking-wider rounded-xl transition-all shadow-[0_0_40px_rgba(0,240,255,0.5)] hover:shadow-[0_0_60px_rgba(0,240,255,0.7)] flex items-center gap-3 mx-auto cursor-pointer"
+            className="group px-10 py-5 bg-[#00f0ff] hover:bg-[#00d4e6] active:scale-[0.98] text-black font-black text-xl uppercase tracking-wider rounded-xl transition-all duration-300 shadow-[0_0_40px_rgba(0,240,255,0.5)] hover:shadow-[0_0_60px_rgba(0,240,255,0.7)] hover:scale-[1.02] flex items-center gap-3 mx-auto cursor-pointer"
           >
             Criar Conta Grátis
-            <ArrowRight className="group-hover:translate-x-1 transition-transform" size={28} />
+            <ArrowRight className="group-hover:translate-x-1 transition-transform duration-300" size={28} />
           </button>
 
           <p className="text-sm text-zinc-600 font-medium">
@@ -373,7 +540,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
       </section>
 
       {/* Footer */}
-      <footer className="py-12 px-6 bg-black border-t border-zinc-800">
+      <footer className="py-12 px-4 sm:px-6 bg-black border-t border-zinc-800">
         <div className="max-w-5xl mx-auto text-center space-y-4">
           <div className="inline-flex items-center justify-center">
             <img 
