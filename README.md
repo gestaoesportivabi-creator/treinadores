@@ -8,9 +8,18 @@ Sistema completo de scout, análise e gestão para equipes esportivas com backen
 
 ## 🚀 Deploy Online
 
+<<<<<<< HEAD
 **Para colocar o sistema online, consulte o guia completo:** [DEPLOY_UNICO.md](./DEPLOY_UNICO.md)
 
 O sistema está configurado para deploy único no Vercel (frontend + backend no mesmo domínio).
+=======
+**Para colocar o sistema online, consulte o guia completo:** [docs/setup/DEPLOY.md](./docs/setup/DEPLOY.md)
+
+### Opções Rápidas:
+- **Vercel** (Recomendado - Mais fácil): https://vercel.com
+- **Netlify**: https://netlify.com
+- **GitHub Pages**: Veja instruções em docs/setup/DEPLOY.md
+>>>>>>> landingPage
 
 ## 💻 Executar Localmente
 
@@ -74,6 +83,7 @@ Os arquivos otimizados serão gerados na pasta `21Scoutpro/dist/`.
 
 ## 📚 Documentação
 
+<<<<<<< HEAD
 - **Deploy Único (Vercel):** [DEPLOY_UNICO.md](./DEPLOY_UNICO.md)
 - **Backend:** [backend/README.md](./backend/README.md)
 - **Arquitetura:** [backend/docs/architecture.md](./backend/docs/architecture.md)
@@ -88,6 +98,23 @@ Os arquivos otimizados serão gerados na pasta `21Scoutpro/dist/`.
 - **Deploy:** Vercel (deploy único)
 - **Autenticação:** JWT
 - **Multi-tenancy:** Isolamento completo por técnico/clube
+=======
+A documentação está organizada na pasta `docs/`:
+
+### Setup e Configuração
+- **Deploy:** [docs/setup/DEPLOY.md](./docs/setup/DEPLOY.md)
+- **Vercel Config:** [docs/setup/VERCEL_CONFIG.md](./docs/setup/VERCEL_CONFIG.md)
+- **Google Apps Script:** [docs/setup/GOOGLE_APPS_SCRIPT_SETUP.md](./docs/setup/GOOGLE_APPS_SCRIPT_SETUP.md)
+- **Database Options:** [docs/setup/DATABASE_OPTIONS.md](./docs/setup/DATABASE_OPTIONS.md)
+
+### Database Schema
+- **Entidades Conceituais:** [docs/database/ENTIDADES_CONCEITUAIS_LANDING_PAGE.md](./docs/database/ENTIDADES_CONCEITUAIS_LANDING_PAGE.md)
+- **Schema Final:** [docs/database/PROMPT_9_SCHEMA_FINAL.md](./docs/database/PROMPT_9_SCHEMA_FINAL.md)
+- **Validação:** [docs/database/VALIDACAO_FINAL.md](./docs/database/VALIDACAO_FINAL.md)
+
+### Arquivos Arquivados
+Documentos temporários e de debug estão em `docs/archive/` para referência histórica.
+>>>>>>> landingPage
 
 ## ⚠️ Importante
 

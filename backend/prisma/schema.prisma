@@ -1,3 +1,10 @@
+<<<<<<< HEAD
+=======
+// SCOUT21PRO - Schema Prisma
+// Baseado nos 9 prompts de alinhamento com a landing page
+// Criado em: 2026-01-09
+
+>>>>>>> landingPage
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,6 +14,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+<<<<<<< HEAD
 model Role {
   id          String   @id @default(uuid())
   name        String   @unique @db.VarChar(50)
@@ -359,4 +367,498 @@ model MetasEstatisticas {
 
   @@index([equipeId])
   @@map("metas_estatisticas")
+=======
+// ============================================
+// MULTI-TENANCY: Clube como raiz de isolamento
+// ============================================
+
+model Clube {
+  id        String   @id @default(uuid())
+  name      String
+  logoUrl   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  // Relacionamentos
+  users     User[]
+  teams     Team[]
+  competitions Competition[]
+
+  @@index([deletedAt])
+  @@map("clubes")
+}
+
+// ============================================
+// USUÁRIOS E COMISSÃO TÉCNICA
+// ============================================
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  passwordHash String
+  role      String   // Treinador, Preparador Físico, Supervisor, Diretor, etc.
+  photoUrl  String?
+  
+  // Multi-tenancy
+  clubeId   String
+  clube     Clube    @relation(fields: [clubeId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  // Relacionamentos
+  teamMemberships TeamMember[]
+  schedules       Schedule[]
+  matches         Match[]
+  scoutIndividual ScoutIndividual[]
+
+  @@index([clubeId, deletedAt])
+  @@index([email])
+  @@map("users")
+}
+
+// ============================================
+// GESTÃO DE EQUIPE
+// ============================================
+
+model Team {
+  id        String   @id @default(uuid())
+  name      String
+  type      String   // Adulta, Base, Universitária
+  category  String?  // Categoria específica (ex: Sub-20, Sub-17)
+  
+  // Multi-tenancy
+  clubeId   String
+  clube     Clube    @relation(fields: [clubeId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  // Relacionamentos
+  teamMemberships TeamMember[]
+  playerTeams     PlayerTeam[]
+  schedules       Schedule[]
+  matches         Match[]
+
+  @@index([clubeId, deletedAt])
+  @@index([type])
+  @@map("teams")
+}
+
+// ============================================
+// ATLETAS
+// ============================================
+
+model Player {
+  id            String   @id @default(uuid())
+  name          String
+  nickname      String?
+  dateOfBirth   DateTime?
+  cpf           String?  @unique // Dados sensíveis
+  photoUrl      String?
+  
+  // Características físicas
+  height        Int?     // em cm
+  weight        Float?
+  position      String   // Goleiro, Fixo, Ala, Pivô, etc.
+  dominantFoot  String?  // Destro, Canhoto, Ambidestro
+  jerseyNumber  Int?
+  
+  // Dados profissionais (sensíveis)
+  lastClub      String?
+  isTransferred Boolean  @default(false)
+  transferDate  DateTime?
+  salary        Decimal? @db.Decimal(10, 2) // Dados sensíveis
+  salaryStartDate DateTime?
+  salaryEndDate   DateTime?
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+
+  // Relacionamentos
+  playerTeams          PlayerTeam[]
+  scheduleParticipants ScheduleParticipant[]
+  matchParticipants   MatchParticipant[]
+  scoutIndividual     ScoutIndividual[]
+  assessments         Assessment[]
+
+  @@index([deletedAt])
+  @@index([position])
+  @@index([jerseyNumber])
+  @@map("players")
+}
+
+// Relacionamento Muitos-para-Muitos: Player ↔ Team
+model PlayerTeam {
+  id        String   @id @default(uuid())
+  
+  playerId  String
+  player    Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  
+  teamId    String
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  
+  // Temporalidade
+  startDate DateTime @default(now())
+  endDate   DateTime?
+  status    String   @default("active") // active, inactive, transferred
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([playerId, teamId, startDate])
+  @@index([playerId])
+  @@index([teamId])
+  @@index([status])
+  @@map("player_teams")
+}
+
+// Relacionamento Muitos-para-Muitos: User ↔ Team (Comissão Técnica)
+model TeamMember {
+  id        String   @id @default(uuid())
+  
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  teamId    String
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  
+  // Permissões
+  role      String   // Treinador, Preparador Físico, etc.
+  permissions String? // JSON com permissões específicas
+  
+  // Temporalidade
+  startDate DateTime @default(now())
+  endDate   DateTime?
+  status    String   @default("active") // active, inactive
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, teamId, startDate])
+  @@index([userId])
+  @@index([teamId])
+  @@index([status])
+  @@map("team_members")
+}
+
+// ============================================
+// PROGRAMAÇÃO (Treinos, Jogos, Convocações)
+// ============================================
+
+model Schedule {
+  id          String   @id @default(uuid())
+  type        String   // treino, jogo, convocacao
+  title       String
+  description String?
+  
+  // Data e local
+  date        DateTime
+  time        String?
+  location    String?
+  isHome      Boolean? // Para jogos: mandante ou visitante
+  
+  // Multi-tenancy e equipe
+  teamId      String
+  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  
+  // Criador
+  createdById String
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  
+  // Status
+  status      String   @default("scheduled") // scheduled, in_progress, completed, cancelled
+  
+  // Para jogos
+  opponent    String?
+  competitionId String?
+  competition   Competition? @relation(fields: [competitionId], references: [id], onDelete: SetNull)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  // Relacionamentos
+  scheduleParticipants ScheduleParticipant[]
+  match                Match?
+
+  @@index([teamId, date, deletedAt])
+  @@index([type, date])
+  @@index([status])
+  @@index([createdById])
+  @@map("schedules")
+}
+
+// Participantes de uma programação (atletas convocados)
+model ScheduleParticipant {
+  id         String   @id @default(uuid())
+  
+  scheduleId String
+  schedule   Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  
+  playerId   String
+  player     Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  
+  // Status de participação
+  status     String   @default("pending") // pending, confirmed, present, absent
+  
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([scheduleId, playerId])
+  @@index([scheduleId])
+  @@index([playerId])
+  @@map("schedule_participants")
+}
+
+// ============================================
+// JOGO COMO EVENTO CENTRAL
+// ============================================
+
+model Match {
+  id        String   @id @default(uuid())
+  
+  // Herda de Schedule (jogo é um tipo de programação)
+  scheduleId String  @unique
+  schedule    Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  
+  // Dados do jogo
+  opponent  String
+  isHome    Boolean  // mandante ou visitante
+  
+  // Resultado
+  ourScore  Int?
+  opponentScore Int?
+  result    String? // Vitória, Derrota, Empate
+  
+  // Multi-tenancy e equipe
+  teamId    String
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  
+  // Competição
+  competitionId String?
+  competition   Competition? @relation(fields: [competitionId], references: [id], onDelete: SetNull)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  // Relacionamentos
+  matchParticipants MatchParticipant[]
+  scoutCollective   ScoutCollective?
+  scoutIndividual   ScoutIndividual[]
+
+  @@index([teamId, deletedAt])
+  @@index([competitionId])
+  @@index([result])
+  @@map("matches")
+}
+
+// Participação de atletas no jogo
+model MatchParticipant {
+  id        String   @id @default(uuid())
+  
+  matchId   String
+  match     Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  
+  playerId  String
+  player    Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  
+  // Escalação
+  status    String   // titular, reserva, nao_relacionado
+  position  String?   // Posição em campo
+  
+  // Entradas e saídas
+  entryMinute Int?
+  exitMinute  Int?
+  minutesPlayed Int? // Minutos jogados
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([matchId, playerId])
+  @@index([matchId])
+  @@index([playerId])
+  @@map("match_participants")
+}
+
+// ============================================
+// SCOUT DE JOGO
+// ============================================
+
+// Scout Coletivo (dados da equipe)
+model ScoutCollective {
+  id        String   @id @default(uuid())
+  
+  matchId   String   @unique
+  match     Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  
+  // Estatísticas coletivas numéricas
+  possessionPercent  Decimal? @db.Decimal(5, 2)
+  shotsOn            Int?
+  shotsOff           Int?
+  passesCorrect      Int?
+  passesWrong        Int?
+  tackles            Int?
+  transitionErrors   Int?
+  foulsCommitted     Int?
+  foulsSuffered      Int?
+  yellowCards        Int?
+  redCards           Int?
+  
+  // Dados qualitativos
+  teamRating         Decimal? @db.Decimal(3, 2) // Nota 0-10
+  observations       String?  @db.Text
+  tacticalAnalysis   String?  @db.Text
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([matchId])
+  @@map("scout_collective")
+}
+
+// Scout Individual (dados por atleta)
+model ScoutIndividual {
+  id        String   @id @default(uuid())
+  
+  matchId   String
+  match     Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  
+  playerId  String
+  player    Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  
+  // Criador do scout
+  createdById String
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  
+  // Estatísticas ofensivas
+  goals     Int      @default(0)
+  assists   Int      @default(0)
+  shotsOn   Int      @default(0)
+  shotsOff  Int      @default(0)
+  
+  // Estatísticas de passe
+  passesCorrect Int  @default(0)
+  passesWrong   Int  @default(0)
+  
+  // Estatísticas defensivas
+  tacklesPossession    Int @default(0)
+  tacklesNoPossession  Int @default(0)
+  tacklesCounter       Int @default(0)
+  transitionErrors     Int @default(0)
+  
+  // Outras estatísticas
+  foulsCommitted Int   @default(0)
+  foulsSuffered  Int   @default(0)
+  yellowCards    Int   @default(0)
+  redCards       Int   @default(0)
+  
+  // Dados qualitativos
+  rating      Decimal? @db.Decimal(3, 2) // Nota 0-10
+  observations String? @db.Text
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([matchId, playerId])
+  @@index([matchId])
+  @@index([playerId])
+  @@index([createdById])
+  @@map("scout_individual")
+}
+
+// ============================================
+// COMPETIÇÕES E CAMPEONATOS
+// ============================================
+
+model Competition {
+  id        String   @id @default(uuid())
+  name      String
+  
+  // Multi-tenancy
+  clubeId   String
+  clube     Clube    @relation(fields: [clubeId], references: [id], onDelete: Cascade)
+  
+  type      String?  // Campeonato Estadual, Copa Regional, etc.
+  season    String?  // Temporada (ex: 2024, 2025)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  // Relacionamentos
+  schedules Schedule[]
+  matches   Match[]
+
+  @@index([clubeId, deletedAt])
+  @@index([name])
+  @@map("competitions")
+}
+
+// ============================================
+// AVALIAÇÕES
+// ============================================
+
+model Assessment {
+  id        String   @id @default(uuid())
+  
+  playerId  String
+  player    Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  
+  type      String   // física, tecnica
+  
+  // Dados da avaliação (JSON flexível para diferentes tipos)
+  data      Json     // Dados específicos da avaliação
+  
+  // Dados qualitativos
+  notes     String?  @db.Text
+  rating    Decimal? @db.Decimal(3, 2)
+  
+  date      DateTime
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  @@index([playerId, date, deletedAt])
+  @@index([type])
+  @@map("assessments")
+}
+
+// ============================================
+// CONFIGURAÇÕES E METAS
+// ============================================
+
+model StatTarget {
+  id        String   @id @default(uuid())
+  
+  // Multi-tenancy (pode ser por clube ou por equipe)
+  clubeId   String?
+  teamId    String?
+  
+  // Metas de estatísticas
+  goals             Int @default(3)
+  assists           Int @default(3)
+  passesCorrect     Int @default(30)
+  passesWrong       Int @default(5)
+  shotsOn           Int @default(8)
+  shotsOff          Int @default(5)
+  tacklesPossession Int @default(10)
+  tacklesNoPossession Int @default(10)
+  tacklesCounter    Int @default(5)
+  transitionError   Int @default(2)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clubeId])
+  @@index([teamId])
+  @@map("stat_targets")
+>>>>>>> landingPage
 }
