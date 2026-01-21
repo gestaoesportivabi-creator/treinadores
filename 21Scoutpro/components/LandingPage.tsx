@@ -1,8 +1,4 @@
-<<<<<<< HEAD:21Scoutpro/components/LandingPage.tsx
-import React from 'react';
-=======
 import React, { useState, useEffect, useRef } from 'react';
->>>>>>> landingPage:components/LandingPage.tsx
 import { ArrowRight, Users, Target, TrendingUp, Clock, BarChart3, Shield, CheckCircle, Building2, Trophy, Sparkles, Brain, Calendar } from 'lucide-react';
 
 interface LandingPageProps {
@@ -241,15 +237,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
               <span className="hidden sm:inline">Entre em contato e agende uma apresentação</span>
               <span className="sm:hidden">Agende apresentação</span>
             </button>
-            <button 
-              onClick={() => window.open('https://wa.me/?text=Olá,%20gostaria%20de%20agendar%20uma%20apresentação', '_blank')}
-              type="button"
-              className="group px-6 md:px-8 py-4 bg-transparent hover:bg-zinc-900 text-white border-2 border-[#00f0ff] hover:border-[#00d4e6] font-black text-sm md:text-lg uppercase tracking-wider rounded-xl transition-all flex items-center gap-2 md:gap-3 cursor-pointer"
-            >
-              <Calendar size={18} className="md:w-5 md:h-5 shrink-0" />
-              <span className="hidden sm:inline">Entre em contato e agende uma apresentação</span>
-              <span className="sm:hidden">Agende apresentação</span>
-            </button>
           </div>
 
           <p className="text-sm text-zinc-600 font-medium pt-2">
@@ -393,11 +380,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
       </section>
 
       {/* Do Vestiário ao Escritório */}
-<<<<<<< HEAD:21Scoutpro/components/LandingPage.tsx
-      <section className="py-20 px-6 bg-zinc-900/30">
-=======
       <section ref={refVestiario} className={`py-24 px-4 sm:px-6 bg-zinc-900/30 transition-all duration-700 ${inViewVestiario ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
->>>>>>> landingPage:components/LandingPage.tsx
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-black uppercase text-white mb-4">Do Vestiário ao Escritório</h2>
@@ -408,11 +391,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
             </p>
           </div>
           
-<<<<<<< HEAD:21Scoutpro/components/LandingPage.tsx
-          <div className="grid md:grid-cols-3 gap-8">
-=======
           <div className="grid md:grid-cols-3 gap-6 md:gap-8">
->>>>>>> landingPage:components/LandingPage.tsx
             {[
               { 
                 icon: Brain, 
@@ -433,15 +412,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
                 emoji: '📊'
               }
             ].map((item, idx) => (
-<<<<<<< HEAD:21Scoutpro/components/LandingPage.tsx
-              <div key={idx} className="bg-black border border-zinc-800 rounded-2xl p-8 hover:border-[#00f0ff] transition-all text-center">
-=======
               <div 
                 key={idx} 
                 className={`bg-black border border-zinc-800 rounded-2xl p-8 hover:border-[#00f0ff] transition-all duration-300 hover:scale-[1.02] text-center ${inViewVestiario ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
                 style={{ transitionDelay: `${idx * 100}ms` }}
               >
->>>>>>> landingPage:components/LandingPage.tsx
                 <div className="text-4xl mb-4">{item.emoji}</div>
                 <item.icon className="text-[#00f0ff] mb-4 mx-auto" size={40} />
                 <h3 className="text-xl font-black text-white mb-4 uppercase">{item.title}</h3>
@@ -453,11 +428,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
       </section>
 
       {/* O DNA do Idealizador */}
-<<<<<<< HEAD:21Scoutpro/components/LandingPage.tsx
-      <section className="py-20 px-6">
-=======
       <section ref={refDNA} className={`py-24 px-4 sm:px-6 transition-all duration-700 ${inViewDNA ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
->>>>>>> landingPage:components/LandingPage.tsx
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-black uppercase text-white mb-4">O DNA do Idealizador</h2>
@@ -491,15 +462,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
                 emoji: '📊'
               }
             ].map((item, idx) => (
-<<<<<<< HEAD:21Scoutpro/components/LandingPage.tsx
-              <div key={idx} className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8 hover:border-[#00f0ff] transition-all">
-=======
               <div 
                 key={idx} 
                 className={`bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8 hover:border-[#00f0ff] transition-all duration-300 hover:scale-[1.01] ${inViewDNA ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
                 style={{ transitionDelay: `${idx * 100}ms` }}
               >
->>>>>>> landingPage:components/LandingPage.tsx
                 <div className="flex items-start gap-4">
                   <div className="text-3xl shrink-0">{item.emoji}</div>
                   <div className="flex-1">
