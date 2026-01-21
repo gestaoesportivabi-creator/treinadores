@@ -1,25 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { User, StatTargets } from '../types';
-import { Save, User as UserIcon, Lock, Image as ImageIcon, CheckCircle, Trophy, Plus, Trash2, Target } from 'lucide-react';
+import { Save, User as UserIcon, Lock, Image as ImageIcon, CheckCircle, Target } from 'lucide-react';
 
 interface SettingsProps {
   currentUser: User | null;
   onUpdateUser: (updatedData: Partial<User>) => void;
-  competitions: string[];
-  onUpdateCompetitions: (newCompetitions: string[]) => void;
   statTargets: StatTargets;
   onUpdateTargets: (targets: StatTargets) => void;
 }
 
-export const Settings: React.FC<SettingsProps> = ({ currentUser, onUpdateUser, competitions, onUpdateCompetitions, statTargets, onUpdateTargets }) => {
+export const Settings: React.FC<SettingsProps> = ({ currentUser, onUpdateUser, statTargets, onUpdateTargets }) => {
   const [name, setName] = useState('');
   const [photoUrl, setPhotoUrl] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [success, setSuccess] = useState('');
-
-  // Competition State
-  const [newCompetitionName, setNewCompetitionName] = useState('');
 
   // Targets State
   const [localTargets, setLocalTargets] = useState<StatTargets>(statTargets);
@@ -68,20 +63,6 @@ export const Settings: React.FC<SettingsProps> = ({ currentUser, onUpdateUser, c
     setConfirmPassword('');
     
     setTimeout(() => setSuccess(''), 3000);
-  };
-
-  const handleAddCompetition = () => {
-      if (newCompetitionName.trim()) {
-          onUpdateCompetitions([...competitions, newCompetitionName.trim()]);
-          setNewCompetitionName('');
-      }
-  };
-
-  const handleRemoveCompetition = (index: number) => {
-      if (window.confirm('Tem certeza que deseja remover esta competição?')) {
-          const updated = competitions.filter((_, i) => i !== index);
-          onUpdateCompetitions(updated);
-      }
   };
 
   return (
@@ -248,54 +229,6 @@ export const Settings: React.FC<SettingsProps> = ({ currentUser, onUpdateUser, c
                     </button>
                 </div>
             </form>
-
-            {/* 2. Competition Management Form */}
-            <div className="bg-black p-8 rounded-3xl border border-zinc-800 shadow-xl space-y-6">
-                <h3 className="text-white font-bold uppercase text-sm tracking-widest border-b border-zinc-800 pb-2 flex items-center gap-2">
-                    <Trophy size={16} className="text-[#10b981]" /> Gestão de Competições da Temporada
-                </h3>
-                
-                <div className="space-y-4">
-                    <div>
-                        <label className="block text-xs font-bold text-zinc-400 uppercase mb-2">Quantidade Atual</label>
-                        <div className="text-3xl font-black text-white">{competitions.length}</div>
-                    </div>
-
-                    <div>
-                        <label className="block text-xs font-bold text-zinc-400 uppercase mb-2">Adicionar Nova Competição</label>
-                        <div className="flex gap-2">
-                            <input 
-                                type="text" 
-                                value={newCompetitionName}
-                                onChange={(e) => setNewCompetitionName(e.target.value)}
-                                className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl text-white p-3 outline-none focus:border-[#10b981] uppercase font-bold text-sm"
-                                placeholder="NOME DO CAMPEONATO"
-                            />
-                            <button 
-                                onClick={handleAddCompetition}
-                                className="bg-zinc-800 hover:bg-zinc-700 text-white p-3 rounded-xl transition-colors"
-                            >
-                                <Plus size={20} />
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="space-y-2 pt-2">
-                        <label className="block text-xs font-bold text-zinc-500 uppercase mb-2">Competições Ativas</label>
-                        {competitions.map((comp, idx) => (
-                            <div key={idx} className="flex justify-between items-center bg-zinc-950 border border-zinc-800 p-3 rounded-xl group hover:border-zinc-700 transition-colors">
-                                <span className="text-white font-bold text-sm uppercase">{comp}</span>
-                                <button 
-                                    onClick={() => handleRemoveCompetition(idx)}
-                                    className="text-zinc-600 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
-                                >
-                                    <Trash2 size={16} />
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </div>
 
         </div>
       </div>

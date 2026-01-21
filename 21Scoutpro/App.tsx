@@ -659,25 +659,6 @@ export default function App() {
   }
 
   // Handlers para Settings
-  const handleUpdateCompetitions = async (newCompetitions: string[]) => {
-    try {
-      // Deletar todas e recriar (simplificado - pode melhorar depois)
-      const existing = await competitionsApi.getAll();
-      
-      // Salvar novas competições
-      for (const comp of newCompetitions) {
-        if (!existing.includes(comp)) {
-          await competitionsApi.create(comp);
-        }
-      }
-      
-      setCompetitions(newCompetitions);
-    } catch (error) {
-      console.error('Erro ao atualizar competições:', error);
-      setCompetitions(newCompetitions); // Atualizar localmente mesmo com erro
-    }
-  };
-
   const handleUpdateTargets = async (targets: StatTargets) => {
     try {
       const existing = await statTargetsApi.getAll();
@@ -866,8 +847,6 @@ export default function App() {
             <Settings 
               currentUser={currentUser} 
               onUpdateUser={handleUpdateUser} 
-              competitions={competitions} 
-              onUpdateCompetitions={setCompetitions}
               statTargets={statTargets}
               onUpdateTargets={setStatTargets}
             />
