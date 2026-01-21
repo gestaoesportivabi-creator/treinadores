@@ -19,7 +19,6 @@ import { ScheduleAlerts } from './components/ScheduleAlerts';
 import { TabBackgroundWrapper } from './components/TabBackgroundWrapper';
 import { ManagementReport } from './components/ManagementReport';
 import { NextMatchAlert } from './components/NextMatchAlert';
-import { useTheme } from './contexts/ThemeContext';
 import { SPORT_CONFIGS } from './constants';
 import { Activity, BarChart3, Clock, Database, PlayCircle, ArrowRight, User as UserIcon, Quote, Trophy, HeartPulse, FileText } from 'lucide-react';
 import { User, MatchRecord, Player, PhysicalAssessment, WeeklySchedule, StatTargets, PlayerTimeControl, Team, Championship } from './types';
@@ -69,8 +68,6 @@ const SLIDES = [
 ];
 
 export default function App() {
-  const { isLight } = useTheme();
-  
   // Route state: 'landing' | 'login' | 'register' | 'app'
   const [currentRoute, setCurrentRoute] = useState<'landing' | 'login' | 'register' | 'app'>('landing');
   
@@ -879,7 +876,7 @@ export default function App() {
       case 'dashboard':
       default:
         return (
-          <div className={`h-full w-full relative rounded-3xl overflow-hidden flex flex-col p-8 md:p-16 group shadow-2xl border ${isLight ? 'border-zinc-200 bg-white' : 'border-zinc-900 bg-black'} animate-fade-in`}>
+          <div className="h-full w-full relative rounded-3xl overflow-hidden flex flex-col p-8 md:p-16 group shadow-2xl border border-zinc-900 bg-black animate-fade-in">
             {/* Background Carousel */}
             {SLIDES.map((slide, index) => (
                 <div 
@@ -919,10 +916,10 @@ export default function App() {
 
                 {/* Quote Carousel Text */}
                 <div className="mb-8 min-h-[200px] flex flex-col justify-end">
-                     <h1 className={`text-4xl md:text-5xl lg:text-7xl font-black ${isLight ? 'text-gray-900' : 'text-white'} leading-[1.1] tracking-tighter drop-shadow-2xl italic uppercase mb-6 animate-fade-in-up transition-all duration-700`}>
+                     <h1 className="text-4xl md:text-5xl lg:text-7xl font-black text-white leading-[1.1] tracking-tighter drop-shadow-2xl italic uppercase mb-6 animate-fade-in-up transition-all duration-700">
                         "{SLIDES[currentSlide].quote}"
                     </h1>
-                    <p className={`${isLight ? 'text-gray-600' : 'text-zinc-400'} font-bold text-lg uppercase tracking-widest flex items-center gap-2 animate-fade-in`}>
+                    <p className="text-zinc-400 font-bold text-lg uppercase tracking-widest flex items-center gap-2 animate-fade-in">
                         — {SLIDES[currentSlide].author}
                     </p>
                 </div>
@@ -932,7 +929,7 @@ export default function App() {
                     {SLIDES.map((_, idx) => (
                         <div 
                             key={idx} 
-                            className={`h-1 rounded-full transition-all duration-500 ${idx === currentSlide ? 'w-12 bg-[#00f0ff]' : isLight ? 'w-4 bg-gray-300' : 'w-4 bg-zinc-800'}`}
+                            className={`h-1 rounded-full transition-all duration-500 ${idx === currentSlide ? 'w-12 bg-[#00f0ff]' : 'w-4 bg-zinc-800'}`}
                         ></div>
                     ))}
                 </div>
@@ -1003,7 +1000,7 @@ export default function App() {
 
   // Rota 'app' - renderizar com Sidebar
   return (
-    <div className={`flex min-h-screen ${isLight ? 'bg-gray-50 text-gray-900' : 'bg-black text-zinc-100'} font-sans`}>
+    <div className="flex min-h-screen bg-black text-zinc-100 font-sans">
       <Sidebar 
         activeTab={activeTab} 
         setActiveTab={handleTabChange} 
