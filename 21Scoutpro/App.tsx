@@ -297,9 +297,45 @@ export default function App() {
       }, 500);
   };
 
-  const handleUpdateUser = (updatedData: Partial<User>) => {
-      if (currentUser) {
-          setCurrentUser({ ...currentUser, ...updatedData });
+  const handleUpdateUser = async (updatedData: Partial<User>) => {
+      try {
+          const token = localStorage.getItem('token');
+          if (!token) {
+              alert('Você precisa estar autenticado para atualizar o perfil.');
+              return;
+          }
+
+          const { getApiUrl } = await import('./config');
+          
+          const response = await fetch(`${getApiUrl()}/auth/profile`, {
+              method: 'PUT',
+              headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`,
+              },
+              body: JSON.stringify(updatedData),
+          });
+
+          const result = await response.json();
+
+          if (result.success && result.data) {
+              // Atualizar estado local com dados retornados
+              if (currentUser) {
+                  const updatedUser: User = {
+                      ...currentUser,
+                      name: result.data.name,
+                      email: result.data.email,
+                      photoUrl: result.data.photoUrl,
+                      role: result.data.role === 'TECNICO' ? 'Treinador' : result.data.role,
+                  };
+                  setCurrentUser(updatedUser);
+              }
+          } else {
+              alert(result.error || 'Erro ao atualizar perfil. Tente novamente.');
+          }
+      } catch (error) {
+          console.error('Erro ao atualizar perfil:', error);
+          alert('Erro de conexão ao atualizar perfil. Verifique se o backend está rodando.');
       }
   };
 
@@ -846,9 +882,7 @@ export default function App() {
           <TabBackgroundWrapper>
             <Settings 
               currentUser={currentUser} 
-              onUpdateUser={handleUpdateUser} 
-              statTargets={statTargets}
-              onUpdateTargets={setStatTargets}
+              onUpdateUser={handleUpdateUser}
             />
           </TabBackgroundWrapper>
         );

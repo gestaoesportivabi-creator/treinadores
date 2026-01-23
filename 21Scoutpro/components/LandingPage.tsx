@@ -36,7 +36,11 @@ const useInView = (threshold = 0.1) => {
 };
 
 // Componente de Carrossel
-const ImageCarousel: React.FC = () => {
+interface ImageCarouselProps {
+  isBackground?: boolean;
+}
+
+const ImageCarousel: React.FC<ImageCarouselProps> = ({ isBackground = false }) => {
   const images = [
     '/ChatGPT Image 20 de jan. de 2026, 15_18_24.png',
     '/ChatGPT Image 20 de jan. de 2026, 15_20_07.png',
@@ -80,6 +84,50 @@ const ImageCarousel: React.FC = () => {
       setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
     }
   };
+
+  if (isBackground) {
+    return (
+      <div 
+        className="absolute inset-0 z-0 overflow-hidden"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        {images.map((img, idx) => (
+          <div
+            key={idx}
+            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
+              idx === currentIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'
+            }`}
+          >
+            <img
+              src={img}
+              alt={`SCOUT21PRO - ${idx + 1}`}
+              className="w-full h-full object-cover"
+              loading="lazy"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-black/30" />
+          </div>
+        ))}
+        
+        {/* Indicadores - posicionados no topo para não conflitar com CTAs */}
+        <div className="absolute top-24 left-1/2 transform -translate-x-1/2 flex gap-2 z-20">
+          {images.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => setCurrentIndex(idx)}
+              className={`h-1.5 rounded-full transition-all duration-300 ${
+                idx === currentIndex
+                  ? 'w-8 bg-[#00f0ff]'
+                  : 'w-1.5 bg-zinc-600/50 hover:bg-zinc-500/50'
+              }`}
+              aria-label={`Slide ${idx + 1}`}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div 
@@ -138,79 +186,72 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
   const [refVestiario, inViewVestiario] = useInView(0.1);
   const [refDNA, inViewDNA] = useInView(0.1);
   const [refComoFunciona, inViewComoFunciona] = useInView(0.1);
-  const [refCarousel, inViewCarousel] = useInView(0.1);
 
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Top Navigation Bar */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-md border-b border-zinc-800">
-        <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 md:py-4">
-          <div className="flex items-center justify-between gap-4">
-            {/* Logo */}
-            <div className="flex items-center gap-2 shrink-0">
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-black/90 backdrop-blur-lg border-b border-zinc-800/50 shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 md:px-8 lg:px-12 py-4 md:py-5">
+          <div className="flex items-center justify-between gap-6">
+            {/* Logo e Nome */}
+            <div className="flex items-center gap-3 shrink-0">
               <img 
                 src="/public-logo.png.png" 
                 alt="SCOUT21PRO Logo" 
-                className="h-10 w-auto"
+                className="h-10 md:h-12 w-auto"
               />
+              <div className="hidden sm:block">
+                <span className="text-white font-black text-lg md:text-xl uppercase tracking-tight">SCOUT21PRO</span>
+              </div>
             </div>
             
-            {/* Right side - Login and Instagram */}
-            <div className="flex flex-col items-end gap-2">
-              <button 
-                onClick={onGoToLogin}
-                className="px-4 md:px-6 py-2 bg-zinc-900 hover:bg-zinc-800 text-white border border-zinc-700 hover:border-[#00f0ff] rounded-lg text-xs md:text-sm font-bold uppercase tracking-wider transition-all"
-              >
-                Login
-              </button>
+            {/* Right side - Actions */}
+            <div className="flex items-center gap-3 md:gap-4">
+              {/* Instagram Link */}
               <a 
                 href="https://instagram.com/scout21pro" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="text-[#00f0ff] hover:text-[#00d4e6] text-[10px] md:text-xs font-medium transition-colors flex items-center gap-1.5"
+                className="hidden sm:flex items-center gap-2 px-4 py-2 text-[#00f0ff] hover:text-[#00d4e6] text-sm font-semibold transition-all hover:bg-zinc-900/50 rounded-lg border border-transparent hover:border-[#00f0ff]/30"
               >
                 <svg 
-                  className="w-4 h-4" 
+                  className="w-5 h-5" 
                   fill="currentColor" 
                   viewBox="0 0 24 24" 
                   xmlns="http://www.w3.org/2000/svg"
                 >
                   <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
                 </svg>
-                @scout21pro
+                <span className="hidden md:inline">@scout21pro</span>
               </a>
+              
+              {/* Login Button */}
+              <button 
+                onClick={onGoToLogin}
+                className="px-5 md:px-7 py-2.5 md:py-3 bg-[#00f0ff] hover:bg-[#00d4e6] active:scale-[0.98] text-black font-black text-sm md:text-base uppercase tracking-wider rounded-lg transition-all duration-300 shadow-[0_0_20px_rgba(0,240,255,0.3)] hover:shadow-[0_0_30px_rgba(0,240,255,0.5)]"
+              >
+                Login
+              </button>
             </div>
           </div>
         </div>
       </nav>
 
       {/* Hero Section */}
-      <header className="relative min-h-screen flex items-center justify-center px-4 sm:px-6 py-20 pt-24">
-        {/* Background gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-black via-zinc-900 to-black"></div>
+      <header className="relative min-h-screen flex items-center justify-center px-4 sm:px-6 py-20 pt-24 overflow-hidden">
+        {/* Carrossel como background */}
+        <ImageCarousel isBackground={true} />
         
-        {/* Animated grid background */}
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(0,240,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,240,255,0.03)_1px,transparent_1px)] bg-[size:50px_50px]"></div>
-        
+        {/* Conteúdo do banner (texto, CTAs) */}
         <div className="relative z-10 max-w-5xl mx-auto text-center space-y-8">
-          {/* Logo */}
-          <div className="inline-flex items-center justify-center mb-8">
-            <img 
-              src="/public-logo.png.png" 
-              alt="SCOUT21PRO Logo" 
-              className="h-24 md:h-32 w-auto max-w-full"
-            />
-          </div>
-
           {/* Eyebrow Headline - Tom Institucional */}
           <p className="text-sm md:text-base font-bold text-[#00f0ff] uppercase tracking-widest mb-4">
-            Análises baseadas em dados para decisões vencedoras
+            A melhor decisão é baseada em dados
           </p>
 
           {/* Headline Principal - Tom Institucional e Técnico */}
           <h1 className="text-5xl md:text-7xl font-black uppercase tracking-tighter leading-[0.9] text-white">
-            Transforme informação em vantagem competitiva<br />
-            <span className="text-[#00f0ff]">no futsal</span>
+            Gestão esportiva na prática!
           </h1>
           
           {/* Subheadline - Método e Confiança */}
@@ -225,7 +266,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
               type="button"
               className="group px-8 py-4 bg-[#00f0ff] hover:bg-[#00d4e6] active:scale-[0.98] text-black font-black text-lg uppercase tracking-wider rounded-xl transition-all duration-300 shadow-[0_0_30px_rgba(0,240,255,0.4)] hover:shadow-[0_0_50px_rgba(0,240,255,0.6)] hover:scale-[1.02] flex items-center gap-3 cursor-pointer"
             >
-              Começar Agora - É Grátis
+              Começar Agora
               <ArrowRight className="group-hover:translate-x-1 transition-transform duration-300" size={24} />
             </button>
             <button 
@@ -238,15 +279,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
               <span className="sm:hidden">Agende apresentação</span>
             </button>
           </div>
-
-          <p className="text-sm text-zinc-600 font-medium pt-2">
-            ✓ Sem cartão de crédito &nbsp;&nbsp; ✓ Acesso imediato &nbsp;&nbsp; ✓ Teste grátis
-          </p>
-
-          {/* Frase de Fechamento */}
-          <p className="text-lg md:text-xl text-zinc-300 font-bold max-w-3xl mx-auto pt-8 border-t border-zinc-800">
-            Largue na frente. Ganhe pontos onde seus adversários ainda não estão olhando. 🚀🧠
-          </p>
         </div>
       </header>
 
@@ -336,17 +368,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
               </div>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* Carrossel de Imagens */}
-      <section ref={refCarousel} className={`py-24 px-4 sm:px-6 transition-all duration-700 ${inViewCarousel ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-black uppercase text-white mb-4">Gestão de Alta Performance</h2>
-            <div className="w-24 h-1 bg-[#00f0ff] mx-auto"></div>
-          </div>
-          <ImageCarousel />
         </div>
       </section>
 

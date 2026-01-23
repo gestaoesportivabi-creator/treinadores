@@ -16,18 +16,24 @@ export const authController = {
    */
   login: async (req: Request, res: Response) => {
     try {
-      const { email, password } = req.body;
+      const { email, username, password } = req.body;
+      const identifier = email || username;
 
-      if (!email || !password) {
+      if (!identifier || !password) {
         return res.status(400).json({
           success: false,
-          error: 'Email e senha são obrigatórios',
+          error: 'Email/username e senha são obrigatórios',
         });
       }
 
-      // Buscar usuário
-      const user = await prisma.user.findUnique({
-        where: { email },
+      // Buscar usuário por email ou username (name)
+      const user = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { email: identifier },
+            { name: { equals: identifier, mode: 'insensitive' } }
+          ]
+        },
         include: { role: true },
       });
 
@@ -172,6 +178,82 @@ export const authController = {
       return res.status(500).json({
         success: false,
         error: error?.message || 'Erro ao criar conta',
+        details: process.env.NODE_ENV === 'development' ? error?.stack : undefined,
+      });
+    }
+  },
+
+  /**
+   * PUT /api/auth/profile
+   * Atualiza perfil do usuário autenticado
+   */
+  updateProfile: async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          error: 'Usuário não autenticado',
+        });
+      }
+
+      const { name, email, photoUrl } = req.body;
+
+      // Validar email se fornecido
+      if (email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+          return res.status(400).json({
+            success: false,
+            error: 'Formato de email inválido',
+          });
+        }
+
+        // Verificar se email já está em uso por outro usuário
+        const existingUser = await prisma.user.findFirst({
+          where: {
+            email,
+            id: { not: userId },
+          },
+        });
+
+        if (existingUser) {
+          return res.status(400).json({
+            success: false,
+            error: 'Email já está em uso',
+          });
+        }
+      }
+
+      // Preparar dados para atualização
+      const updateData: any = {};
+      if (name !== undefined) updateData.name = name;
+      if (email !== undefined) updateData.email = email;
+      if (photoUrl !== undefined) updateData.photoUrl = photoUrl;
+
+      // Atualizar usuário
+      const updatedUser = await prisma.user.update({
+        where: { id: userId },
+        data: updateData,
+        include: { role: true },
+      });
+
+      return res.json({
+        success: true,
+        data: {
+          id: updatedUser.id,
+          email: updatedUser.email,
+          name: updatedUser.name,
+          role: updatedUser.role.name,
+          photoUrl: updatedUser.photoUrl,
+        },
+      });
+    } catch (error: any) {
+      console.error('❌ Erro ao atualizar perfil:', error);
+      return res.status(500).json({
+        success: false,
+        error: error?.message || 'Erro ao atualizar perfil',
         details: process.env.NODE_ENV === 'development' ? error?.stack : undefined,
       });
     }

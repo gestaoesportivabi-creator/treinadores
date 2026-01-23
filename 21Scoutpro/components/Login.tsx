@@ -104,22 +104,33 @@ export const Login: React.FC<LoginProps> = ({ onLogin, initialMode = 'login', on
         }
       } else {
         // Login - chamar API do backend
-        // IMPORTANTE: Se o usuário digitar "admin", sempre usar "admin@admin.com"
-        const emailToUse = (email.trim() === 'admin' || email.trim() === 'admin@admin.com') 
-          ? 'admin@admin.com' 
-          : email.trim();
+        const identifier = email.trim();
         
-        console.log('🔐 Tentando login com email:', emailToUse);
+        // Detectar se é email (contém @) ou username (não contém @)
+        // IMPORTANTE: Se o usuário digitar "admin", sempre usar "admin@admin.com"
+        const isEmail = identifier.includes('@') || identifier === 'admin' || identifier === 'admin@admin.com';
+        const emailToUse = (identifier === 'admin' || identifier === 'admin@admin.com') 
+          ? 'admin@admin.com' 
+          : identifier;
+        
+        console.log('🔐 Tentando login com:', isEmail ? 'email' : 'username', emailToUse);
+        
+        const requestBody: any = {
+          password: password,
+        };
+        
+        if (isEmail) {
+          requestBody.email = emailToUse;
+        } else {
+          requestBody.username = emailToUse;
+        }
         
         const response = await fetch(`${getApiUrl()}/auth/login`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            email: emailToUse,
-            password: password,
-          }),
+          body: JSON.stringify(requestBody),
         });
 
         const result = await response.json();
@@ -142,7 +153,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin, initialMode = 'login', on
           onLogin(user);
           setIsLoading(false);
         } else {
-          setError(result.error || 'Email ou senha incorretos.');
+          setError(result.error || 'Email/username ou senha incorretos.');
           setIsLoading(false);
         }
       }
