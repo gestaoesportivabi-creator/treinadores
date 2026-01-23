@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Table, Printer, Plus, Trash2, Save, ChevronDown, ChevronUp, X, Minus, Clock, Goal, Shield, Zap, AlertTriangle, ArrowRightLeft, Target, Users, Activity, Gauge, Square, ArrowUpDown, Calendar, ArrowLeft, Play, Pause, RotateCcw } from 'lucide-react';
+import { Table, Printer, Trash2, Save, ChevronDown, ChevronUp, X, Minus, Clock, Goal, Shield, Zap, AlertTriangle, ArrowRightLeft, Target, Users, Activity, Gauge, Square, ArrowUpDown, Calendar, ArrowLeft, Play, Pause, RotateCcw } from 'lucide-react';
 import { MatchRecord, MatchStats, Player, PlayerTimeControl, Team } from '../types';
 import { timeControlsApi } from '../services/api';
 import { TimeSelectionModal } from './TimeSelectionModal';
+import { MatchTypeModal, MatchType } from './MatchTypeModal';
+import { MatchScoutingWindow } from './MatchScoutingWindow';
 
 interface GoalTime {
     id: string;
@@ -90,6 +92,15 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
     const [isCreatingNew, setIsCreatingNew] = useState(false); // Inicialmente calendário; form ao clicar em partida ou Nova Partida
     const [savedMatchId, setSavedMatchId] = useState<string | null>(null); // ID da partida salva
     const [isViewMode, setIsViewMode] = useState(false); // Modo visualização (após salvar)
+    const [showMatchTypeModal, setShowMatchTypeModal] = useState(false); // Modal de tipo de partida
+    const [showScoutingWindow, setShowScoutingWindow] = useState(false); // Janela de coleta
+    const [selectedMatchType, setSelectedMatchType] = useState<MatchType>('normal');
+    const [selectedExtraTimeMinutes, setSelectedExtraTimeMinutes] = useState<number>(5);
+    const [selectedScheduledMatch, setSelectedScheduledMatch] = useState<ChampionshipMatch | null>(null); // Partida programada selecionada
+    const [selectedPlayersForMatch, setSelectedPlayersForMatch] = useState<Set<string>>(new Set()); // IDs dos jogadores selecionados
+    const [preparationMatchType, setPreparationMatchType] = useState<MatchType>('normal'); // Tipo de partida para preparação
+    const [preparationExtraTimeMinutes, setPreparationExtraTimeMinutes] = useState<number>(5); // Minutos de acréscimo
+    const [showStartScoutConfirmation, setShowStartScoutConfirmation] = useState<boolean>(false); // Modal de confirmação
 
     // Calendário: filtro de datas (default: mês atual) e modo de visualização
     const [startDate, setStartDate] = useState<string>(() => {
@@ -1258,48 +1269,6 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
         });
     };
 
-    const handleNewMatch = () => {
-        if (isViewMode) {
-            alert('Não é possível criar nova partida. A partida salva está bloqueada para edição.');
-            return;
-        }
-        setOpponent('');
-        setCompetition('');
-        setLocation('');
-        setScoreTarget('');
-        setMatchResult('Sem informação');
-        setGoalsConceded([]);
-        setGoalsConcededSaved(false);
-        setSavedMatchId(null);
-        setIsViewMode(false);
-        setIsCreatingNew(true);
-        setCurrentMatchId(null);
-        setExpandedMatches(new Set());
-        setEntries([{
-            id: Date.now().toString(),
-            date: new Date().toISOString().split('T')[0],
-            athleteId: '',
-            athleteName: '',
-            jerseyNumber: '',
-            position: '',
-            status: 'Ativo',
-            goals: 0,
-            goalTimes: [],
-            assists: 0,
-            passesCorrect: 0,
-            passesWrong: 0,
-            shotsOn: 0,
-            shotsOff: 0,
-            tacklesPossession: 0,
-            tacklesNoPossession: 0,
-            tacklesCounter: 0,
-            transitionError: 0,
-            card: 'Nenhum',
-            rpe: 5,
-        }]);
-        setViewMode('form');
-    };
-
     const handleSave = () => {
         if (!opponent) {
             alert("Por favor, informe o adversário.");
@@ -1656,6 +1625,31 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
     const scoreMessage = getScoreMessage();
     const teamName = teams.length > 0 ? teams[0].nome : 'Nossa Equipe';
 
+    // Função para verificar se uma partida não foi executada
+    const isMatchNotExecuted = (match: MatchRecord | null): boolean => {
+        if (!match) return false;
+        
+        // Verificar se é uma partida programada que foi salva mas não executada
+        // Uma partida não executada tem teamStats zerados ou inexistentes
+        if (!match.teamStats) return true;
+        
+        // Verificar se todas as estatísticas principais estão zeradas
+        const hasNoStats = 
+            match.teamStats.goals === 0 &&
+            match.teamStats.assists === 0 &&
+            match.teamStats.passesCorrect === 0 &&
+            match.teamStats.passesWrong === 0 &&
+            match.teamStats.shotsOnTarget === 0 &&
+            match.teamStats.shotsOffTarget === 0 &&
+            match.teamStats.tacklesWithBall === 0 &&
+            match.teamStats.tacklesWithoutBall === 0 &&
+            match.teamStats.tacklesCounterAttack === 0 &&
+            match.teamStats.transitionErrors === 0 &&
+            Object.keys(match.playerStats || {}).length === 0;
+        
+        return hasNoStats;
+    };
+
     // Partidas unificadas (salvas + programadas) filtradas por intervalo de datas
     const filteredMatches = useMemo((): CalendarMatchItem[] => {
         const saved: CalendarMatchItem[] = matches.map((m) => ({ ...m, type: 'saved' as const }));
@@ -1686,72 +1680,30 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
         if (item.type === 'saved') {
             const m = item as MatchRecord;
             setSelectedMatch(m);
+            setSelectedScheduledMatch(null); // Limpar partida programada se houver
             setViewMode('analysis');
         } else {
             const cm = item as ChampionshipMatch & { type: 'scheduled' };
-            setOpponent(cm.opponent || '');
-            setCompetition(cm.competition || '');
-            setLocation(cm.location || 'Mandante');
-            setScoreTarget(cm.scoreTarget || '');
-            setGoalsConceded([]);
-            setGoalsConcededSaved(false);
-            setSavedMatchId(null);
-            setIsViewMode(false);
-            setIsCreatingNew(true);
-            setCurrentMatchId(null);
-            const formattedDate = cm.date;
-            const activePlayers = players.filter(p => !(p as any).status || (p as any).status === 'Ativo');
-            const newEntries = activePlayers.length ? activePlayers.map((player, index) => ({
-                id: `${Date.now()}-${index}`,
-                date: formattedDate,
-                athleteId: String(player.id).trim(),
-                athleteName: player.name,
-                jerseyNumber: player.jerseyNumber,
-                position: player.position,
-                status: 'Ativo' as const,
-                goals: 0,
-                goalTimes: [],
-                assists: 0,
-                passesCorrect: 0,
-                passesWrong: 0,
-                shotsOn: 0,
-                shotsOff: 0,
-                tacklesPossession: 0,
-                tacklesNoPossession: 0,
-                tacklesCounter: 0,
-                transitionError: 0,
-                card: 'Nenhum' as const,
-                rpe: 5,
-            })) : [{
-                id: '1',
-                date: formattedDate,
-                athleteId: '',
-                athleteName: '',
-                jerseyNumber: '',
-                position: '',
-                status: 'Ativo',
-                goals: 0,
-                goalTimes: [],
-                assists: 0,
-                passesCorrect: 0,
-                passesWrong: 0,
-                shotsOn: 0,
-                shotsOff: 0,
-                tacklesPossession: 0,
-                tacklesNoPossession: 0,
-                tacklesCounter: 0,
-                transitionError: 0,
-                card: 'Nenhum',
-                rpe: 5,
-            }];
-            setEntries(newEntries);
-            setViewMode('form');
+            // Para partidas programadas, ir para análise com interface de preparação
+            setSelectedScheduledMatch(cm);
+            setSelectedMatch(null); // Limpar partida salva se houver
+            setSelectedPlayersForMatch(new Set()); // Resetar seleção de jogadores
+            setPreparationMatchType('normal'); // Resetar tipo de partida
+            setPreparationExtraTimeMinutes(5); // Resetar minutos de acréscimo
+            setViewMode('analysis');
         }
+    };
+
+    // Função helper para verificar se é partida programada
+    const isScheduledMatch = (): boolean => {
+        return selectedScheduledMatch !== null;
     };
 
     const handleBackToCalendar = () => {
         setViewMode('calendar');
         setSelectedMatch(null);
+        setSelectedScheduledMatch(null);
+        setSelectedPlayersForMatch(new Set());
         setSavedMatchId(null);
         setIsViewMode(false);
         setIsCreatingNew(false);
@@ -1875,12 +1827,6 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                             >
                                 Mês atual
                             </button>
-                            <button
-                                onClick={handleNewMatch}
-                                className="flex items-center gap-2 bg-[#00f0ff] hover:bg-[#00f0ff]/90 text-black font-black uppercase text-xs px-4 py-2 rounded-xl transition-colors shadow-[0_0_15px_rgba(0,240,255,0.3)]"
-                            >
-                                <Plus size={18} /> Nova partida
-                            </button>
                         </div>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -1921,27 +1867,236 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                         <div className="text-center py-12 text-zinc-500 bg-black/50 rounded-2xl border border-zinc-900">
                             <Calendar size={48} className="mx-auto mb-3 opacity-50" />
                             <p className="font-bold text-sm">Nenhuma partida no período</p>
-                            <p className="text-xs mt-1">Ajuste as datas ou clique em &quot;Nova partida&quot;</p>
+                            <p className="text-xs mt-1">Ajuste as datas para visualizar as partidas</p>
                         </div>
                     )}
                 </div>
             )}
 
-            {viewMode === 'analysis' && selectedMatch && (
-                <div className="space-y-6 animate-fade-in pb-12">
-                    {/* Header com botão Voltar */}
-                    <div className="flex items-center justify-between mb-6">
-                        <h2 className="text-2xl font-black text-white flex items-center gap-2 uppercase tracking-wide">
-                            <Target className="text-[#00f0ff]" size={28} /> Análise da Partida
-                        </h2>
-                        <button
-                            type="button"
-                            onClick={handleBackToCalendar}
-                            className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 hover:text-white font-bold uppercase text-xs px-3 py-2 rounded-xl transition-colors"
-                        >
-                            <ArrowLeft size={16} /> Voltar ao Calendário
-                        </button>
-                    </div>
+            {viewMode === 'analysis' && (
+                <>
+                    {/* Interface de Preparação para Partida Programada */}
+                    {isScheduledMatch() && selectedScheduledMatch && (
+                        <div className="space-y-6 animate-fade-in pb-12">
+                            {/* Header com botão Voltar */}
+                            <div className="flex items-center justify-between mb-6">
+                                <h2 className="text-2xl font-black text-white flex items-center gap-2 uppercase tracking-wide">
+                                    <Target className="text-[#00f0ff]" size={28} /> Preparação da Partida
+                                </h2>
+                                <button
+                                    type="button"
+                                    onClick={handleBackToCalendar}
+                                    className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 hover:text-white font-bold uppercase text-xs px-3 py-2 rounded-xl transition-colors"
+                                >
+                                    <ArrowLeft size={16} /> Voltar ao Calendário
+                                </button>
+                            </div>
+
+                            {/* Informações Básicas da Partida */}
+                            <div className="bg-black rounded-3xl border border-zinc-900 p-6 shadow-lg">
+                                <h3 className="text-white font-bold uppercase text-sm mb-4 flex items-center gap-2">
+                                    <Calendar className="text-[#00f0ff]" size={16} /> Informações da Partida
+                                </h3>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                    <div>
+                                        <span className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Data</span>
+                                        <p className="text-white font-bold text-sm">{formatDate(selectedScheduledMatch.date)}</p>
+                                    </div>
+                                    <div>
+                                        <span className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Adversário</span>
+                                        <p className="text-white font-bold text-sm">{selectedScheduledMatch.opponent || '-'}</p>
+                                    </div>
+                                    <div>
+                                        <span className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Competição</span>
+                                        <p className="text-white font-bold text-sm">{selectedScheduledMatch.competition || '-'}</p>
+                                    </div>
+                                    {selectedScheduledMatch.time && (
+                                        <div>
+                                            <span className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Horário</span>
+                                            <p className="text-white font-bold text-sm">{selectedScheduledMatch.time}</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Seção de Seleção de Atletas */}
+                            <div className="bg-black rounded-3xl border border-zinc-900 p-6 shadow-lg">
+                                <h3 className="text-white font-bold uppercase text-sm mb-4 flex items-center gap-2">
+                                    <Users className="text-[#00f0ff]" size={16} /> Selecionar Atletas
+                                </h3>
+                                <div className="max-h-96 overflow-y-auto space-y-2">
+                                    {players.map((player) => {
+                                        const isSelected = selectedPlayersForMatch.has(String(player.id).trim());
+                                        return (
+                                            <label
+                                                key={player.id}
+                                                className="flex items-center gap-3 p-3 bg-zinc-950 border-2 border-zinc-800 rounded-xl cursor-pointer hover:border-[#00f0ff]/50 transition-colors"
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isSelected}
+                                                    onChange={(e) => {
+                                                        const newSet = new Set(selectedPlayersForMatch);
+                                                        if (e.target.checked) {
+                                                            newSet.add(String(player.id).trim());
+                                                        } else {
+                                                            newSet.delete(String(player.id).trim());
+                                                        }
+                                                        setSelectedPlayersForMatch(newSet);
+                                                    }}
+                                                    className="w-5 h-5 text-[#00f0ff] bg-zinc-900 border-zinc-700 rounded focus:ring-[#00f0ff] focus:ring-2"
+                                                />
+                                                <div className="flex-1">
+                                                    <span className="text-white font-bold text-sm">
+                                                        #{player.jerseyNumber} {player.name}
+                                                    </span>
+                                                    <span className="text-zinc-500 text-xs ml-2">({player.position})</span>
+                                                </div>
+                                            </label>
+                                        );
+                                    })}
+                                    {players.length === 0 && (
+                                        <p className="text-zinc-500 text-sm text-center py-4">Nenhum jogador cadastrado</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Seção de Tipo de Partida */}
+                            <div className="bg-black rounded-3xl border border-zinc-900 p-6 shadow-lg">
+                                <h3 className="text-white font-bold uppercase text-sm mb-4 flex items-center gap-2">
+                                    <Clock className="text-[#00f0ff]" size={16} /> Tipo de Partida
+                                </h3>
+                                <div className="space-y-3">
+                                    <label className="flex items-center gap-3 p-4 bg-zinc-950 border-2 border-zinc-800 rounded-xl cursor-pointer hover:border-[#00f0ff]/50 transition-colors">
+                                        <input
+                                            type="radio"
+                                            name="preparationMatchType"
+                                            value="normal"
+                                            checked={preparationMatchType === 'normal'}
+                                            onChange={() => setPreparationMatchType('normal')}
+                                            className="w-5 h-5 text-[#00f0ff] border-zinc-700 focus:ring-[#00f0ff] focus:ring-2"
+                                        />
+                                        <div className="flex-1">
+                                            <div className="text-white font-bold text-sm">Partida Normal</div>
+                                            <div className="text-zinc-500 text-xs">Dois tempos de 20 minutos</div>
+                                        </div>
+                                    </label>
+
+                                    <label className="flex items-center gap-3 p-4 bg-zinc-950 border-2 border-zinc-800 rounded-xl cursor-pointer hover:border-[#00f0ff]/50 transition-colors">
+                                        <input
+                                            type="radio"
+                                            name="preparationMatchType"
+                                            value="extraTime"
+                                            checked={preparationMatchType === 'extraTime'}
+                                            onChange={() => setPreparationMatchType('extraTime')}
+                                            className="w-5 h-5 text-[#00f0ff] border-zinc-700 focus:ring-[#00f0ff] focus:ring-2"
+                                        />
+                                        <div className="flex-1">
+                                            <div className="text-white font-bold text-sm">Com Acréscimo</div>
+                                            <div className="text-zinc-500 text-xs">Partida normal + tempo extra</div>
+                                        </div>
+                                    </label>
+
+                                    <label className="flex items-center gap-3 p-4 bg-zinc-950 border-2 border-zinc-800 rounded-xl cursor-pointer hover:border-[#00f0ff]/50 transition-colors">
+                                        <input
+                                            type="radio"
+                                            name="preparationMatchType"
+                                            value="penalties"
+                                            checked={preparationMatchType === 'penalties'}
+                                            onChange={() => setPreparationMatchType('penalties')}
+                                            className="w-5 h-5 text-[#00f0ff] border-zinc-700 focus:ring-[#00f0ff] focus:ring-2"
+                                        />
+                                        <div className="flex-1">
+                                            <div className="text-white font-bold text-sm">Direto para Pênaltis</div>
+                                            <div className="text-zinc-500 text-xs">Sem tempo normal, apenas pênaltis</div>
+                                        </div>
+                                    </label>
+
+                                    <label className="flex items-center gap-3 p-4 bg-zinc-950 border-2 border-zinc-800 rounded-xl cursor-pointer hover:border-[#00f0ff]/50 transition-colors">
+                                        <input
+                                            type="radio"
+                                            name="preparationMatchType"
+                                            value="extraTimePenalties"
+                                            checked={preparationMatchType === 'extraTimePenalties'}
+                                            onChange={() => setPreparationMatchType('extraTimePenalties')}
+                                            className="w-5 h-5 text-[#00f0ff] border-zinc-700 focus:ring-[#00f0ff] focus:ring-2"
+                                        />
+                                        <div className="flex-1">
+                                            <div className="text-white font-bold text-sm">Acréscimo + Pênaltis</div>
+                                            <div className="text-zinc-500 text-xs">Partida normal + acréscimo + pênaltis</div>
+                                        </div>
+                                    </label>
+                                </div>
+
+                                {/* Input de minutos de acréscimo */}
+                                {(preparationMatchType === 'extraTime' || preparationMatchType === 'extraTimePenalties') && (
+                                    <div className="mt-4">
+                                        <label className="block text-zinc-400 text-xs font-bold uppercase mb-2">
+                                            Minutos de Acréscimo
+                                        </label>
+                                        <div className="flex items-center gap-3">
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                max="30"
+                                                value={preparationExtraTimeMinutes}
+                                                onChange={(e) => setPreparationExtraTimeMinutes(Math.max(1, Math.min(30, parseInt(e.target.value) || 5)))}
+                                                className="flex-1 bg-zinc-950 border border-zinc-700 rounded-lg px-4 py-2 text-white text-sm outline-none focus:border-[#00f0ff]"
+                                            />
+                                            <div className="flex items-center gap-2 text-zinc-500 text-sm">
+                                                <Clock size={16} />
+                                                <span>minutos</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Botão Iniciar Scout */}
+                            <div className="flex justify-center">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowStartScoutConfirmation(true)}
+                                    disabled={selectedPlayersForMatch.size === 0}
+                                    className={`flex items-center gap-2 font-black uppercase text-sm px-6 py-3 rounded-xl transition-colors shadow-[0_0_15px_rgba(0,240,255,0.3)] ${
+                                        selectedPlayersForMatch.size === 0
+                                            ? 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
+                                            : 'bg-[#00f0ff] hover:bg-[#00d9e6] text-black'
+                                    }`}
+                                >
+                                    <Play size={18} /> Iniciar Scout da Partida
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Interface de Análise para Partida Salva */}
+                    {!isScheduledMatch() && selectedMatch && (
+                        <div className="space-y-6 animate-fade-in pb-12">
+                            {/* Header com botão Voltar */}
+                            <div className="flex items-center justify-between mb-6">
+                                <h2 className="text-2xl font-black text-white flex items-center gap-2 uppercase tracking-wide">
+                                    <Target className="text-[#00f0ff]" size={28} /> Análise da Partida
+                                </h2>
+                                <div className="flex items-center gap-3">
+                                    {isMatchNotExecuted(selectedMatch) && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowMatchTypeModal(true)}
+                                            className="flex items-center gap-2 bg-[#00f0ff] hover:bg-[#00d9e6] text-black font-black uppercase text-xs px-4 py-2 rounded-xl transition-colors shadow-[0_0_15px_rgba(0,240,255,0.3)]"
+                                        >
+                                            <Play size={16} /> Iniciar Scout da Partida
+                                        </button>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={handleBackToCalendar}
+                                        className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 hover:text-white font-bold uppercase text-xs px-3 py-2 rounded-xl transition-colors"
+                                    >
+                                        <ArrowLeft size={16} /> Voltar ao Calendário
+                                    </button>
+                                </div>
+                            </div>
 
                     {/* Resultado do Jogo (baseado no card) */}
                     <div className="bg-black rounded-3xl border border-zinc-900 p-6 shadow-lg">
@@ -2046,6 +2201,129 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                         )}
                     </div>
                 </div>
+            )}
+
+                    {/* Modal de Confirmação para Iniciar Scout */}
+                    {showStartScoutConfirmation && selectedScheduledMatch && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in">
+                            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+                                {/* Header */}
+                                <div className="flex items-center justify-between p-6 border-b border-zinc-800">
+                                    <div className="flex items-center gap-3">
+                                        <Play className="text-[#00f0ff]" size={24} />
+                                        <h3 className="text-xl font-black text-white uppercase tracking-wide">Confirmar Início do Scout</h3>
+                                    </div>
+                                    <button
+                                        onClick={() => setShowStartScoutConfirmation(false)}
+                                        className="p-2 hover:bg-zinc-800 rounded-lg transition-colors"
+                                    >
+                                        <X size={20} className="text-zinc-500 hover:text-white" />
+                                    </button>
+                                </div>
+
+                                {/* Content */}
+                                <div className="p-6">
+                                    <p className="text-zinc-400 text-sm mb-6">
+                                        Confirme os dados antes de iniciar a coleta:
+                                    </p>
+
+                                    {/* Resumo da Partida */}
+                                    <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 mb-4">
+                                        <h4 className="text-white font-bold text-sm mb-3 uppercase">Partida</h4>
+                                        <div className="space-y-2 text-sm">
+                                            <div className="flex justify-between">
+                                                <span className="text-zinc-400">Adversário:</span>
+                                                <span className="text-white font-bold">{selectedScheduledMatch.opponent || '-'}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-zinc-400">Data:</span>
+                                                <span className="text-white font-bold">{formatDate(selectedScheduledMatch.date)}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-zinc-400">Competição:</span>
+                                                <span className="text-white font-bold">{selectedScheduledMatch.competition || '-'}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Resumo do Tipo de Partida */}
+                                    <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 mb-4">
+                                        <h4 className="text-white font-bold text-sm mb-3 uppercase">Tipo de Partida</h4>
+                                        <p className="text-white text-sm">
+                                            {preparationMatchType === 'normal' && 'Partida Normal (dois tempos de 20 minutos)'}
+                                            {preparationMatchType === 'extraTime' && `Com Acréscimo (${preparationExtraTimeMinutes} minutos)`}
+                                            {preparationMatchType === 'penalties' && 'Direto para Pênaltis'}
+                                            {preparationMatchType === 'extraTimePenalties' && `Acréscimo + Pênaltis (${preparationExtraTimeMinutes} minutos)`}
+                                        </p>
+                                    </div>
+
+                                    {/* Resumo dos Atletas Selecionados */}
+                                    <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 mb-6">
+                                        <h4 className="text-white font-bold text-sm mb-3 uppercase">
+                                            Atletas Selecionados ({selectedPlayersForMatch.size})
+                                        </h4>
+                                        <div className="max-h-40 overflow-y-auto space-y-1">
+                                            {Array.from(selectedPlayersForMatch).map((playerId) => {
+                                                const player = players.find(p => String(p.id).trim() === playerId);
+                                                if (!player) return null;
+                                                return (
+                                                    <div key={playerId} className="text-sm text-zinc-300">
+                                                        #{player.jerseyNumber} {player.name} ({player.position})
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+
+                                    {/* Botões */}
+                                    <div className="flex gap-3">
+                                        <button
+                                            onClick={() => setShowStartScoutConfirmation(false)}
+                                            className="flex-1 px-4 py-3 bg-zinc-800 hover:bg-zinc-700 text-white font-bold uppercase text-xs rounded-xl transition-colors"
+                                        >
+                                            Cancelar
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                // Criar MatchRecord temporário
+                                                const tempMatch: MatchRecord = {
+                                                    id: `temp-${Date.now()}`,
+                                                    opponent: selectedScheduledMatch.opponent || '',
+                                                    date: selectedScheduledMatch.date,
+                                                    result: 'E',
+                                                    goalsFor: 0,
+                                                    goalsAgainst: 0,
+                                                    competition: selectedScheduledMatch.competition,
+                                                    playerStats: {},
+                                                    teamStats: {
+                                                        goals: 0,
+                                                        assists: 0,
+                                                        passesCorrect: 0,
+                                                        passesWrong: 0,
+                                                        shotsOnTarget: 0,
+                                                        shotsOffTarget: 0,
+                                                        tacklesWithBall: 0,
+                                                        tacklesWithoutBall: 0,
+                                                        tacklesCounterAttack: 0,
+                                                        transitionErrors: 0,
+                                                    },
+                                                };
+                                                setSelectedMatch(tempMatch);
+                                                setSelectedMatchType(preparationMatchType);
+                                                setSelectedExtraTimeMinutes(preparationExtraTimeMinutes);
+                                                setShowStartScoutConfirmation(false);
+                                                setShowScoutingWindow(true);
+                                            }}
+                                            className="flex-1 px-4 py-3 bg-[#00f0ff] hover:bg-[#00d9e6] text-black font-black uppercase text-xs rounded-xl transition-colors shadow-[0_0_15px_rgba(0,240,255,0.3)]"
+                                        >
+                                            Confirmar e Iniciar
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </>
             )}
 
             {viewMode === 'form' && (
@@ -2653,7 +2931,6 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                 </div>
             )}
             </>
-            )}
 
             {/* Modal de Seleção de Tempo */}
             <TimeSelectionModal
@@ -2662,6 +2939,39 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                 onConfirm={handleTimeModalConfirm}
                 title={timeModalType === 'entry' ? 'Registrar Entrada' : 'Registrar Saída'}
             />
+
+            {/* Modal de Tipo de Partida */}
+            <MatchTypeModal
+                isOpen={showMatchTypeModal}
+                onClose={() => setShowMatchTypeModal(false)}
+                onConfirm={(matchType, extraTimeMinutes) => {
+                    setSelectedMatchType(matchType);
+                    if (extraTimeMinutes) {
+                        setSelectedExtraTimeMinutes(extraTimeMinutes);
+                    }
+                    setShowMatchTypeModal(false);
+                    setShowScoutingWindow(true);
+                }}
+            />
+
+            {/* Janela de Coleta da Partida */}
+            {selectedMatch && (
+                <MatchScoutingWindow
+                    isOpen={showScoutingWindow}
+                    onClose={() => {
+                        setShowScoutingWindow(false);
+                        setSelectedMatchType('normal');
+                        setSelectedExtraTimeMinutes(5);
+                        setSelectedPlayersForMatch(new Set());
+                    }}
+                    match={selectedMatch}
+                    players={players || []}
+                    teams={teams || []}
+                    matchType={selectedMatchType}
+                    extraTimeMinutes={selectedExtraTimeMinutes}
+                    selectedPlayerIds={isScheduledMatch() && selectedPlayersForMatch ? Array.from(selectedPlayersForMatch) : undefined}
+                />
+            )}
         </div>
     );
 };
