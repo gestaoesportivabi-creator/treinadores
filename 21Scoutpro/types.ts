@@ -47,6 +47,8 @@ export interface InjuryRecord {
   origin: 'Treino' | 'Jogo' | 'Outros';
   startDate: string;
   endDate?: string;
+  returnDate?: string; // Data de retorno prevista
+  returnDateActual?: string; // Data de retorno real
   daysOut?: number;
 }
 
@@ -76,6 +78,11 @@ export interface Player {
   photoUrl?: string;
   isTransferred?: boolean;
   transferDate?: string;
+  severanceValue?: number; // Valor de recisão
+  severanceEndDate?: string; // Data até quando receberá do clube após recisão
+  salary?: number; // Salário negociado
+  salaryStartDate?: string; // Data início recebimento salário
+  salaryEndDate?: string; // Data término recebimento salário
   injuryHistory?: InjuryRecord[];
   birthDate?: string; // YYYY-MM-DD
   cpf?: string; // Formato: XXX.XXX.XXX-XX
@@ -179,6 +186,7 @@ export interface Team {
   temporada?: string;
   tecnicoId: string;
   clubeId?: string;
+  logoUrl?: string; // URL/base64 do escudo da equipe
   createdAt: string;
 }
 
