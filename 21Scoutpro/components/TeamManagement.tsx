@@ -7,10 +7,11 @@ interface TeamManagementProps {
     players: Player[];
     onAddPlayer: (player: Player) => void;
     onUpdatePlayer: (player: Player) => void;
+    onClearDemoData?: () => Promise<void>;
     config: SportConfig;
 }
 
-export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPlayer, onUpdatePlayer, config }) => {
+export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPlayer, onUpdatePlayer, onClearDemoData, config }) => {
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editMode, setEditMode] = useState(false);
     const [editPlayerId, setEditPlayerId] = useState<string | null>(null);
@@ -312,7 +313,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
             return { ...inj, daysOut };
         });
         
-        const playerData: Player & { equipeId?: string } = {
+        const playerData: Player = {
             id: editMode && editPlayerId ? editPlayerId : `p${Date.now()}`,
             name,
             nickname: nickname || name.split(' ')[0],
@@ -508,19 +509,33 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
                     </h2>
                     <p className="text-zinc-500 text-xs font-bold mt-1">Cadastro, edição e status dos atletas.</p>
                 </div>
-                <button 
-                    onClick={() => {
-                        if(isFormOpen) resetForm(); 
-                        setIsFormOpen(!isFormOpen);
-                    }}
-                    className="flex items-center gap-2 bg-[#10b981] hover:bg-[#34d399] text-white px-6 py-3 font-bold uppercase text-xs rounded-xl transition-colors shadow-[0_0_15px_rgba(16,185,129,0.4)]"
-                >
-                    {isFormOpen ? 'Cancelar' : (
-                        <>
-                            <Plus size={16} /> Novo Atleta
-                        </>
+                <div className="flex items-center gap-3">
+                    {onClearDemoData && players.length > 0 && (
+                        <button
+                            type="button"
+                            onClick={async () => {
+                                if (!confirm('Excluir TODOS os atletas (dados de demonstração)? Essa ação não pode ser desfeita.')) return;
+                                await onClearDemoData();
+                            }}
+                            className="flex items-center gap-2 bg-red-600/80 hover:bg-red-600 text-white px-4 py-2 font-bold uppercase text-xs rounded-xl transition-colors border border-red-500/50"
+                        >
+                            <Trash2 size={14} /> Limpar dados de demonstração
+                        </button>
                     )}
-                </button>
+                    <button 
+                        onClick={() => {
+                            if(isFormOpen) resetForm(); 
+                            setIsFormOpen(!isFormOpen);
+                        }}
+                        className="flex items-center gap-2 bg-[#10b981] hover:bg-[#34d399] text-white px-6 py-3 font-bold uppercase text-xs rounded-xl transition-colors shadow-[0_0_15px_rgba(16,185,129,0.4)]"
+                    >
+                        {isFormOpen ? 'Cancelar' : (
+                            <>
+                                <Plus size={16} /> Novo Atleta
+                            </>
+                        )}
+                    </button>
+                </div>
             </div>
 
             {/* Registration/Edit Form */}

@@ -392,45 +392,16 @@ export default function App() {
       }
   };
 
-  const handleAddTeam = async (newTeam: Omit<Team, 'id' | 'createdAt'>) => {
+  const handleClearDemoData = async () => {
     try {
-      const saved = await teamsApi.create(newTeam);
-      if (saved) {
-        setTeams(prev => [...prev, saved]);
-        return saved;
+      for (const p of players) {
+        await playersApi.delete(p.id);
       }
-      return null;
-    } catch (error) {
-      console.error('Erro ao criar equipe:', error);
-      return null;
-    }
-  };
-
-  const handleUpdateTeam = async (updatedTeam: Team) => {
-    try {
-      const saved = await teamsApi.update(updatedTeam.id, updatedTeam);
-      if (saved) {
-        setTeams(prev => prev.map(t => t.id === updatedTeam.id ? saved : t));
-        return saved;
-      }
-      return null;
-    } catch (error) {
-      console.error('Erro ao atualizar equipe:', error);
-      return null;
-    }
-  };
-
-  const handleDeleteTeam = async (teamId: string) => {
-    try {
-      const success = await teamsApi.delete(teamId);
-      if (success) {
-        setTeams(prev => prev.filter(t => t.id !== teamId));
-        return true;
-      }
-      return false;
-    } catch (error) {
-      console.error('Erro ao deletar equipe:', error);
-      return false;
+      setPlayers([]);
+      alert('Dados de demonstração excluídos.');
+    } catch (e) {
+      console.error('Erro ao limpar dados:', e);
+      alert(e instanceof Error ? e.message : 'Erro ao excluir. Tente novamente.');
     }
   };
 
@@ -683,6 +654,7 @@ export default function App() {
               players={players} 
               onAddPlayer={handleAddPlayer} 
               onUpdatePlayer={handleUpdatePlayer}
+              onClearDemoData={handleClearDemoData}
               config={config} 
             />
           </TabBackgroundWrapper>
