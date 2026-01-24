@@ -225,8 +225,15 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
 
     const handleAddInjury = (e: React.MouseEvent) => {
         e.preventDefault();
+        e.stopPropagation();
+        
         if (!newInjuryStart) {
             alert("Informe a data de início da lesão.");
+            return;
+        }
+
+        if (!editPlayerId) {
+            alert("Erro: ID do jogador não encontrado. Por favor, salve o jogador primeiro.");
             return;
         }
 
@@ -236,7 +243,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
         today.setHours(0, 0, 0, 0);
         
         // Calcular dias baseado na data de retorno real (se houver) ou prevista (se houver) ou fim
-        const endDate = newInjuryReturnDateActual || newInjuryReturnDateActual || newInjuryEnd;
+        const endDate = newInjuryReturnDateActual || newInjuryReturnDate || newInjuryEnd;
         if (endDate) {
             const end = new Date(endDate);
             end.setHours(0, 0, 0, 0);
@@ -251,7 +258,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
 
         const newRecord: InjuryRecord = {
             id: Date.now().toString(),
-            playerId: editPlayerId || '',
+            playerId: editPlayerId,
             date: newInjuryStart,
             endDate: newInjuryEnd || undefined,
             returnDate: newInjuryReturnDate || undefined,
@@ -274,6 +281,9 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
         setNewInjuryReturnDateActual('');
         setNewInjuryType('Muscular');
         setNewInjuryLocation('Coxa Posterior');
+        setNewInjurySide('Direito');
+        setNewInjurySeverity('Leve');
+        setNewInjuryOrigin('Treino');
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -436,8 +446,11 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
 
                      {/* Edit Button */}
                      <button 
-                        onClick={() => handleEditClick(player)}
-                        className="absolute bottom-4 right-4 bg-white text-black p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditClick(player);
+                        }}
+                        className="absolute bottom-4 right-4 bg-white text-black p-2 rounded-full opacity-80 hover:opacity-100 transition-opacity hover:scale-110 z-10 cursor-pointer shadow-lg"
                         title="Editar Atleta"
                      >
                          <Edit2 size={16} />
@@ -843,7 +856,11 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
                                         <input type="date" value={newInjuryEnd} onChange={e => setNewInjuryEnd(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg p-2 text-white text-xs" />
                                     </div>
                                     <div className="md:col-span-2 lg:col-span-4">
-                                        <button onClick={handleAddInjury} className="w-full bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-2 rounded-lg text-xs flex items-center justify-center gap-1 border border-zinc-600">
+                                        <button 
+                                            type="button"
+                                            onClick={handleAddInjury} 
+                                            className="w-full bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-2 rounded-lg text-xs flex items-center justify-center gap-1 border border-zinc-600 transition-all cursor-pointer"
+                                        >
                                             <Plus size={14} /> Adicionar Lesão
                                         </button>
                                     </div>
