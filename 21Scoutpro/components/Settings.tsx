@@ -1,19 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { User } from '../types';
-import { Save, User as UserIcon, Lock, Image as ImageIcon, CheckCircle } from 'lucide-react';
+import { User, StatTargets } from '../types';
+import { Save, User as UserIcon, Lock, Image as ImageIcon, CheckCircle, Target } from 'lucide-react';
 
 interface SettingsProps {
   currentUser: User | null;
   onUpdateUser: (updatedData: Partial<User>) => void;
+  statTargets: StatTargets;
+  onUpdateTargets: (targets: StatTargets) => void;
 }
 
-export const Settings: React.FC<SettingsProps> = ({ currentUser, onUpdateUser }) => {
+export const Settings: React.FC<SettingsProps> = ({ currentUser, onUpdateUser, statTargets, onUpdateTargets }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [photoUrl, setPhotoUrl] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [success, setSuccess] = useState('');
+
+  // Targets State
+  const [localTargets, setLocalTargets] = useState<StatTargets>(statTargets);
 
   useEffect(() => {
     if (currentUser) {
@@ -22,6 +27,10 @@ export const Settings: React.FC<SettingsProps> = ({ currentUser, onUpdateUser })
       setPhotoUrl(currentUser.photoUrl || '');
     }
   }, [currentUser]);
+
+  useEffect(() => {
+    setLocalTargets(statTargets);
+  }, [statTargets]);
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
@@ -59,6 +68,9 @@ export const Settings: React.FC<SettingsProps> = ({ currentUser, onUpdateUser })
     };
     
     onUpdateUser(updates);
+    
+    // Save Targets
+    onUpdateTargets(localTargets);
 
     setSuccess('Configurações atualizadas com sucesso!');
     
@@ -173,6 +185,57 @@ export const Settings: React.FC<SettingsProps> = ({ currentUser, onUpdateUser })
                                 className="w-full bg-zinc-950 border border-zinc-800 rounded-xl text-white p-3 outline-none focus:border-[#10b981] focus:ring-1 focus:ring-[#10b981] transition-all font-medium"
                                 placeholder="••••••"
                             />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Stat Targets Section */}
+                <div className="space-y-4 pt-4">
+                    <h3 className="text-white font-bold uppercase text-sm tracking-widest border-b border-zinc-800 pb-2 flex items-center gap-2">
+                        <Target size={16} className="text-[#10b981]" /> Metas de Performance (Por Jogo)
+                    </h3>
+                    <p className="text-[10px] text-zinc-500 font-medium">Defina os valores alvo para as estatísticas que serão monitoradas nos gráficos.</p>
+
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        <div>
+                            <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Gols</label>
+                            <input type="number" value={localTargets.goals} onChange={(e) => setLocalTargets({...localTargets, goals: Number(e.target.value)})} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-white font-bold" />
+                        </div>
+                        <div>
+                            <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Assistências</label>
+                            <input type="number" value={localTargets.assists} onChange={(e) => setLocalTargets({...localTargets, assists: Number(e.target.value)})} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-white font-bold" />
+                        </div>
+                        <div>
+                            <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Passes Corretos</label>
+                            <input type="number" value={localTargets.passesCorrect} onChange={(e) => setLocalTargets({...localTargets, passesCorrect: Number(e.target.value)})} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-white font-bold" />
+                        </div>
+                        <div>
+                            <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Passes Errados</label>
+                            <input type="number" value={localTargets.passesWrong} onChange={(e) => setLocalTargets({...localTargets, passesWrong: Number(e.target.value)})} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-white font-bold" />
+                        </div>
+                        <div>
+                            <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Chutes no Gol</label>
+                            <input type="number" value={localTargets.shotsOn} onChange={(e) => setLocalTargets({...localTargets, shotsOn: Number(e.target.value)})} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-white font-bold" />
+                        </div>
+                        <div>
+                            <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Chutes Fora</label>
+                            <input type="number" value={localTargets.shotsOff} onChange={(e) => setLocalTargets({...localTargets, shotsOff: Number(e.target.value)})} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-white font-bold" />
+                        </div>
+                        <div>
+                            <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Desarmes com Posse</label>
+                            <input type="number" value={localTargets.tacklesPossession} onChange={(e) => setLocalTargets({...localTargets, tacklesPossession: Number(e.target.value)})} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-white font-bold" />
+                        </div>
+                        <div>
+                            <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Desarmes sem Posse</label>
+                            <input type="number" value={localTargets.tacklesNoPossession} onChange={(e) => setLocalTargets({...localTargets, tacklesNoPossession: Number(e.target.value)})} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-white font-bold" />
+                        </div>
+                        <div>
+                            <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Desarmes Contra-Ataque</label>
+                            <input type="number" value={localTargets.tacklesCounter} onChange={(e) => setLocalTargets({...localTargets, tacklesCounter: Number(e.target.value)})} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-white font-bold" />
+                        </div>
+                        <div>
+                            <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Erros de Transição</label>
+                            <input type="number" value={localTargets.transitionError} onChange={(e) => setLocalTargets({...localTargets, transitionError: Number(e.target.value)})} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-white font-bold" />
                         </div>
                     </div>
                 </div>

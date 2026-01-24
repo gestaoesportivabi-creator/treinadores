@@ -891,6 +891,8 @@ export default function App() {
             <Settings 
               currentUser={currentUser} 
               onUpdateUser={handleUpdateUser}
+              statTargets={statTargets}
+              onUpdateTargets={handleUpdateTargets}
             />
           </TabBackgroundWrapper>
         );
