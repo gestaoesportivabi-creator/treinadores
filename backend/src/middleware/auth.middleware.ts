@@ -58,7 +58,7 @@ export async function authMiddleware(
       id: user.id,
       email: user.email,
       name: user.name,
-      role_id: user.roleId,
+      role_id: user.role.name, // Usar nome da role (TECNICO, ADMIN, etc) ao invés do UUID
     };
 
     next();
