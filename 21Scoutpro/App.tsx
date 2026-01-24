@@ -723,12 +723,8 @@ export default function App() {
           <TabBackgroundWrapper>
             <TeamManagement 
               players={players} 
-              teams={teams}
               onAddPlayer={handleAddPlayer} 
               onUpdatePlayer={handleUpdatePlayer}
-              onAddTeam={handleAddTeam}
-              onUpdateTeam={handleUpdateTeam}
-              onDeleteTeam={handleDeleteTeam}
               config={config} 
             />
           </TabBackgroundWrapper>

@@ -1,32 +1,21 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Player, Position, SportConfig, InjuryRecord, Team, MaxLoad, LoadType } from '../types';
+import { Player, Position, SportConfig, InjuryRecord, MaxLoad, LoadType } from '../types';
 import { EXERCISES, EXERCISE_CATEGORIES } from '../constants';
-import { Shirt, Save, Plus, User, FileText, Edit2, ShieldAlert, Activity, ArrowRightLeft, Calendar, Clock, Upload, AlertTriangle, X, Users, Trash2, Dumbbell } from 'lucide-react';
+import { Shirt, Save, Plus, User, FileText, Edit2, ShieldAlert, Activity, ArrowRightLeft, Calendar, Clock, Upload, AlertTriangle, X, Trash2, Dumbbell } from 'lucide-react';
 
 interface TeamManagementProps {
     players: Player[];
-    teams: Team[];
     onAddPlayer: (player: Player) => void;
     onUpdatePlayer: (player: Player) => void;
-    onAddTeam: (team: Omit<Team, 'id' | 'createdAt'>) => Promise<Team | null>;
-    onUpdateTeam: (team: Team) => Promise<Team | null>;
-    onDeleteTeam: (teamId: string) => Promise<boolean>;
+    onClearDemoData?: () => Promise<void>;
     config: SportConfig;
 }
 
-export const TeamManagement: React.FC<TeamManagementProps> = ({ players, teams, onAddPlayer, onUpdatePlayer, onAddTeam, onUpdateTeam, onDeleteTeam, config }) => {
+export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPlayer, onUpdatePlayer, onClearDemoData, config }) => {
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editMode, setEditMode] = useState(false);
     const [editPlayerId, setEditPlayerId] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<'profile' | 'status' | 'medical' | 'maxLoad'>('profile');
-    
-    // Team States
-    const [selectedTeamId, setSelectedTeamId] = useState<string>('');
-    const [isCreatingTeam, setIsCreatingTeam] = useState(false);
-    const [isEditingTeam, setIsEditingTeam] = useState(false);
-    const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
-    const [teamName, setTeamName] = useState('');
-    const [teamCategory, setTeamCategory] = useState('');
     
     // Form State
     const [name, setName] = useState('');
@@ -44,6 +33,13 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, teams, 
     // Status (Edit Only)
     const [isTransferred, setIsTransferred] = useState(false);
     const [transferDate, setTransferDate] = useState('');
+    const [severanceValue, setSeveranceValue] = useState('');
+    const [severanceEndDate, setSeveranceEndDate] = useState('');
+    
+    // Salary Fields
+    const [salary, setSalary] = useState('');
+    const [salaryStartDate, setSalaryStartDate] = useState('');
+    const [salaryEndDate, setSalaryEndDate] = useState('');
 
     // Medical (Edit Only)
     const [injuryHistory, setInjuryHistory] = useState<InjuryRecord[]>([]);
@@ -56,6 +52,8 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, teams, 
     const [newInjuryOrigin, setNewInjuryOrigin] = useState<'Treino' | 'Jogo' | 'Outros'>('Treino');
     const [newInjuryStart, setNewInjuryStart] = useState('');
     const [newInjuryEnd, setNewInjuryEnd] = useState('');
+    const [newInjuryReturnDate, setNewInjuryReturnDate] = useState(''); // Data retorno prevista
+    const [newInjuryReturnDateActual, setNewInjuryReturnDateActual] = useState(''); // Data retorno real
 
     // Max Load States
     const [maxLoads, setMaxLoads] = useState<MaxLoad[]>([]);
@@ -66,43 +64,46 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, teams, 
     const [newMaxLoadType, setNewMaxLoadType] = useState<'Kg' | 'Repetições'>('Kg');
     const [newMaxLoadValue, setNewMaxLoadValue] = useState('');
 
-    // Complete list of injury locations (sem indicações de lado - lado é tratado em campo separado)
-    const INJURY_LOCATIONS = [
-        // Membros Inferiores
-        'Coxa Posterior', 'Coxa Anterior', 'Quadríceps', 'Isquiostibiais',
-        'Panturrilha', 'Tornozelo', 'Joelho', 'Pé', 
-        'Dedos do Pé', 'Calcâneo', 'Metatarso', 'Fêmur',
-        'Tíbia', 'Fíbula', 'Glúteo', 'Adutor',
-        // Membros Superiores
-        'Ombro', 'Braço', 'Bíceps Braquial', 'Tríceps',
-        'Antebraço', 'Punho', 'Mão', 'Dedos da Mão',
-        'Úmero', 'Rádio', 'Ulna', 'Clavícula',
-        'Escápula',
-        // Tronco e Coluna
-        'Tórax', 'Costas', 'Lombar', 'Coluna Cervical', 'Coluna Torácica',
-        'Coluna Lombar', 'Pescoço', 'Esternão', 'Costelas',
-        'Pelve', 'Sacro',
-        // Cabeça e Face
-        'Cabeça', 'Face', 'Mandíbula', 'Dentes', 'Nariz',
-        'Olho', 'Orelha',
-        // Ligamentos e Tendões - Joelho
-        'Ligamento Cruzado Anterior', 'Ligamento Cruzado Posterior',
-        'Ligamento Colateral Medial', 'Ligamento Colateral Lateral',
-        'Menisco',
-        // Tendões
-        'Tendão de Aquiles', 'Tendão Patelar',
-        // Outros
-        'Outros'
-    ];
+    // Mapeamento de tipos de lesão para locais possíveis
+    const INJURY_LOCATIONS_BY_TYPE: Record<string, string[]> = {
+        'Muscular': [
+            'Coxa Posterior', 'Coxa Anterior', 'Quadríceps', 'Isquiostibiais',
+            'Panturrilha', 'Glúteo', 'Adutor', 'Bíceps Braquial', 'Tríceps',
+            'Tendão de Aquiles', 'Tendão Patelar'
+        ],
+        'Trauma': [
+            'Tornozelo', 'Joelho', 'Pé', 'Dedos do Pé', 'Calcâneo', 'Metatarso',
+            'Fêmur', 'Tíbia', 'Fíbula', 'Ombro', 'Braço', 'Antebraço', 'Punho',
+            'Mão', 'Dedos da Mão', 'Úmero', 'Rádio', 'Ulna', 'Clavícula',
+            'Escápula', 'Esternão', 'Costelas', 'Cabeça', 'Face', 'Mandíbula',
+            'Dentes', 'Nariz', 'Olho', 'Orelha'
+        ],
+        'Articular': [
+            'Joelho', 'Tornozelo', 'Ombro', 'Punho', 'Quadril', 'Cotovelo',
+            'Ligamento Cruzado Anterior', 'Ligamento Cruzado Posterior',
+            'Ligamento Colateral Medial', 'Ligamento Colateral Lateral',
+            'Menisco', 'Coluna Cervical', 'Coluna Torácica', 'Coluna Lombar'
+        ],
+        'Outros': [
+            'Coxa Posterior', 'Coxa Anterior', 'Quadríceps', 'Isquiostibiais',
+            'Panturrilha', 'Tornozelo', 'Joelho', 'Pé', 'Dedos do Pé', 'Calcâneo',
+            'Metatarso', 'Fêmur', 'Tíbia', 'Fíbula', 'Glúteo', 'Adutor',
+            'Ombro', 'Braço', 'Bíceps Braquial', 'Tríceps', 'Antebraço', 'Punho',
+            'Mão', 'Dedos da Mão', 'Úmero', 'Rádio', 'Ulna', 'Clavícula',
+            'Escápula', 'Tórax', 'Costas', 'Lombar', 'Coluna Cervical',
+            'Coluna Torácica', 'Coluna Lombar', 'Pescoço', 'Esternão', 'Costelas',
+            'Pelve', 'Sacro', 'Cabeça', 'Face', 'Mandíbula', 'Dentes', 'Nariz',
+            'Olho', 'Orelha', 'Ligamento Cruzado Anterior', 'Ligamento Cruzado Posterior',
+            'Ligamento Colateral Medial', 'Ligamento Colateral Lateral', 'Menisco',
+            'Tendão de Aquiles', 'Tendão Patelar', 'Outros'
+        ]
+    };
+    
+    // Obter locais disponíveis baseado no tipo selecionado
+    const getAvailableLocations = (type: string): string[] => {
+        return INJURY_LOCATIONS_BY_TYPE[type] || INJURY_LOCATIONS_BY_TYPE['Outros'];
+    };
 
-    // Selecionar automaticamente se houver apenas 1 equipe
-    useEffect(() => {
-        if (teams.length === 1) {
-            setSelectedTeamId(teams[0].id);
-        } else if (teams.length === 0) {
-            setIsCreatingTeam(true);
-        }
-    }, [teams]);
 
     // Função para validar CPF
     const validateCPF = (cpf: string): boolean => {
@@ -151,6 +152,11 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, teams, 
         setPhotoUrl('');
         setIsTransferred(false);
         setTransferDate('');
+        setSeveranceValue('');
+        setSeveranceEndDate('');
+        setSalary('');
+        setSalaryStartDate('');
+        setSalaryEndDate('');
         setInjuryHistory([]);
         setNewInjuryType('Muscular');
         setNewInjuryLocation('Coxa Posterior');
@@ -159,6 +165,8 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, teams, 
         setNewInjuryOrigin('Treino');
         setNewInjuryStart('');
         setNewInjuryEnd('');
+        setNewInjuryReturnDate('');
+        setNewInjuryReturnDateActual('');
         setBirthDate('');
         setCpf('');
         setMaxLoads([]);
@@ -173,97 +181,6 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, teams, 
         setActiveTab('profile');
     };
 
-    const resetTeamForm = () => {
-        setTeamName('');
-        setTeamCategory('');
-        setIsCreatingTeam(false);
-        setIsEditingTeam(false);
-        setEditingTeamId(null);
-    };
-
-    const handleEditTeam = (team: Team) => {
-        setTeamName(team.nome);
-        setTeamCategory(team.categoria || '');
-        setEditingTeamId(team.id);
-        setIsEditingTeam(true);
-        setIsCreatingTeam(false);
-    };
-
-    const handleDeleteTeamClick = async (teamId: string) => {
-        if (!confirm('Tem certeza que deseja deletar esta equipe? Todos os jogadores vinculados serão desvinculados.')) {
-            return;
-        }
-        const success = await onDeleteTeam(teamId);
-        if (success) {
-            alert('Equipe deletada com sucesso!');
-            if (selectedTeamId === teamId) {
-                setSelectedTeamId('');
-            }
-        } else {
-            alert('Erro ao deletar equipe. Tente novamente.');
-        }
-    };
-
-    const handleCreateTeam = async (e: React.FormEvent) => {
-        e.preventDefault();
-        
-        if (!teamName || teamName.trim().length === 0) {
-            alert('Nome da equipe é obrigatório');
-            return;
-        }
-
-        try {
-            const newTeam = await onAddTeam({
-                nome: teamName.trim(),
-                categoria: teamCategory.trim() || undefined,
-            });
-
-            if (newTeam) {
-                alert('Equipe criada com sucesso!');
-                resetTeamForm();
-                // Selecionar automaticamente a equipe criada
-                setSelectedTeamId(newTeam.id);
-            } else {
-                alert('Erro ao criar equipe. Tente novamente.');
-            }
-        } catch (error) {
-            console.error('Erro ao criar equipe:', error);
-            alert('Erro ao criar equipe. Tente novamente.');
-        }
-    };
-
-    const handleUpdateTeamSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        
-        if (!editingTeamId || !teamName || teamName.trim().length === 0) {
-            alert('Nome da equipe é obrigatório');
-            return;
-        }
-
-        try {
-            const existingTeam = teams.find(t => t.id === editingTeamId);
-            if (!existingTeam) {
-                alert('Equipe não encontrada');
-                return;
-            }
-
-            const updatedTeam = await onUpdateTeam({
-                ...existingTeam,
-                nome: teamName.trim(),
-                categoria: teamCategory.trim() || undefined,
-            });
-
-            if (updatedTeam) {
-                alert('Equipe atualizada com sucesso!');
-                resetTeamForm();
-            } else {
-                alert('Erro ao atualizar equipe. Tente novamente.');
-            }
-        } catch (error) {
-            console.error('Erro ao atualizar equipe:', error);
-            alert('Erro ao atualizar equipe. Tente novamente.');
-        }
-    };
 
     const handleEditClick = (player: Player) => {
         setEditMode(true);
@@ -281,6 +198,11 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, teams, 
         setPhotoUrl(player.photoUrl || '');
         setIsTransferred(player.isTransferred || false);
         setTransferDate(player.transferDate || '');
+        setSeveranceValue((player as any).severanceValue?.toString() || '');
+        setSeveranceEndDate((player as any).severanceEndDate || '');
+        setSalary((player as any).salary?.toString() || '');
+        setSalaryStartDate((player as any).salaryStartDate || '');
+        setSalaryEndDate((player as any).salaryEndDate || '');
         setInjuryHistory(player.injuryHistory || []);
         setBirthDate(player.birthDate || '');
         setCpf(player.cpf || '');
@@ -303,8 +225,15 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, teams, 
 
     const handleAddInjury = (e: React.MouseEvent) => {
         e.preventDefault();
+        e.stopPropagation();
+        
         if (!newInjuryStart) {
             alert("Informe a data de início da lesão.");
+            return;
+        }
+
+        if (!editPlayerId) {
+            alert("Erro: ID do jogador não encontrado. Por favor, salve o jogador primeiro.");
             return;
         }
 
@@ -313,8 +242,10 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, teams, 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         
-        if (newInjuryEnd) {
-            const end = new Date(newInjuryEnd);
+        // Calcular dias baseado na data de retorno real (se houver) ou prevista (se houver) ou fim
+        const endDate = newInjuryReturnDateActual || newInjuryReturnDate || newInjuryEnd;
+        if (endDate) {
+            const end = new Date(endDate);
             end.setHours(0, 0, 0, 0);
             const diffTime = Math.abs(end.getTime() - start.getTime());
             daysOut = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -327,14 +258,17 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, teams, 
 
         const newRecord: InjuryRecord = {
             id: Date.now().toString(),
-            playerId: editPlayerId || '',
+            playerId: editPlayerId,
             date: newInjuryStart,
             endDate: newInjuryEnd || undefined,
+            returnDate: newInjuryReturnDate || undefined,
+            returnDateActual: newInjuryReturnDateActual || undefined,
             type: newInjuryType as any,
             location: newInjuryLocation as any,
             side: newInjurySide,
             severity: newInjurySeverity as any,
             origin: newInjuryOrigin,
+            startDate: newInjuryStart,
             daysOut: daysOut
         };
 
@@ -343,6 +277,13 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, teams, 
         // Reset injury form
         setNewInjuryStart('');
         setNewInjuryEnd('');
+        setNewInjuryReturnDate('');
+        setNewInjuryReturnDateActual('');
+        setNewInjuryType('Muscular');
+        setNewInjuryLocation('Coxa Posterior');
+        setNewInjurySide('Direito');
+        setNewInjurySeverity('Leve');
+        setNewInjuryOrigin('Treino');
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -356,28 +297,20 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, teams, 
             }
         }
         
-        // Validar equipe selecionada (apenas ao criar, não ao editar)
-        if (!editMode && !selectedTeamId) {
-            if (teams.length === 0) {
-                alert('É necessário criar uma equipe antes de cadastrar atletas.');
-                return;
-            } else {
-                alert('Selecione uma equipe para vincular o atleta.');
-                return;
-            }
-        }
         
         // Recalculate days out for all injuries before saving
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         
         const updatedInjuryHistory = injuryHistory.map(inj => {
-            const start = new Date(inj.date);
+            const start = new Date(inj.startDate || inj.date || '');
             start.setHours(0, 0, 0, 0);
             let daysOut = 0;
             
-            if (inj.endDate) {
-                const end = new Date(inj.endDate);
+            // Priorizar: retorno real > retorno prevista > fim (alta)
+            const endDate = inj.returnDateActual || inj.returnDate || inj.endDate;
+            if (endDate) {
+                const end = new Date(endDate);
                 end.setHours(0, 0, 0, 0);
                 const diffTime = Math.abs(end.getTime() - start.getTime());
                 daysOut = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -390,7 +323,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, teams, 
             return { ...inj, daysOut };
         });
         
-        const playerData: Player & { equipeId?: string } = {
+        const playerData: Player = {
             id: editMode && editPlayerId ? editPlayerId : `p${Date.now()}`,
             name,
             nickname: nickname || name.split(' ')[0],
@@ -399,15 +332,19 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, teams, 
             dominantFoot,
             age: parseInt(age) || 0,
             height: parseInt(height) || 0,
-            lastClub: lastClub || 'Não informado',
+            lastClub: lastClub?.trim() || '',
             photoUrl: photoUrl || '',
             isTransferred: isTransferred,
             transferDate: isTransferred ? transferDate : undefined,
+            severanceValue: isTransferred && severanceValue ? parseFloat(severanceValue.replace(/[^\d,.-]/g, '').replace(',', '.')) : undefined,
+            severanceEndDate: isTransferred ? severanceEndDate : undefined,
+            salary: salary ? parseFloat(salary.replace(/[^\d,.-]/g, '').replace(',', '.')) : undefined,
+            salaryStartDate: salaryStartDate || undefined,
+            salaryEndDate: salaryEndDate || undefined,
             injuryHistory: updatedInjuryHistory,
             birthDate: birthDate || undefined,
             cpf: cpf || undefined,
-            maxLoads: maxLoads.length > 0 ? maxLoads : undefined,
-            equipeId: !editMode ? selectedTeamId : undefined
+            maxLoads: maxLoads.length > 0 ? maxLoads : undefined
         };
 
         if (editMode) {
@@ -448,6 +385,33 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, teams, 
     };
 
     const PlayerCard = ({ player }: { player: Player }) => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        // Calcular dias de afastamento ativo (lesão sem retorno real)
+        const activeInjuries = player.injuryHistory?.filter(inj => !inj.returnDateActual && !inj.endDate) || [];
+        let activeDaysOut = 0;
+        let activeDaysColor = 'text-green-400';
+        
+        if (activeInjuries.length > 0) {
+            const activeInjury = activeInjuries[0]; // Pegar a primeira lesão ativa
+            const startDate = new Date(activeInjury.startDate || activeInjury.date || '');
+            startDate.setHours(0, 0, 0, 0);
+            const diffTime = Math.abs(today.getTime() - startDate.getTime());
+            activeDaysOut = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            // Verificar se passou da data prevista
+            if (activeInjury.returnDate) {
+                const returnDate = new Date(activeInjury.returnDate);
+                returnDate.setHours(0, 0, 0, 0);
+                if (today > returnDate) {
+                    activeDaysColor = 'text-red-400';
+                } else {
+                    activeDaysColor = 'text-green-400';
+                }
+            }
+        }
+        
         const totalDaysOut = player.injuryHistory ? player.injuryHistory.reduce((acc, curr) => acc + (curr.daysOut || 0), 0) : 0;
         return (
             <div className={`bg-black rounded-3xl overflow-hidden border transition-all shadow-lg hover:shadow-[0_0_20px_rgba(0,0,0,0.5)] group ${player.isTransferred ? 'border-red-900/50 opacity-70' : 'border-zinc-800 hover:border-zinc-600'}`}>
@@ -482,8 +446,11 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, teams, 
 
                      {/* Edit Button */}
                      <button 
-                        onClick={() => handleEditClick(player)}
-                        className="absolute bottom-4 right-4 bg-white text-black p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditClick(player);
+                        }}
+                        className="absolute bottom-4 right-4 bg-white text-black p-2 rounded-full opacity-80 hover:opacity-100 transition-opacity hover:scale-110 z-10 cursor-pointer shadow-lg"
                         title="Editar Atleta"
                      >
                          <Edit2 size={16} />
@@ -522,28 +489,14 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, teams, 
                                     <Clock size={14} className="text-red-500" />
                                     <span className="text-[10px] text-red-500 font-bold uppercase">{totalDaysOut} Dias Afastado (Total)</span>
                                 </div>
-                                {(() => {
-                                    // Calculate active injury days (injury without endDate)
-                                    const activeInjuries = player.injuryHistory.filter(inj => !inj.endDate);
-                                    if (activeInjuries.length > 0) {
-                                        const today = new Date();
-                                        today.setHours(0, 0, 0, 0);
-                                        const activeDays = activeInjuries.map(inj => {
-                                            const start = new Date(inj.date);
-                                            start.setHours(0, 0, 0, 0);
-                                            const diffTime = Math.abs(today.getTime() - start.getTime());
-                                            return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                                        });
-                                        const maxActiveDays = Math.max(...activeDays);
-                                        return (
-                                            <div className="flex items-center gap-2 border-t border-zinc-900 pt-1 mt-1">
-                                                <AlertTriangle size={14} className="text-yellow-500" />
-                                                <span className="text-[10px] text-yellow-500 font-bold uppercase">{maxActiveDays} Dias em Afastamento Atual</span>
-                                            </div>
-                                        );
-                                    }
-                                    return null;
-                                })()}
+                                {activeInjuries.length > 0 && (
+                                    <div className="flex items-center gap-2 border-t border-zinc-900 pt-1 mt-1">
+                                        <AlertTriangle size={14} className={activeDaysColor === 'text-red-400' ? 'text-red-500' : 'text-green-500'} />
+                                        <span className={`text-[10px] font-bold uppercase ${activeDaysColor}`}>
+                                            {activeDaysOut} Dias em Afastamento {activeDaysColor === 'text-red-400' ? '(Atrasado)' : '(No Prazo)'}
+                                        </span>
+                                    </div>
+                                )}
                             </div>
                         ) : (
                             <div className="flex items-center gap-2">
@@ -565,159 +518,38 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, teams, 
             <div className="bg-black p-6 rounded-3xl border border-zinc-800 shadow-lg flex flex-col md:flex-row justify-between items-center gap-4">
                 <div>
                     <h2 className="text-2xl font-black text-white flex items-center gap-2 uppercase tracking-wide">
-                        <Shirt className="text-[#10b981]" /> Gestão de Equipe
+                        <Shirt className="text-[#10b981]" /> Cadastro de Atletas
                     </h2>
-                    <p className="text-zinc-500 text-xs font-bold mt-1">Cadastro, edição e status do elenco.</p>
+                    <p className="text-zinc-500 text-xs font-bold mt-1">Cadastro, edição e status dos atletas.</p>
                 </div>
-                <button 
-                    onClick={() => {
-                        if(isFormOpen) resetForm(); 
-                        setIsFormOpen(!isFormOpen);
-                    }}
-                    className="flex items-center gap-2 bg-[#10b981] hover:bg-[#34d399] text-white px-6 py-3 font-bold uppercase text-xs rounded-xl transition-colors shadow-[0_0_15px_rgba(16,185,129,0.4)]"
-                >
-                    {isFormOpen ? 'Cancelar' : (
-                        <>
-                            <Plus size={16} /> Novo Atleta
-                        </>
+                <div className="flex items-center gap-3">
+                    {onClearDemoData && players.length > 0 && (
+                        <button
+                            type="button"
+                            onClick={async () => {
+                                if (!confirm('Excluir TODOS os atletas (dados de demonstração)? Essa ação não pode ser desfeita.')) return;
+                                await onClearDemoData();
+                            }}
+                            className="flex items-center gap-2 bg-red-600/80 hover:bg-red-600 text-white px-4 py-2 font-bold uppercase text-xs rounded-xl transition-colors border border-red-500/50"
+                        >
+                            <Trash2 size={14} /> Limpar dados de demonstração
+                        </button>
                     )}
-                </button>
-            </div>
-
-            {/* Teams List Section */}
-            <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="h-[2px] flex-1 bg-gradient-to-r from-blue-500 to-transparent"></div>
-                        <h2 className="text-xl font-black text-white uppercase italic tracking-tighter flex items-center gap-2">
-                            <Users className="text-blue-500" size={24} />
-                            Equipes
-                            <span className="text-sm text-zinc-500 font-bold normal-case">({teams.length})</span>
-                        </h2>
-                        <div className="h-[2px] flex-1 bg-gradient-to-l from-blue-500 to-transparent"></div>
-                    </div>
-                    <button
+                    <button 
                         onClick={() => {
-                            resetTeamForm();
-                            setIsCreatingTeam(true);
+                            if(isFormOpen) resetForm(); 
+                            setIsFormOpen(!isFormOpen);
                         }}
-                        className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 font-bold uppercase text-xs rounded-xl transition-colors shadow-[0_0_15px_rgba(59,130,246,0.4)]"
+                        className="flex items-center gap-2 bg-[#10b981] hover:bg-[#34d399] text-white px-6 py-3 font-bold uppercase text-xs rounded-xl transition-colors shadow-[0_0_15px_rgba(16,185,129,0.4)]"
                     >
-                        <Plus size={16} /> Nova Equipe
+                        {isFormOpen ? 'Cancelar' : (
+                            <>
+                                <Plus size={16} /> Novo Atleta
+                            </>
+                        )}
                     </button>
                 </div>
-
-                {/* Teams Grid */}
-                {teams.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        {teams.map(team => (
-                            <div key={team.id} className="bg-black rounded-3xl overflow-hidden border border-zinc-800 hover:border-blue-500 transition-all shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.3)] group">
-                                <div className="h-32 relative bg-gradient-to-br from-blue-900/20 to-zinc-900">
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
-                                    <div className="absolute top-4 left-4 right-4">
-                                        <h3 className="text-xl font-black text-white mb-1">{team.nome}</h3>
-                                        {team.categoria && (
-                                            <p className="text-xs text-blue-400 font-bold uppercase">{team.categoria}</p>
-                                        )}
-                                    </div>
-                                    <div className="absolute bottom-4 right-4 flex gap-2">
-                                        <button
-                                            onClick={() => handleEditTeam(team)}
-                                            className="bg-zinc-800/80 hover:bg-blue-600 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
-                                            title="Editar Equipe"
-                                        >
-                                            <Edit2 size={16} />
-                                        </button>
-                                        <button
-                                            onClick={() => handleDeleteTeamClick(team.id)}
-                                            className="bg-zinc-800/80 hover:bg-red-600 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
-                                            title="Deletar Equipe"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
-                                    </div>
-                                </div>
-                                <div className="p-4 bg-zinc-950">
-                                    <div className="flex items-center justify-between text-xs">
-                                        <span className="text-zinc-500 font-bold">Jogadores:</span>
-                                        <span className="text-white font-black">
-                                            {players.filter(p => (p as any).equipeId === team.id).length}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-12 text-center">
-                        <Users size={48} className="text-zinc-700 mx-auto mb-4" />
-                        <p className="text-zinc-500 font-bold uppercase text-sm mb-2">Nenhuma equipe cadastrada</p>
-                        <p className="text-zinc-600 text-xs mb-6">Crie sua primeira equipe para começar a cadastrar atletas</p>
-                        <button
-                            onClick={() => setIsCreatingTeam(true)}
-                            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 font-bold uppercase text-xs rounded-xl transition-colors shadow-[0_0_15px_rgba(59,130,246,0.4)]"
-                        >
-                            <Plus size={16} className="inline mr-2" /> Criar Primeira Equipe
-                        </button>
-                    </div>
-                )}
             </div>
-
-            {/* Team Creation/Edit Form */}
-            {(isCreatingTeam || isEditingTeam) && (
-                <div className="bg-zinc-950 p-6 rounded-3xl border border-zinc-800 mb-6 animate-slide-down">
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-white font-bold uppercase tracking-wider flex items-center gap-2">
-                            <Users size={18} className={isEditingTeam ? "text-orange-500" : "text-[#10b981]"} />
-                            {isEditingTeam ? 'Editar Equipe' : 'Criar Equipe'}
-                        </h3>
-                        <button
-                            onClick={resetTeamForm}
-                            className="text-zinc-500 hover:text-white transition-colors"
-                        >
-                            <X size={18} />
-                        </button>
-                    </div>
-                    <form onSubmit={isEditingTeam ? handleUpdateTeamSubmit : handleCreateTeam} className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="md:col-span-2">
-                            <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Nome da Equipe *</label>
-                            <input
-                                required
-                                type="text"
-                                value={teamName}
-                                onChange={e => setTeamName(e.target.value)}
-                                className="w-full bg-black border border-zinc-800 rounded-xl p-3 text-white outline-none focus:border-[#10b981]"
-                                placeholder="Ex: Equipe Principal"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Categoria</label>
-                            <input
-                                type="text"
-                                value={teamCategory}
-                                onChange={e => setTeamCategory(e.target.value)}
-                                className="w-full bg-black border border-zinc-800 rounded-xl p-3 text-white outline-none focus:border-[#10b981]"
-                                placeholder="Ex: Adulto, Sub-15"
-                            />
-                        </div>
-                        <div className="md:col-span-3 flex gap-2">
-                            <button
-                                type="submit"
-                                className={`flex-1 ${isEditingTeam ? 'bg-orange-600 hover:bg-orange-700' : 'bg-[#10b981] hover:bg-[#34d399]'} text-white px-6 py-3 font-bold uppercase text-xs rounded-xl transition-colors shadow-[0_0_15px_rgba(16,185,129,0.4)]`}
-                            >
-                                {isEditingTeam ? 'Salvar Alterações' : 'Criar Equipe'}
-                            </button>
-                            <button
-                                type="button"
-                                onClick={resetTeamForm}
-                                className="px-6 py-3 bg-zinc-800 hover:bg-zinc-700 text-white font-bold uppercase text-xs rounded-xl transition-colors"
-                            >
-                                Cancelar
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            )}
 
             {/* Registration/Edit Form */}
             {isFormOpen && (
@@ -743,42 +575,6 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, teams, 
                         {/* TAB: PROFILE (Default) */}
                         {activeTab === 'profile' && (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-fade-in">
-                                {/* Team Selection Field (only show if more than 1 team, or if 0 teams show message) */}
-                                {!editMode && (
-                                    <div className="col-span-1 md:col-span-2 lg:col-span-4">
-                                        {teams.length === 0 ? (
-                                            <div className="bg-yellow-900/20 border border-yellow-800/50 rounded-xl p-4">
-                                                <p className="text-yellow-400 text-sm font-bold">
-                                                    ⚠️ Crie uma equipe primeiro antes de cadastrar atletas.
-                                                </p>
-                                            </div>
-                                        ) : teams.length > 1 ? (
-                                            <>
-                                                <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Vincular à Equipe *</label>
-                                                <select
-                                                    required
-                                                    value={selectedTeamId}
-                                                    onChange={e => setSelectedTeamId(e.target.value)}
-                                                    className="w-full bg-black border border-zinc-800 rounded-xl p-3 text-white outline-none focus:border-[#10b981]"
-                                                >
-                                                    <option value="">Selecione uma equipe</option>
-                                                    {teams.map(team => (
-                                                        <option key={team.id} value={team.id}>
-                                                            {team.nome} {team.categoria ? `(${team.categoria})` : ''}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            </>
-                                        ) : (
-                                            <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-3">
-                                                <p className="text-zinc-400 text-xs font-bold">
-                                                    ✓ Atleta será vinculado automaticamente à equipe: <span className="text-white">{teams[0].nome}</span>
-                                                </p>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-
                                 <div className="col-span-1 md:col-span-2">
                                     <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Nome Completo</label>
                                     <input required type="text" value={name} onChange={e => setName(e.target.value)} className="w-full bg-black border border-zinc-800 rounded-xl p-3 text-white outline-none focus:border-[#10b981]" placeholder="Ex: João da Silva" />
@@ -895,6 +691,50 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, teams, 
                                         )}
                                     </div>
                                 </div>
+
+                                {/* Campos de Salário */}
+                                <div className="col-span-1 md:col-span-2 lg:col-span-4 border-t border-zinc-800 pt-4 mt-4">
+                                    <h4 className="text-white font-bold uppercase text-xs mb-4 flex items-center gap-2">
+                                        <Activity size={16} className="text-[#10b981]" /> Informações Financeiras
+                                    </h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div>
+                                            <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Salário Negociado (R$)</label>
+                                            <input 
+                                                type="text" 
+                                                value={salary} 
+                                                onChange={e => {
+                                                    let value = e.target.value.replace(/[^\d,.-]/g, '');
+                                                    if (value) {
+                                                        value = value.replace(/(\d)(\d{2})$/, '$1,$2');
+                                                        value = value.replace(/(?=(\d{3})+(\D))\B/g, '.');
+                                                    }
+                                                    setSalary(value);
+                                                }}
+                                                className="w-full bg-black border border-zinc-800 rounded-xl p-3 text-white outline-none focus:border-[#10b981]" 
+                                                placeholder="0,00"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Data Início Recebimento</label>
+                                            <input 
+                                                type="date" 
+                                                value={salaryStartDate} 
+                                                onChange={e => setSalaryStartDate(e.target.value)} 
+                                                className="w-full bg-black border border-zinc-800 rounded-xl p-3 text-white outline-none focus:border-[#10b981]" 
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Data Término Recebimento</label>
+                                            <input 
+                                                type="date" 
+                                                value={salaryEndDate} 
+                                                onChange={e => setSalaryEndDate(e.target.value)} 
+                                                className="w-full bg-black border border-zinc-800 rounded-xl p-3 text-white outline-none focus:border-[#10b981]" 
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         )}
 
@@ -906,16 +746,40 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, teams, 
                                         <ArrowRightLeft size={24} className="text-zinc-400" />
                                         <h4 className="text-white font-bold uppercase">Transferência</h4>
                                     </div>
-                                    <div className="flex items-center gap-4">
+                                    <div className="flex items-center gap-4 mb-4">
                                         <label className="flex items-center gap-2 cursor-pointer">
                                             <input type="checkbox" checked={isTransferred} onChange={e => setIsTransferred(e.target.checked)} className="w-5 h-5 accent-[#10b981]" />
                                             <span className="text-white text-sm font-bold">Transferido (Saiu do Clube)</span>
                                         </label>
                                     </div>
                                     {isTransferred && (
-                                        <div className="mt-4">
-                                            <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Data da Saída</label>
-                                            <input type="date" value={transferDate} onChange={e => setTransferDate(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg p-2 text-white" />
+                                        <div className="space-y-4">
+                                            <div>
+                                                <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Data da Saída</label>
+                                                <input type="date" value={transferDate} onChange={e => setTransferDate(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg p-2 text-white" />
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Valor de Recisão (R$)</label>
+                                                <input 
+                                                    type="text" 
+                                                    value={severanceValue} 
+                                                    onChange={e => {
+                                                        let value = e.target.value.replace(/[^\d,.-]/g, '');
+                                                        if (value) {
+                                                            value = value.replace(/(\d)(\d{2})$/, '$1,$2');
+                                                            value = value.replace(/(?=(\d{3})+(\D))\B/g, '.');
+                                                        }
+                                                        setSeveranceValue(value);
+                                                    }}
+                                                    className="w-full bg-black border border-zinc-700 rounded-lg p-2 text-white" 
+                                                    placeholder="0,00"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Data até Receber do Clube</label>
+                                                <input type="date" value={severanceEndDate} onChange={e => setSeveranceEndDate(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg p-2 text-white" />
+                                                <p className="text-[10px] text-zinc-500 mt-2">Data até quando o atleta irá receber do clube algum valor (mesmo após recisão).</p>
+                                            </div>
                                             <p className="text-[10px] text-zinc-500 mt-2">Nota: As estatísticas deste atleta permanecerão salvas no sistema.</p>
                                         </div>
                                     )}
@@ -926,25 +790,39 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, teams, 
                         {/* TAB: MEDICAL (Injury History) */}
                         {activeTab === 'medical' && (
                             <div className="space-y-6 animate-fade-in">
-                                <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end bg-zinc-900 p-4 rounded-2xl border border-zinc-800">
-                                    <div className="md:col-span-1">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 bg-zinc-900 p-4 rounded-2xl border border-zinc-800">
+                                    <div>
                                         <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Tipo</label>
-                                        <select value={newInjuryType} onChange={e => setNewInjuryType(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg p-2 text-white text-xs">
+                                        <select 
+                                            value={newInjuryType} 
+                                            onChange={e => {
+                                                setNewInjuryType(e.target.value);
+                                                const availableLocations = getAvailableLocations(e.target.value);
+                                                if (availableLocations.length > 0) {
+                                                    setNewInjuryLocation(availableLocations[0]);
+                                                }
+                                            }} 
+                                            className="w-full bg-black border border-zinc-700 rounded-lg p-2 text-white text-xs"
+                                        >
                                             <option value="Muscular">Muscular</option>
                                             <option value="Trauma">Trauma</option>
                                             <option value="Articular">Articular</option>
                                             <option value="Outros">Outros</option>
                                         </select>
                                     </div>
-                                    <div className="md:col-span-1">
+                                    <div>
                                         <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Local</label>
-                                        <select value={newInjuryLocation} onChange={e => setNewInjuryLocation(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg p-2 text-white text-xs">
-                                            {INJURY_LOCATIONS.map(loc => (
+                                        <select 
+                                            value={newInjuryLocation} 
+                                            onChange={e => setNewInjuryLocation(e.target.value)} 
+                                            className="w-full bg-black border border-zinc-700 rounded-lg p-2 text-white text-xs"
+                                        >
+                                            {getAvailableLocations(newInjuryType).map(loc => (
                                                 <option key={loc} value={loc}>{loc}</option>
                                             ))}
                                         </select>
                                     </div>
-                                    <div className="md:col-span-1">
+                                    <div>
                                         <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Lado do Corpo</label>
                                         <select value={newInjurySide} onChange={e => setNewInjurySide(e.target.value as 'Direito' | 'Esquerdo' | 'Bilateral' | 'N/A')} className="w-full bg-black border border-zinc-700 rounded-lg p-2 text-white text-xs">
                                             <option value="Direito">Direito</option>
@@ -953,7 +831,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, teams, 
                                             <option value="N/A">N/A</option>
                                         </select>
                                     </div>
-                                    <div className="md:col-span-1">
+                                    <div>
                                         <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Origem</label>
                                         <select value={newInjuryOrigin} onChange={e => setNewInjuryOrigin(e.target.value as 'Treino' | 'Jogo' | 'Outros')} className="w-full bg-black border border-zinc-700 rounded-lg p-2 text-white text-xs">
                                             <option value="Treino">Treino</option>
@@ -961,17 +839,29 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, teams, 
                                             <option value="Outros">Outros</option>
                                         </select>
                                     </div>
-                                    <div className="md:col-span-1">
-                                        <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Início</label>
+                                    <div>
+                                        <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Data Início</label>
                                         <input type="date" value={newInjuryStart} onChange={e => setNewInjuryStart(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg p-2 text-white text-xs" />
                                     </div>
-                                    <div className="md:col-span-1">
+                                    <div>
+                                        <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Data Retorno Prevista</label>
+                                        <input type="date" value={newInjuryReturnDate} onChange={e => setNewInjuryReturnDate(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg p-2 text-white text-xs" />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Data Retorno Real</label>
+                                        <input type="date" value={newInjuryReturnDateActual} onChange={e => setNewInjuryReturnDateActual(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg p-2 text-white text-xs" />
+                                    </div>
+                                    <div>
                                         <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Fim (Alta)</label>
                                         <input type="date" value={newInjuryEnd} onChange={e => setNewInjuryEnd(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg p-2 text-white text-xs" />
                                     </div>
-                                    <div className="md:col-span-1">
-                                        <button onClick={handleAddInjury} className="w-full bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-2 rounded-lg text-xs flex items-center justify-center gap-1 border border-zinc-600">
-                                            <Plus size={14} /> Adicionar
+                                    <div className="md:col-span-2 lg:col-span-4">
+                                        <button 
+                                            type="button"
+                                            onClick={handleAddInjury} 
+                                            className="w-full bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-2 rounded-lg text-xs flex items-center justify-center gap-1 border border-zinc-600 transition-all cursor-pointer"
+                                        >
+                                            <Plus size={14} /> Adicionar Lesão
                                         </button>
                                     </div>
                                 </div>
@@ -983,24 +873,65 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, teams, 
                                             <thead className="bg-zinc-900 text-[10px] text-zinc-500 uppercase">
                                                 <tr>
                                                     <th className="p-3">Data Início</th>
-                                                    <th className="p-3">Fim</th>
+                                                    <th className="p-3">Retorno Prevista</th>
+                                                    <th className="p-3">Retorno Real</th>
+                                                    <th className="p-3">Fim (Alta)</th>
                                                     <th className="p-3">Tipo</th>
                                                     <th className="p-3">Local</th>
+                                                    <th className="p-3">Lado</th>
                                                     <th className="p-3">Origem</th>
                                                     <th className="p-3 text-right">Dias Afastado</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="text-xs text-zinc-300 divide-y divide-zinc-900">
-                                                {injuryHistory.map((inj) => (
-                                                    <tr key={inj.id || `inj-${inj.date}-${inj.type}`}>
-                                                        <td className="p-3">{new Date(inj.date).toLocaleDateString()}</td>
-                                                        <td className="p-3">{inj.endDate ? new Date(inj.endDate).toLocaleDateString() : '-'}</td>
-                                                        <td className="p-3">{inj.type}</td>
-                                                        <td className="p-3">{inj.location}</td>
-                                                        <td className="p-3">{inj.origin || '-'}</td>
-                                                        <td className="p-3 text-right font-bold text-red-400">{inj.daysOut} dias</td>
-                                                    </tr>
-                                                ))}
+                                                {injuryHistory.map((inj) => {
+                                                    const today = new Date();
+                                                    today.setHours(0, 0, 0, 0);
+                                                    const startDate = new Date(inj.startDate || inj.date || '');
+                                                    startDate.setHours(0, 0, 0, 0);
+                                                    
+                                                    // Calcular dias de afastamento atual
+                                                    let currentDaysOut = 0;
+                                                    const endDate = inj.returnDateActual || inj.returnDate || inj.endDate;
+                                                    if (endDate) {
+                                                        const end = new Date(endDate);
+                                                        end.setHours(0, 0, 0, 0);
+                                                        const diffTime = Math.abs(end.getTime() - startDate.getTime());
+                                                        currentDaysOut = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                                    } else {
+                                                        // Lesão ativa - calcular até hoje
+                                                        const diffTime = Math.abs(today.getTime() - startDate.getTime());
+                                                        currentDaysOut = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                                    }
+                                                    
+                                                    // Determinar cor: verde se dentro do previsto, vermelho se passou
+                                                    let daysColor = 'text-red-400';
+                                                    if (inj.returnDate) {
+                                                        const returnDate = new Date(inj.returnDate);
+                                                        returnDate.setHours(0, 0, 0, 0);
+                                                        if (today <= returnDate) {
+                                                            daysColor = 'text-green-400';
+                                                        } else {
+                                                            daysColor = 'text-red-400';
+                                                        }
+                                                    }
+                                                    
+                                                    return (
+                                                        <tr key={inj.id || `inj-${inj.date}-${inj.type}`}>
+                                                            <td className="p-3">{new Date(inj.startDate || inj.date || '').toLocaleDateString('pt-BR')}</td>
+                                                            <td className="p-3">{inj.returnDate ? new Date(inj.returnDate).toLocaleDateString('pt-BR') : '-'}</td>
+                                                            <td className="p-3">{inj.returnDateActual ? new Date(inj.returnDateActual).toLocaleDateString('pt-BR') : '-'}</td>
+                                                            <td className="p-3">{inj.endDate ? new Date(inj.endDate).toLocaleDateString('pt-BR') : '-'}</td>
+                                                            <td className="p-3">{inj.type}</td>
+                                                            <td className="p-3">{inj.location}</td>
+                                                            <td className="p-3">{inj.side}</td>
+                                                            <td className="p-3">{inj.origin || '-'}</td>
+                                                            <td className={`p-3 text-right font-bold ${daysColor}`}>
+                                                                {currentDaysOut} dias
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
                                             </tbody>
                                         </table>
                                     </div>
