@@ -92,36 +92,33 @@ async function get<T>(resource: string, id?: string): Promise<T[]> {
  * O Google Apps Script parseia o JSON do body automaticamente
  */
 async function post<T>(resource: string, data: T): Promise<T | null> {
+  const url = `${getApiUrl()}/${resource}`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
+    },
+    body: JSON.stringify(data),
+  });
+
+  const text = await response.text();
+  let result: ApiResponse<T>;
   try {
-    const url = `${getApiUrl()}/${resource}`;
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
-      },
-      body: JSON.stringify(data),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('API Error:', response.status, errorText);
-      return null;
-    }
-
-    const result: ApiResponse<T> = await response.json();
-
-    if (!result.success) {
-      console.error('API Error:', result.error);
-      return null;
-    }
-
-    return result.data || null;
-  } catch (error) {
-    console.error(`Error posting ${resource}:`, error);
-    return null;
+    result = JSON.parse(text) as ApiResponse<T>;
+  } catch {
+    result = { success: false, error: text || `Erro ${response.status}` };
   }
+
+  if (!response.ok) {
+    console.error('API Error:', response.status, result.error ?? text);
+    throw new Error(result.error ?? text ?? `Erro ${response.status}`);
+  }
+  if (!result.success) {
+    console.error('API Error:', result.error);
+    throw new Error(result.error ?? 'Erro na API');
+  }
+  return result.data ?? null;
 }
 
 /**
@@ -131,36 +128,33 @@ async function post<T>(resource: string, data: T): Promise<T | null> {
  * Usa Content-Type: text/plain para evitar preflight OPTIONS
  */
 async function put<T>(resource: string, id: string, data: Partial<T>): Promise<T | null> {
+  const url = `${getApiUrl()}/${resource}/${id}`;
+  const response = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
+    },
+    body: JSON.stringify(data),
+  });
+
+  const text = await response.text();
+  let result: ApiResponse<T>;
   try {
-    const url = `${getApiUrl()}/${resource}/${id}`;
-    
-    const response = await fetch(url, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
-      },
-      body: JSON.stringify(data),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('API Error:', response.status, errorText);
-      return null;
-    }
-
-    const result: ApiResponse<T> = await response.json();
-
-    if (!result.success) {
-      console.error('API Error:', result.error);
-      return null;
-    }
-
-    return result.data || null;
-  } catch (error) {
-    console.error(`Error updating ${resource}:`, error);
-    return null;
+    result = JSON.parse(text) as ApiResponse<T>;
+  } catch {
+    result = { success: false, error: text || `Erro ${response.status}` };
   }
+
+  if (!response.ok) {
+    console.error('API Error:', response.status, result.error ?? text);
+    throw new Error(result.error ?? text ?? `Erro ${response.status}`);
+  }
+  if (!result.success) {
+    console.error('API Error:', result.error);
+    throw new Error(result.error ?? 'Erro na API');
+  }
+  return result.data ?? null;
 }
 
 /**

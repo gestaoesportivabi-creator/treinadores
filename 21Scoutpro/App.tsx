@@ -357,9 +357,10 @@ export default function App() {
         } else {
           alert("Erro ao cadastrar atleta. Tente novamente.");
         }
-      } catch (error) {
-        console.error('Erro ao cadastrar atleta:', error);
-        alert("Erro ao cadastrar atleta. Tente novamente.");
+      } catch (e) {
+        console.error('Erro ao cadastrar atleta:', e);
+        const msg = e instanceof Error ? e.message : 'Erro ao cadastrar atleta. Tente novamente.';
+        alert(msg);
       }
   };
 
@@ -373,9 +374,10 @@ export default function App() {
         } else {
           alert("Erro ao atualizar atleta. Tente novamente.");
         }
-      } catch (error) {
-        console.error('Erro ao atualizar atleta:', error);
-        alert("Erro ao atualizar atleta. Tente novamente.");
+      } catch (e) {
+        console.error('Erro ao atualizar atleta:', e);
+        const msg = e instanceof Error ? e.message : 'Erro ao atualizar atleta. Tente novamente.';
+        alert(msg);
       }
   };
 

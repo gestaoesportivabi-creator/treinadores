@@ -321,7 +321,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
             dominantFoot,
             age: parseInt(age) || 0,
             height: parseInt(height) || 0,
-            lastClub: lastClub || 'Não informado',
+            lastClub: lastClub?.trim() || '',
             photoUrl: photoUrl || '',
             isTransferred: isTransferred,
             transferDate: isTransferred ? transferDate : undefined,
@@ -335,20 +335,6 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
             cpf: cpf || undefined,
             maxLoads: maxLoads.length > 0 ? maxLoads : undefined
         };
-
-        // Salvar localmente
-        try {
-            const savedPlayers = JSON.parse(localStorage.getItem('scout21pro:local:players') || '[]');
-            const existingIndex = savedPlayers.findIndex((p: any) => p.id === playerData.id);
-            if (existingIndex >= 0) {
-                savedPlayers[existingIndex] = playerData;
-            } else {
-                savedPlayers.push(playerData);
-            }
-            localStorage.setItem('scout21pro:local:players', JSON.stringify(savedPlayers));
-        } catch (e) {
-            console.warn('Erro ao salvar localmente:', e);
-        }
 
         if (editMode) {
             onUpdatePlayer(playerData);
