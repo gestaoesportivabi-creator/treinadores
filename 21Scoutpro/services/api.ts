@@ -26,13 +26,20 @@ async function get<T>(resource: string, id?: string): Promise<T[]> {
     console.log(`📡 GET ${resource}:`, url);
     console.log(`🔑 Token presente:`, token ? 'SIM' : 'NÃO', token ? `(${token.substring(0, 20)}...)` : '');
     
+    // Adicionar timeout de 10 segundos
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    
     const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
       },
+      signal: controller.signal,
     });
+    
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       console.error(`❌ HTTP Error: ${response.status} ${response.statusText}`);
@@ -76,10 +83,14 @@ async function get<T>(resource: string, id?: string): Promise<T[]> {
       console.warn(`⚠️ GET ${resource} retornou array vazio. Verifique se há dados no banco para este tenant.`);
     }
     return data;
-  } catch (error) {
-    console.error(`❌ Error fetching ${resource}:`, error);
-    if (error instanceof Error) {
-      console.error('Error details:', error.message, error.stack);
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
+      console.error(`⏱️ Timeout ao fazer GET em ${resource} (10s)`);
+    } else {
+      console.error(`❌ Error fetching ${resource}:`, error);
+      if (error instanceof Error) {
+        console.error('Error details:', error.message, error.stack);
+      }
     }
     return [];
   }
@@ -95,6 +106,10 @@ async function post<T>(resource: string, data: T): Promise<T | null> {
   try {
     const url = `${getApiUrl()}/${resource}`;
     
+    // Adicionar timeout de 15 segundos (POST pode ser mais lento)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -102,7 +117,10 @@ async function post<T>(resource: string, data: T): Promise<T | null> {
         'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
       },
       body: JSON.stringify(data),
+      signal: controller.signal,
     });
+    
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -118,8 +136,12 @@ async function post<T>(resource: string, data: T): Promise<T | null> {
     }
 
     return result.data || null;
-  } catch (error) {
-    console.error(`Error posting ${resource}:`, error);
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
+      console.error(`⏱️ Timeout ao fazer POST em ${resource} (15s)`);
+    } else {
+      console.error(`Error posting ${resource}:`, error);
+    }
     return null;
   }
 }
@@ -134,6 +156,10 @@ async function put<T>(resource: string, id: string, data: Partial<T>): Promise<T
   try {
     const url = `${getApiUrl()}/${resource}/${id}`;
     
+    // Adicionar timeout de 15 segundos
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    
     const response = await fetch(url, {
       method: 'PUT',
       headers: {
@@ -141,7 +167,10 @@ async function put<T>(resource: string, id: string, data: Partial<T>): Promise<T
         'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
       },
       body: JSON.stringify(data),
+      signal: controller.signal,
     });
+    
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -157,8 +186,12 @@ async function put<T>(resource: string, id: string, data: Partial<T>): Promise<T
     }
 
     return result.data || null;
-  } catch (error) {
-    console.error(`Error updating ${resource}:`, error);
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
+      console.error(`⏱️ Timeout ao fazer PUT em ${resource} (15s)`);
+    } else {
+      console.error(`Error updating ${resource}:`, error);
+    }
     return null;
   }
 }
@@ -176,13 +209,20 @@ async function del(resource: string, id: string): Promise<boolean> {
     const url = `${getApiUrl()}/${resource}/${id}`;
     console.log(`📡 URL da requisição DELETE: ${url}`);
     
+    // Adicionar timeout de 10 segundos
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    
     const response = await fetch(url, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
       },
+      signal: controller.signal,
     });
+    
+    clearTimeout(timeoutId);
 
     const result: ApiResponse<any> = await response.json();
     console.log(`📥 Resposta DELETE:`, result);
@@ -195,10 +235,14 @@ async function del(resource: string, id: string): Promise<boolean> {
 
     console.log(`✅ ${resource} deletado com sucesso!`);
     return true;
-  } catch (error) {
-    console.error(`❌ Error deleting ${resource}:`, error);
-    if (error instanceof Error) {
-      console.error('Erro detalhado:', error.message, error.stack);
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
+      console.error(`⏱️ Timeout ao fazer DELETE em ${resource} (10s)`);
+    } else {
+      console.error(`❌ Error deleting ${resource}:`, error);
+      if (error instanceof Error) {
+        console.error('Erro detalhado:', error.message, error.stack);
+      }
     }
     return false;
   }

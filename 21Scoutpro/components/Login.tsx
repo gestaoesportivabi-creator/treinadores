@@ -104,22 +104,33 @@ export const Login: React.FC<LoginProps> = ({ onLogin, initialMode = 'login', on
         }
       } else {
         // Login - chamar API do backend
-        // IMPORTANTE: Se o usuário digitar "admin", sempre usar "admin@admin.com"
-        const emailToUse = (email.trim() === 'admin' || email.trim() === 'admin@admin.com') 
-          ? 'admin@admin.com' 
-          : email.trim();
+        const identifier = email.trim();
         
-        console.log('🔐 Tentando login com email:', emailToUse);
+        // Detectar se é email (contém @) ou username (não contém @)
+        // IMPORTANTE: Se o usuário digitar "admin", sempre usar "admin@admin.com"
+        const isEmail = identifier.includes('@') || identifier === 'admin' || identifier === 'admin@admin.com';
+        const emailToUse = (identifier === 'admin' || identifier === 'admin@admin.com') 
+          ? 'admin@admin.com' 
+          : identifier;
+        
+        console.log('🔐 Tentando login com:', isEmail ? 'email' : 'username', emailToUse);
+        
+        const requestBody: any = {
+          password: password,
+        };
+        
+        if (isEmail) {
+          requestBody.email = emailToUse;
+        } else {
+          requestBody.username = emailToUse;
+        }
         
         const response = await fetch(`${getApiUrl()}/auth/login`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            email: emailToUse,
-            password: password,
-          }),
+          body: JSON.stringify(requestBody),
         });
 
         const result = await response.json();
@@ -142,7 +153,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin, initialMode = 'login', on
           onLogin(user);
           setIsLoading(false);
         } else {
-          setError(result.error || 'Email ou senha incorretos.');
+          setError(result.error || 'Email/username ou senha incorretos.');
           setIsLoading(false);
         }
       }
@@ -156,16 +167,13 @@ export const Login: React.FC<LoginProps> = ({ onLogin, initialMode = 'login', on
   return (
     <div className="min-h-screen w-full flex items-center justify-center relative bg-black overflow-hidden font-sans text-white">
       
-      {/* Background - Crowded Arena / Emotion */}
-      <div className="absolute inset-0 z-0">
-          <img 
-            src="https://images.unsplash.com/photo-1504450758481-7338eba7524a?q=80&w=2069&auto=format&fit=crop" 
-            alt="Arena Lotada Emoção" 
-            className="w-full h-full object-cover opacity-60"
-          />
+      {/* Background - Gradiente otimizado sem imagem externa */}
+      <div className="absolute inset-0 z-0 bg-gradient-to-br from-zinc-900 via-black to-zinc-950">
           {/* Gradient Overlay for Text Readability and Mood */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/80 mix-blend-multiply"></div>
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/80"></div>
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/20 to-black"></div>
+          {/* Efeito sutil de textura */}
+          <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_50%_50%,rgba(0,240,255,0.1),transparent_50%)]"></div>
       </div>
 
       {/* Auth Card - Black Piano Aesthetic - EXTRA TRANSPARENT (20%) */}

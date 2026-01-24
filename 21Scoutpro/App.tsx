@@ -133,36 +133,19 @@ export default function App() {
           return;
         }
         
-        // Carregar todos os dados em paralelo com tratamento individual de erros
-        // Nota: timeControls não tem getAll(), só getByMatchId, então será carregado por jogo quando necessário
-        console.log('🚀 Iniciando carregamento paralelo de dados...');
-        const [playersData, matchesData, assessmentsData, schedulesData, competitionsData, statTargetsData, championshipMatchesData, teamsData] = await Promise.allSettled([
+        // FASE 1: Carregar dados críticos primeiro (players, matches, teams)
+        console.log('🚀 Fase 1: Carregando dados críticos...');
+        const [playersData, matchesData, teamsData] = await Promise.allSettled([
           playersApi.getAll().catch(err => { console.error('❌ Erro ao carregar players:', err); return []; }),
           matchesApi.getAll().catch(err => { console.error('❌ Erro ao carregar matches:', err); return []; }),
-          assessmentsApi.getAll().catch(err => { console.error('❌ Erro ao carregar assessments:', err); return []; }),
-          schedulesApi.getAll().catch(err => { console.error('❌ Erro ao carregar schedules:', err); return []; }),
-          competitionsApi.getAll().catch(err => { console.error('❌ Erro ao carregar competitions:', err); return []; }),
-          statTargetsApi.getAll().catch(err => { console.error('❌ Erro ao carregar statTargets:', err); return []; }),
-          championshipMatchesApi.getAll().catch(err => { console.error('❌ Erro ao carregar championshipMatches:', err); return []; }),
           teamsApi.getAll().catch(err => { console.error('❌ Erro ao carregar teams:', err); return []; })
         ]).then(results => results.map(r => r.status === 'fulfilled' ? r.value : []));
-        
-        console.log('📊 Resultados do carregamento:', {
-          players: playersData.length,
-          matches: matchesData.length,
-          assessments: assessmentsData.length,
-          schedules: schedulesData.length,
-          competitions: competitionsData.length,
-          statTargets: statTargetsData.length,
-          championshipMatches: championshipMatchesData.length,
-          teams: teamsData.length,
-        });
 
-        // Usar apenas dados da API (sem fallback para dados iniciais)
-        setPlayers(playersData);
+        // Atualizar UI imediatamente com dados críticos
+        setPlayers(playersData as Player[]);
         
         // Validar matches antes de definir - garantir que todos tenham teamStats válido
-        const validMatches = matchesData.filter(m => {
+        const validMatches = (matchesData as MatchRecord[]).filter(m => {
           if (!m || !m.teamStats) {
             console.warn('⚠️ Match inválido removido ao carregar:', m);
             return false;
@@ -170,68 +153,93 @@ export default function App() {
           return true;
         });
         setMatches(validMatches);
+        setTeams(teamsData as Team[]);
         
-        setAssessments(assessmentsData);
-        // Garantir que schedules tenham days como array válido
-        // Remover duplicatas baseado no ID (manter apenas o mais recente ou o que está ativo)
-        const scheduleMap = new Map<string, WeeklySchedule>();
-        schedulesData.forEach(schedule => {
-          if (schedule && schedule.id) {
-            const validSchedule = {
-              ...schedule,
-              days: Array.isArray(schedule.days) ? schedule.days : (schedule.days ? [schedule.days] : []),
-              isActive: schedule.isActive === true || schedule.isActive === 'TRUE' || schedule.isActive === 'true'
-            };
-            // Se já existe, manter o que tem isActive=true ou o mais recente
-            if (scheduleMap.has(schedule.id)) {
-              const existing = scheduleMap.get(schedule.id)!;
-              if (validSchedule.isActive && !existing.isActive) {
-                scheduleMap.set(schedule.id, validSchedule);
-              } else if (!validSchedule.isActive && existing.isActive) {
-                // Manter o existente que está ativo
-              } else if (validSchedule.createdAt && existing.createdAt && validSchedule.createdAt > existing.createdAt) {
+        console.log('✅ Fase 1 concluída:', {
+          players: playersData.length,
+          matches: validMatches.length,
+          teams: teamsData.length,
+        });
+
+        // FASE 2: Carregar dados importantes em background (não bloqueia UI)
+        setTimeout(async () => {
+          console.log('🚀 Fase 2: Carregando dados importantes...');
+          const [schedulesData, competitionsData, championshipMatchesData] = await Promise.allSettled([
+            schedulesApi.getAll().catch(err => { console.error('❌ Erro ao carregar schedules:', err); return []; }),
+            competitionsApi.getAll().catch(err => { console.error('❌ Erro ao carregar competitions:', err); return []; }),
+            championshipMatchesApi.getAll().catch(err => { console.error('❌ Erro ao carregar championshipMatches:', err); return []; })
+          ]).then(results => results.map(r => r.status === 'fulfilled' ? r.value : []));
+
+          // Processar schedules
+          const scheduleMap = new Map<string, WeeklySchedule>();
+          (schedulesData as WeeklySchedule[]).forEach(schedule => {
+            if (schedule && schedule.id) {
+              const validSchedule = {
+                ...schedule,
+                days: Array.isArray(schedule.days) ? schedule.days : (schedule.days ? [schedule.days] : []),
+                isActive: schedule.isActive === true || schedule.isActive === 'TRUE' || schedule.isActive === 'true'
+              };
+              if (scheduleMap.has(schedule.id)) {
+                const existing = scheduleMap.get(schedule.id)!;
+                if (validSchedule.isActive && !existing.isActive) {
+                  scheduleMap.set(schedule.id, validSchedule);
+                } else if (!validSchedule.isActive && existing.isActive) {
+                  // Manter o existente que está ativo
+                } else if (validSchedule.createdAt && existing.createdAt && validSchedule.createdAt > existing.createdAt) {
+                  scheduleMap.set(schedule.id, validSchedule);
+                }
+              } else {
                 scheduleMap.set(schedule.id, validSchedule);
               }
-            } else {
-              scheduleMap.set(schedule.id, validSchedule);
             }
+          });
+          const validSchedules = Array.from(scheduleMap.values()).sort((a, b) => {
+            if (a.isActive && !b.isActive) return -1;
+            if (!a.isActive && b.isActive) return 1;
+            const aCreated = a.createdAt || 0;
+            const bCreated = b.createdAt || 0;
+            return bCreated - aCreated;
+          });
+          setSchedules(validSchedules);
+          
+          setCompetitions((competitionsData as string[]).length > 0 ? (competitionsData as string[]) : []);
+          setChampionshipMatches((championshipMatchesData as ChampionshipMatch[]).length > 0 ? (championshipMatchesData as ChampionshipMatch[]) : []);
+          
+          console.log('✅ Fase 2 concluída:', {
+            schedules: validSchedules.length,
+            competitions: competitionsData.length,
+            championshipMatches: championshipMatchesData.length,
+          });
+        }, 100);
+
+        // FASE 3: Carregar dados secundários em background
+        setTimeout(async () => {
+          console.log('🚀 Fase 3: Carregando dados secundários...');
+          const [assessmentsData, statTargetsData] = await Promise.allSettled([
+            assessmentsApi.getAll().catch(err => { console.error('❌ Erro ao carregar assessments:', err); return []; }),
+            statTargetsApi.getAll().catch(err => { console.error('❌ Erro ao carregar statTargets:', err); return []; })
+          ]).then(results => results.map(r => r.status === 'fulfilled' ? r.value : []));
+
+          setAssessments(assessmentsData as PhysicalAssessment[]);
+          
+          if ((statTargetsData as StatTargets[]).length > 0 && (statTargetsData as StatTargets[])[0]) {
+            setStatTargets((statTargetsData as StatTargets[])[0]);
           }
-        });
-        // Ordenar: ativos primeiro, depois por data de criação (mais recente primeiro)
-        const validSchedules = Array.from(scheduleMap.values()).sort((a, b) => {
-          if (a.isActive && !b.isActive) return -1;
-          if (!a.isActive && b.isActive) return 1;
-          const aCreated = a.createdAt || 0;
-          const bCreated = b.createdAt || 0;
-          return bCreated - aCreated;
-        });
-        console.log('📋 Schedules carregados (após remover duplicatas):', validSchedules.length, '| Ativos:', validSchedules.filter(s => s.isActive).length);
-        setSchedules(validSchedules);
+          
+          console.log('✅ Fase 3 concluída:', {
+            assessments: assessmentsData.length,
+            statTargets: statTargetsData.length,
+          });
+        }, 300);
+        
         // TimeControls não tem getAll(), será carregado por jogo quando necessário
         setTimeControls([]);
-        console.log('📋 Championship Matches carregados:', championshipMatchesData?.length || 0, championshipMatchesData);
-        console.log('📋 Tipo de championshipMatchesData:', typeof championshipMatchesData, Array.isArray(championshipMatchesData));
-        if (championshipMatchesData && championshipMatchesData.length > 0) {
-          console.log('✅ Dados encontrados! Primeiro item:', championshipMatchesData[0]);
-        } else {
-          console.warn('⚠️ Nenhum dado encontrado ou array vazio');
-        }
-        setChampionshipMatches(championshipMatchesData && championshipMatchesData.length > 0 ? championshipMatchesData : []);
-        // Competições: usar da API ou array vazio (usuário pode adicionar depois)
-        setCompetitions(competitionsData.length > 0 ? competitionsData : []);
-        // Teams: carregar equipes
-        setTeams(teamsData);
         
         // Campeonatos: carregar do localStorage
         const savedChampionships = JSON.parse(localStorage.getItem('championships') || '[]');
         setChampionships(savedChampionships);
         
-        // Stat targets (pegar o primeiro ou usar default)
-        if (statTargetsData.length > 0 && statTargetsData[0]) {
-          setStatTargets(statTargetsData[0]);
-        }
-        
-        console.log('✅ Dados carregados com sucesso!');
+        console.log('✅ Dados críticos carregados com sucesso!');
       } catch (error) {
         console.error('❌ Erro ao carregar dados da API:', error);
         // Manter arrays vazios em caso de erro (sem fallback para dados iniciais)
@@ -297,9 +305,45 @@ export default function App() {
       }, 500);
   };
 
-  const handleUpdateUser = (updatedData: Partial<User>) => {
-      if (currentUser) {
-          setCurrentUser({ ...currentUser, ...updatedData });
+  const handleUpdateUser = async (updatedData: Partial<User>) => {
+      try {
+          const token = localStorage.getItem('token');
+          if (!token) {
+              alert('Você precisa estar autenticado para atualizar o perfil.');
+              return;
+          }
+
+          const { getApiUrl } = await import('./config');
+          
+          const response = await fetch(`${getApiUrl()}/auth/profile`, {
+              method: 'PUT',
+              headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`,
+              },
+              body: JSON.stringify(updatedData),
+          });
+
+          const result = await response.json();
+
+          if (result.success && result.data) {
+              // Atualizar estado local com dados retornados
+              if (currentUser) {
+                  const updatedUser: User = {
+                      ...currentUser,
+                      name: result.data.name,
+                      email: result.data.email,
+                      photoUrl: result.data.photoUrl,
+                      role: result.data.role === 'TECNICO' ? 'Treinador' : result.data.role,
+                  };
+                  setCurrentUser(updatedUser);
+              }
+          } else {
+              alert(result.error || 'Erro ao atualizar perfil. Tente novamente.');
+          }
+      } catch (error) {
+          console.error('Erro ao atualizar perfil:', error);
+          alert('Erro de conexão ao atualizar perfil. Verifique se o backend está rodando.');
       }
   };
 
@@ -846,9 +890,7 @@ export default function App() {
           <TabBackgroundWrapper>
             <Settings 
               currentUser={currentUser} 
-              onUpdateUser={handleUpdateUser} 
-              statTargets={statTargets}
-              onUpdateTargets={setStatTargets}
+              onUpdateUser={handleUpdateUser}
             />
           </TabBackgroundWrapper>
         );

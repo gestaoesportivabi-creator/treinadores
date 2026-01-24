@@ -68,7 +68,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLog
   // Itens que não pertencem a categorias
   const standaloneItems: MenuItem[] = [
     { id: 'dashboard', label: 'Visão Geral', icon: LayoutDashboard, restricted: false },
-    { id: 'settings', label: 'Configurações', icon: Settings, restricted: false },
   ];
 
   const toggleCategory = (categoryId: string) => {
@@ -215,6 +214,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLog
                 </p>
             </div>
         </div>
+        <button 
+          onClick={() => setActiveTab('settings')}
+          className="w-full flex items-center justify-center space-x-2 px-3 py-2 mb-3 text-zinc-400 hover:bg-zinc-900 hover:text-[#00f0ff] border border-zinc-900 hover:border-[#00f0ff]/30 transition-colors text-xs font-bold rounded-lg uppercase tracking-wide whitespace-nowrap"
+        >
+          <Settings size={14} />
+          <span>Configurações</span>
+        </button>
         <button 
           onClick={onLogout}
           className="w-full flex items-center justify-center space-x-2 px-3 py-2 text-zinc-500 hover:bg-zinc-900 hover:text-red-500 border border-zinc-900 hover:border-red-900/30 transition-colors text-xs font-bold rounded-lg uppercase tracking-wide whitespace-nowrap"
