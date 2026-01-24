@@ -106,6 +106,19 @@ export interface MatchRecord {
   competition?: string;
   playerStats: { [playerId: string]: MatchStats };
   teamStats: MatchStats;
+  playerRelationships?: {
+    [playerId1: string]: {
+      [playerId2: string]: {
+        passes: number; // Quantidade de passes entre os dois
+        assists: number; // Quantidade de assistências
+      }
+    }
+  };
+  lineup?: {
+    players: string[]; // IDs dos 5 jogadores em quadra (primeiro é goleiro)
+    bench: string[]; // IDs dos jogadores no banco
+    ballPossessionStart: 'us' | 'opponent'; // Quem começou com a bola
+  };
 }
 
 // Physical Assessment Types

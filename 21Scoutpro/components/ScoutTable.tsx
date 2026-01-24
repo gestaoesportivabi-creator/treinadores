@@ -2930,7 +2930,8 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                     )}
                 </div>
             )}
-            </>
+                </>
+            )}
 
             {/* Modal de Seleção de Tempo */}
             <TimeSelectionModal
