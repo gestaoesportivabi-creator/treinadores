@@ -54,6 +54,19 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ isBackground = false }) =
   const [currentIndex, setCurrentIndex] = useState(0);
   const [touchStart, setTouchStart] = useState(0);
   const [touchEnd, setTouchEnd] = useState(0);
+  const [loadedImages, setLoadedImages] = useState<Set<number>>(new Set([0]));
+
+  // Pré-carregar próxima imagem em background
+  useEffect(() => {
+    const nextIndex = (currentIndex + 1) % images.length;
+    if (!loadedImages.has(nextIndex)) {
+      const img = new Image();
+      img.src = images[nextIndex];
+      img.onload = () => {
+        setLoadedImages(prev => new Set([...prev, nextIndex]));
+      };
+    }
+  }, [currentIndex, images, loadedImages]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -86,6 +99,13 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ isBackground = false }) =
   };
 
   if (isBackground) {
+    // Renderizar apenas imagem atual e próxima (se já carregada)
+    const nextIndex = (currentIndex + 1) % images.length;
+    const imagesToRender = [currentIndex];
+    if (loadedImages.has(nextIndex)) {
+      imagesToRender.push(nextIndex);
+    }
+
     return (
       <div 
         className="absolute inset-0 z-0 overflow-hidden"
@@ -93,7 +113,7 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ isBackground = false }) =
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        {images.map((img, idx) => (
+        {imagesToRender.map((idx) => (
           <div
             key={idx}
             className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
@@ -101,10 +121,10 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ isBackground = false }) =
             }`}
           >
             <img
-              src={img}
+              src={images[idx]}
               alt={`SCOUT21PRO - ${idx + 1}`}
               className="w-full h-full object-cover"
-              loading="lazy"
+              loading={idx === 0 ? "eager" : "lazy"}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-black/30" />
           </div>
@@ -129,6 +149,13 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ isBackground = false }) =
     );
   }
 
+  // Renderizar apenas imagem atual e próxima (se já carregada)
+  const nextIndex = (currentIndex + 1) % images.length;
+  const imagesToRender = [currentIndex];
+  if (loadedImages.has(nextIndex)) {
+    imagesToRender.push(nextIndex);
+  }
+
   return (
     <div 
       className="relative w-full h-[400px] sm:h-[500px] md:h-[600px] overflow-hidden rounded-2xl"
@@ -136,7 +163,7 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ isBackground = false }) =
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      {images.map((img, idx) => (
+      {imagesToRender.map((idx) => (
         <div
           key={idx}
           className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
@@ -144,10 +171,10 @@ const ImageCarousel: React.FC<ImageCarouselProps> = ({ isBackground = false }) =
           }`}
         >
           <img
-            src={img}
+            src={images[idx]}
             alt={`SCOUT21PRO - ${idx + 1}`}
             className="w-full h-full object-cover"
-            loading="lazy"
+            loading={idx === 0 ? "eager" : "lazy"}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
         </div>
