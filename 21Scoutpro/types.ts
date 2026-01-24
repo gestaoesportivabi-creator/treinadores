@@ -74,18 +74,13 @@ export interface Player {
   dominantFoot: 'Destro' | 'Canhoto' | 'Ambidestro';
   age: number;
   height: number;
+  weight?: number; // Peso (kg)
   lastClub: string;
   photoUrl?: string;
   isTransferred?: boolean;
   transferDate?: string;
-  severanceValue?: number; // Valor de recisão
-  severanceEndDate?: string; // Data até quando receberá do clube após recisão
-  salary?: number; // Salário negociado
-  salaryStartDate?: string; // Data início recebimento salário
-  salaryEndDate?: string; // Data término recebimento salário
   injuryHistory?: InjuryRecord[];
   birthDate?: string; // YYYY-MM-DD
-  cpf?: string; // Formato: XXX.XXX.XXX-XX
   maxLoads?: MaxLoad[];
 }
 

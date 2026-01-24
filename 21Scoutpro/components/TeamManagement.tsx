@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Player, Position, SportConfig, InjuryRecord, MaxLoad, LoadType } from '../types';
 import { EXERCISES, EXERCISE_CATEGORIES } from '../constants';
-import { Shirt, Save, Plus, User, FileText, Edit2, ShieldAlert, Activity, ArrowRightLeft, Calendar, Clock, Upload, AlertTriangle, X, Trash2, Dumbbell } from 'lucide-react';
+import { Shirt, Save, Plus, User, FileText, Edit2, ShieldAlert, Activity, ArrowRightLeft, Calendar, Clock, Upload, AlertTriangle, X, Trash2, Dumbbell, Search, ChevronDown, ChevronRight } from 'lucide-react';
 
 interface TeamManagementProps {
     players: Player[];
@@ -28,18 +28,13 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
     const [lastClub, setLastClub] = useState('');
     const [photoUrl, setPhotoUrl] = useState('');
     const [birthDate, setBirthDate] = useState('');
-    const [cpf, setCpf] = useState('');
+    const [weight, setWeight] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [expandedPositions, setExpandedPositions] = useState<Set<string>>(new Set());
     
     // Status (Edit Only)
     const [isTransferred, setIsTransferred] = useState(false);
     const [transferDate, setTransferDate] = useState('');
-    const [severanceValue, setSeveranceValue] = useState('');
-    const [severanceEndDate, setSeveranceEndDate] = useState('');
-    
-    // Salary Fields
-    const [salary, setSalary] = useState('');
-    const [salaryStartDate, setSalaryStartDate] = useState('');
-    const [salaryEndDate, setSalaryEndDate] = useState('');
 
     // Medical (Edit Only)
     const [injuryHistory, setInjuryHistory] = useState<InjuryRecord[]>([]);
@@ -104,42 +99,6 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
         return INJURY_LOCATIONS_BY_TYPE[type] || INJURY_LOCATIONS_BY_TYPE['Outros'];
     };
 
-
-    // Função para validar CPF
-    const validateCPF = (cpf: string): boolean => {
-        // Remove formatação
-        const cleanCPF = cpf.replace(/\D/g, '');
-        
-        // Verifica se tem 11 dígitos
-        if (cleanCPF.length !== 11) return false;
-        
-        // Verifica se todos os dígitos são iguais (CPF inválido)
-        if (/^(\d)\1{10}$/.test(cleanCPF)) return false;
-        
-        // Validação dos dígitos verificadores
-        let sum = 0;
-        let remainder;
-        
-        // Valida primeiro dígito
-        for (let i = 1; i <= 9; i++) {
-            sum += parseInt(cleanCPF.substring(i - 1, i)) * (11 - i);
-        }
-        remainder = (sum * 10) % 11;
-        if (remainder === 10 || remainder === 11) remainder = 0;
-        if (remainder !== parseInt(cleanCPF.substring(9, 10))) return false;
-        
-        // Valida segundo dígito
-        sum = 0;
-        for (let i = 1; i <= 10; i++) {
-            sum += parseInt(cleanCPF.substring(i - 1, i)) * (12 - i);
-        }
-        remainder = (sum * 10) % 11;
-        if (remainder === 10 || remainder === 11) remainder = 0;
-        if (remainder !== parseInt(cleanCPF.substring(10, 11))) return false;
-        
-        return true;
-    };
-
     const resetForm = () => {
         setName('');
         setNickname('');
@@ -152,11 +111,6 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
         setPhotoUrl('');
         setIsTransferred(false);
         setTransferDate('');
-        setSeveranceValue('');
-        setSeveranceEndDate('');
-        setSalary('');
-        setSalaryStartDate('');
-        setSalaryEndDate('');
         setInjuryHistory([]);
         setNewInjuryType('Muscular');
         setNewInjuryLocation('Coxa Posterior');
@@ -168,7 +122,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
         setNewInjuryReturnDate('');
         setNewInjuryReturnDateActual('');
         setBirthDate('');
-        setCpf('');
+        setWeight('');
         setMaxLoads([]);
         setIsAddingMaxLoad(false);
         setEditingMaxLoadId(null);
@@ -198,14 +152,9 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
         setPhotoUrl(player.photoUrl || '');
         setIsTransferred(player.isTransferred || false);
         setTransferDate(player.transferDate || '');
-        setSeveranceValue((player as any).severanceValue?.toString() || '');
-        setSeveranceEndDate((player as any).severanceEndDate || '');
-        setSalary((player as any).salary?.toString() || '');
-        setSalaryStartDate((player as any).salaryStartDate || '');
-        setSalaryEndDate((player as any).salaryEndDate || '');
         setInjuryHistory(player.injuryHistory || []);
         setBirthDate(player.birthDate || '');
-        setCpf(player.cpf || '');
+        setWeight((player as any).weight != null ? String((player as any).weight) : '');
         setMaxLoads(player.maxLoads || []);
         
         setIsFormOpen(true);
@@ -236,7 +185,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
         today.setHours(0, 0, 0, 0);
         
         // Calcular dias baseado na data de retorno real (se houver) ou prevista (se houver) ou fim
-        const endDate = newInjuryReturnDateActual || newInjuryReturnDateActual || newInjuryEnd;
+        const endDate = newInjuryReturnDateActual || newInjuryReturnDate || newInjuryEnd;
         if (endDate) {
             const end = new Date(endDate);
             end.setHours(0, 0, 0, 0);
@@ -279,15 +228,6 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         
-        // Validar CPF se preenchido
-        if (cpf && cpf.trim() !== '') {
-            if (!validateCPF(cpf)) {
-                alert('CPF inválido. Verifique os dígitos e tente novamente.');
-                return;
-            }
-        }
-        
-        
         // Recalculate days out for all injuries before saving
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -322,18 +262,13 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
             dominantFoot,
             age: parseInt(age) || 0,
             height: parseInt(height) || 0,
+            weight: weight ? parseFloat(weight.replace(',', '.')) : undefined,
             lastClub: lastClub?.trim() || '',
             photoUrl: photoUrl || '',
             isTransferred: isTransferred,
             transferDate: isTransferred ? transferDate : undefined,
-            severanceValue: isTransferred && severanceValue ? parseFloat(severanceValue.replace(/[^\d,.-]/g, '').replace(',', '.')) : undefined,
-            severanceEndDate: isTransferred ? severanceEndDate : undefined,
-            salary: salary ? parseFloat(salary.replace(/[^\d,.-]/g, '').replace(',', '.')) : undefined,
-            salaryStartDate: salaryStartDate || undefined,
-            salaryEndDate: salaryEndDate || undefined,
             injuryHistory: updatedInjuryHistory,
             birthDate: birthDate || undefined,
-            cpf: cpf || undefined,
             maxLoads: maxLoads.length > 0 ? maxLoads : undefined
         };
 
@@ -349,29 +284,49 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
         resetForm();
     };
 
-    // Group players by position
+    const POSITION_COLORS: Record<string, { bg: string; border: string; hover: string }> = {
+        'Goleiro': { bg: 'bg-amber-500/20', border: 'border-amber-500/60', hover: 'hover:border-amber-400' },
+        'Fixo': { bg: 'bg-blue-500/20', border: 'border-blue-500/60', hover: 'hover:border-blue-400' },
+        'Ala': { bg: 'bg-emerald-500/20', border: 'border-emerald-500/60', hover: 'hover:border-emerald-400' },
+        'Pivô': { bg: 'bg-violet-500/20', border: 'border-violet-500/60', hover: 'hover:border-violet-400' },
+        'Outros': { bg: 'bg-zinc-500/20', border: 'border-zinc-500/60', hover: 'hover:border-zinc-400' },
+    };
+    const getPositionStyle = (pos: string) => POSITION_COLORS[pos] || POSITION_COLORS['Outros'];
+
+    const filteredPlayers = useMemo(() => {
+        if (!searchQuery.trim()) return players;
+        const q = searchQuery.trim().toLowerCase();
+        return players.filter(p => 
+            (p.name || '').toLowerCase().includes(q) || (p.nickname || '').toLowerCase().includes(q)
+        );
+    }, [players, searchQuery]);
+
     const playersByPosition = useMemo(() => {
         const grouped: Record<string, Player[]> = {};
-        players.forEach(player => {
-            const position = player.position || 'Outros';
-            if (!grouped[position]) {
-                grouped[position] = [];
-            }
-            grouped[position].push(player);
+        filteredPlayers.forEach(player => {
+            const pos = player.position || 'Outros';
+            if (!grouped[pos]) grouped[pos] = [];
+            grouped[pos].push(player);
         });
-        
-        // Sort positions according to config order
         const orderedPositions = config.positions.filter(pos => grouped[pos]?.length > 0);
         const remainingPositions = Object.keys(grouped).filter(pos => !orderedPositions.includes(pos as Position));
-        
         return { orderedPositions, remainingPositions, grouped };
-    }, [players, config.positions]);
+    }, [filteredPlayers, config.positions]);
 
-    const formatCurrency = (value: number) => {
-        return new Intl.NumberFormat('pt-BR', {
-            style: 'currency',
-            currency: 'BRL',
-        }).format(value);
+    const togglePositionExpanded = (pos: string) => {
+        setExpandedPositions(prev => {
+            const next = new Set(prev);
+            if (next.has(pos)) next.delete(pos);
+            else next.add(pos);
+            return next;
+        });
+    };
+
+    const openAddForPosition = (pos: Position) => {
+        resetForm();
+        setPosition(pos);
+        setIsFormOpen(true);
+        setEditMode(false);
     };
 
     const PlayerCard = ({ player }: { player: Player }) => {
@@ -509,7 +464,17 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
                     </h2>
                     <p className="text-zinc-500 text-xs font-bold mt-1">Cadastro, edição e status dos atletas.</p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                    <div className="relative flex-1 md:flex-initial md:min-w-[220px]">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-zinc-500" />
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
+                            placeholder="Buscar atleta por nome..."
+                            className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-white text-sm placeholder-zinc-500 outline-none focus:border-[#10b981]"
+                        />
+                    </div>
                     {onClearDemoData && players.length > 0 && (
                         <button
                             type="button"
@@ -524,16 +489,13 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
                     )}
                     <button 
                         onClick={() => {
-                            if(isFormOpen) resetForm(); 
+                            if (isFormOpen) resetForm();
+                            else resetForm();
                             setIsFormOpen(!isFormOpen);
                         }}
                         className="flex items-center gap-2 bg-[#10b981] hover:bg-[#34d399] text-white px-6 py-3 font-bold uppercase text-xs rounded-xl transition-colors shadow-[0_0_15px_rgba(16,185,129,0.4)]"
                     >
-                        {isFormOpen ? 'Cancelar' : (
-                            <>
-                                <Plus size={16} /> Novo Atleta
-                            </>
-                        )}
+                        {isFormOpen ? 'Cancelar' : <><Plus size={16} /> Novo Atleta</>}
                     </button>
                 </div>
             </div>
@@ -625,29 +587,13 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
                                 </div>
 
                                 <div>
-                                    <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">CPF</label>
-                                    <input 
-                                        type="text" 
-                                        value={cpf} 
-                                        onChange={e => {
-                                            // Aplicar máscara de CPF
-                                            let value = e.target.value.replace(/\D/g, '');
-                                            if (value.length <= 11) {
-                                                value = value.replace(/(\d{3})(\d)/, '$1.$2');
-                                                value = value.replace(/(\d{3})(\d)/, '$1.$2');
-                                                value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
-                                                setCpf(value);
-                                            }
-                                        }}
-                                        placeholder="000.000.000-00"
-                                        maxLength={14}
-                                        className="w-full bg-black border border-zinc-800 rounded-xl p-3 text-white outline-none focus:border-[#10b981]" 
-                                    />
+                                    <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Altura (cm)</label>
+                                    <input required type="number" value={height} onChange={e => setHeight(e.target.value)} className="w-full bg-black border border-zinc-800 rounded-xl p-3 text-white outline-none focus:border-[#10b981]" placeholder="175" />
                                 </div>
 
                                 <div>
-                                    <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Altura (cm)</label>
-                                    <input required type="number" value={height} onChange={e => setHeight(e.target.value)} className="w-full bg-black border border-zinc-800 rounded-xl p-3 text-white outline-none focus:border-[#10b981]" placeholder="175" />
+                                    <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Peso (kg)</label>
+                                    <input type="text" value={weight} onChange={e => setWeight(e.target.value.replace(/[^\d,.]/g, ''))} className="w-full bg-black border border-zinc-800 rounded-xl p-3 text-white outline-none focus:border-[#10b981]" placeholder="75" />
                                 </div>
 
                                 <div className="col-span-1 md:col-span-2">
@@ -678,50 +624,6 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
                                         )}
                                     </div>
                                 </div>
-
-                                {/* Campos de Salário */}
-                                <div className="col-span-1 md:col-span-2 lg:col-span-4 border-t border-zinc-800 pt-4 mt-4">
-                                    <h4 className="text-white font-bold uppercase text-xs mb-4 flex items-center gap-2">
-                                        <Activity size={16} className="text-[#10b981]" /> Informações Financeiras
-                                    </h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        <div>
-                                            <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Salário Negociado (R$)</label>
-                                            <input 
-                                                type="text" 
-                                                value={salary} 
-                                                onChange={e => {
-                                                    let value = e.target.value.replace(/[^\d,.-]/g, '');
-                                                    if (value) {
-                                                        value = value.replace(/(\d)(\d{2})$/, '$1,$2');
-                                                        value = value.replace(/(?=(\d{3})+(\D))\B/g, '.');
-                                                    }
-                                                    setSalary(value);
-                                                }}
-                                                className="w-full bg-black border border-zinc-800 rounded-xl p-3 text-white outline-none focus:border-[#10b981]" 
-                                                placeholder="0,00"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Data Início Recebimento</label>
-                                            <input 
-                                                type="date" 
-                                                value={salaryStartDate} 
-                                                onChange={e => setSalaryStartDate(e.target.value)} 
-                                                className="w-full bg-black border border-zinc-800 rounded-xl p-3 text-white outline-none focus:border-[#10b981]" 
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Data Término Recebimento</label>
-                                            <input 
-                                                type="date" 
-                                                value={salaryEndDate} 
-                                                onChange={e => setSalaryEndDate(e.target.value)} 
-                                                className="w-full bg-black border border-zinc-800 rounded-xl p-3 text-white outline-none focus:border-[#10b981]" 
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
                             </div>
                         )}
 
@@ -742,32 +644,9 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
                                     {isTransferred && (
                                         <div className="space-y-4">
                                             <div>
-                                                <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Data da Saída</label>
+                                                <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Data da Transferência</label>
                                                 <input type="date" value={transferDate} onChange={e => setTransferDate(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg p-2 text-white" />
                                             </div>
-                                            <div>
-                                                <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Valor de Recisão (R$)</label>
-                                                <input 
-                                                    type="text" 
-                                                    value={severanceValue} 
-                                                    onChange={e => {
-                                                        let value = e.target.value.replace(/[^\d,.-]/g, '');
-                                                        if (value) {
-                                                            value = value.replace(/(\d)(\d{2})$/, '$1,$2');
-                                                            value = value.replace(/(?=(\d{3})+(\D))\B/g, '.');
-                                                        }
-                                                        setSeveranceValue(value);
-                                                    }}
-                                                    className="w-full bg-black border border-zinc-700 rounded-lg p-2 text-white" 
-                                                    placeholder="0,00"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Data até Receber do Clube</label>
-                                                <input type="date" value={severanceEndDate} onChange={e => setSeveranceEndDate(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg p-2 text-white" />
-                                                <p className="text-[10px] text-zinc-500 mt-2">Data até quando o atleta irá receber do clube algum valor (mesmo após recisão).</p>
-                                            </div>
-                                            <p className="text-[10px] text-zinc-500 mt-2">Nota: As estatísticas deste atleta permanecerão salvas no sistema.</p>
                                         </div>
                                     )}
                                 </div>
@@ -855,66 +734,19 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
                                         <table className="w-full text-left">
                                             <thead className="bg-zinc-900 text-[10px] text-zinc-500 uppercase">
                                                 <tr>
-                                                    <th className="p-3">Data Início</th>
-                                                    <th className="p-3">Retorno Prevista</th>
-                                                    <th className="p-3">Retorno Real</th>
-                                                    <th className="p-3">Fim (Alta)</th>
-                                                    <th className="p-3">Tipo</th>
-                                                    <th className="p-3">Local</th>
-                                                    <th className="p-3">Lado</th>
-                                                    <th className="p-3">Origem</th>
-                                                    <th className="p-3 text-right">Dias Afastado</th>
+                                                    <th className="p-3">Data da lesão</th>
+                                                    <th className="p-3">Retorno previsto</th>
+                                                    <th className="p-3">Retorno real</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="text-xs text-zinc-300 divide-y divide-zinc-900">
-                                                {injuryHistory.map((inj) => {
-                                                    const today = new Date();
-                                                    today.setHours(0, 0, 0, 0);
-                                                    const startDate = new Date(inj.startDate || inj.date || '');
-                                                    startDate.setHours(0, 0, 0, 0);
-                                                    
-                                                    // Calcular dias de afastamento atual
-                                                    let currentDaysOut = 0;
-                                                    const endDate = inj.returnDateActual || inj.returnDate || inj.endDate;
-                                                    if (endDate) {
-                                                        const end = new Date(endDate);
-                                                        end.setHours(0, 0, 0, 0);
-                                                        const diffTime = Math.abs(end.getTime() - startDate.getTime());
-                                                        currentDaysOut = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                                                    } else {
-                                                        // Lesão ativa - calcular até hoje
-                                                        const diffTime = Math.abs(today.getTime() - startDate.getTime());
-                                                        currentDaysOut = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                                                    }
-                                                    
-                                                    // Determinar cor: verde se dentro do previsto, vermelho se passou
-                                                    let daysColor = 'text-red-400';
-                                                    if (inj.returnDate) {
-                                                        const returnDate = new Date(inj.returnDate);
-                                                        returnDate.setHours(0, 0, 0, 0);
-                                                        if (today <= returnDate) {
-                                                            daysColor = 'text-green-400';
-                                                        } else {
-                                                            daysColor = 'text-red-400';
-                                                        }
-                                                    }
-                                                    
-                                                    return (
-                                                        <tr key={inj.id || `inj-${inj.date}-${inj.type}`}>
-                                                            <td className="p-3">{new Date(inj.startDate || inj.date || '').toLocaleDateString('pt-BR')}</td>
-                                                            <td className="p-3">{inj.returnDate ? new Date(inj.returnDate).toLocaleDateString('pt-BR') : '-'}</td>
-                                                            <td className="p-3">{inj.returnDateActual ? new Date(inj.returnDateActual).toLocaleDateString('pt-BR') : '-'}</td>
-                                                            <td className="p-3">{inj.endDate ? new Date(inj.endDate).toLocaleDateString('pt-BR') : '-'}</td>
-                                                            <td className="p-3">{inj.type}</td>
-                                                            <td className="p-3">{inj.location}</td>
-                                                            <td className="p-3">{inj.side}</td>
-                                                            <td className="p-3">{inj.origin || '-'}</td>
-                                                            <td className={`p-3 text-right font-bold ${daysColor}`}>
-                                                                {currentDaysOut} dias
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                })}
+                                                {injuryHistory.map((inj) => (
+                                                    <tr key={inj.id || `inj-${inj.date}-${inj.type}`}>
+                                                        <td className="p-3">{new Date(inj.startDate || inj.date || '').toLocaleDateString('pt-BR')}</td>
+                                                        <td className="p-3">{inj.returnDate ? new Date(inj.returnDate).toLocaleDateString('pt-BR') : '-'}</td>
+                                                        <td className="p-3">{inj.returnDateActual ? new Date(inj.returnDateActual).toLocaleDateString('pt-BR') : '-'}</td>
+                                                    </tr>
+                                                ))}
                                             </tbody>
                                         </table>
                                     </div>
@@ -1188,55 +1020,51 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
                 </div>
             )}
 
-            {/* Players List - Grouped by Position */}
-            <div className="space-y-12">
-                {/* Render ordered positions first */}
-                {playersByPosition.orderedPositions.map(position => (
-                    <div key={position} className="space-y-4">
-                        <div className="flex items-center gap-3">
-                            <div className="h-[2px] flex-1 bg-gradient-to-r from-[#10b981] to-transparent"></div>
-                            <h2 className="text-xl font-black text-white uppercase italic tracking-tighter flex items-center gap-2">
-                                <Shirt className="text-[#10b981]" size={24} />
-                                {position}
-                                <span className="text-sm text-zinc-500 font-bold normal-case">({playersByPosition.grouped[position].length})</span>
-                            </h2>
-                            <div className="h-[2px] flex-1 bg-gradient-to-l from-[#10b981] to-transparent"></div>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                            {playersByPosition.grouped[position]
-                                .filter(player => player && player.id) // Garantir que tem ID válido
-                                .map(player => (
-                                    <PlayerCard key={player.id} player={player} />
-                                ))}
-                        </div>
-                    </div>
-                ))}
-                
-                {/* Render remaining positions (if any) */}
-                {playersByPosition.remainingPositions.length > 0 && (
-                    <>
-                        {playersByPosition.remainingPositions.map(position => (
-                            <div key={position} className="space-y-4">
-                                <div className="flex items-center gap-3">
-                                    <div className="h-[2px] flex-1 bg-gradient-to-r from-[#10b981] to-transparent"></div>
-                                    <h2 className="text-xl font-black text-white uppercase italic tracking-tighter flex items-center gap-2">
-                                        <Shirt className="text-[#10b981]" size={24} />
-                                        {position}
-                                        <span className="text-sm text-zinc-500 font-bold normal-case">({playersByPosition.grouped[position].length})</span>
-                                    </h2>
-                                    <div className="h-[2px] flex-1 bg-gradient-to-l from-[#10b981] to-transparent"></div>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                                    {playersByPosition.grouped[position]
-                                        .filter(player => player && player.id) // Garantir que tem ID válido
-                                        .map(player => (
+            {/* Cartões por posição */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {config.positions.map(pos => {
+                    const style = getPositionStyle(pos);
+                    const list = playersByPosition.grouped[pos] || [];
+                    const isExpanded = expandedPositions.has(pos);
+                    return (
+                        <div
+                            key={pos}
+                            className={`rounded-3xl border-2 ${style.bg} ${style.border} ${style.hover} transition-all overflow-hidden`}
+                        >
+                            <button
+                                type="button"
+                                onClick={() => togglePositionExpanded(pos)}
+                                className="w-full flex items-center justify-between p-4 text-left"
+                            >
+                                <span className="font-black text-white uppercase tracking-tighter flex items-center gap-2">
+                                    <Shirt size={20} />
+                                    {pos}
+                                    <span className="text-sm text-zinc-400 font-bold normal-case">({list.length})</span>
+                                </span>
+                                {isExpanded ? <ChevronDown size={20} className="text-zinc-400" /> : <ChevronRight size={20} className="text-zinc-400" />}
+                            </button>
+                            {isExpanded && (
+                                <div className="px-4 pb-4 space-y-4 border-t border-white/10 pt-4">
+                                    <button
+                                        type="button"
+                                        onClick={() => openAddForPosition(pos as Position)}
+                                        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold uppercase transition-colors"
+                                    >
+                                        <Plus size={14} /> Cadastrar atleta em {pos}
+                                    </button>
+                                    <div className="grid grid-cols-1 gap-3 max-h-[420px] overflow-y-auto">
+                                        {list.filter(p => p && p.id).map(player => (
                                             <PlayerCard key={player.id} player={player} />
                                         ))}
+                                        {list.length === 0 && (
+                                            <p className="text-zinc-500 text-xs text-center py-4">Nenhum atleta nesta posição.</p>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
-                    </>
-                )}
+                            )}
+                        </div>
+                    );
+                })}
             </div>
         </div>
         </>
