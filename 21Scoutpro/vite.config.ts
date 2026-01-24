@@ -14,6 +14,6 @@ export default defineConfig({
       },
     },
     chunkSizeWarningLimit: 1000,
-    minify: 'terser',
+    minify: 'esbuild', // Usar esbuild ao invés de terser (mais rápido e já incluído)
   },
 });
