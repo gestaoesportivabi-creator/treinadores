@@ -19,6 +19,7 @@ import { ScheduleAlerts } from './components/ScheduleAlerts';
 import { TabBackgroundWrapper } from './components/TabBackgroundWrapper';
 import { ManagementReport } from './components/ManagementReport';
 import { NextMatchAlert } from './components/NextMatchAlert';
+import { RealtimeScoutPage } from './components/RealtimeScoutPage';
 import { SPORT_CONFIGS } from './constants';
 import { Activity, BarChart3, Clock, Database, PlayCircle, ArrowRight, User as UserIcon, Quote, Trophy, HeartPulse, FileText } from 'lucide-react';
 import { User, MatchRecord, Player, PhysicalAssessment, WeeklySchedule, StatTargets, PlayerTimeControl, Team, Championship } from './types';
@@ -602,6 +603,19 @@ export default function App() {
     handleLogin(user);
     setCurrentRoute('app');
   };
+
+  // Verificar se está na rota de coleta em tempo real
+  useEffect(() => {
+    const path = window.location.pathname;
+    if (path === '/scout-realtime') {
+      setCurrentRoute('realtime-scout' as any);
+    }
+  }, []);
+
+  // Mostrar página de coleta em tempo real (standalone)
+  if (window.location.pathname === '/scout-realtime') {
+    return <RealtimeScoutPage />;
+  }
 
   // Mostrar landing page
   if (currentRoute === 'landing') {

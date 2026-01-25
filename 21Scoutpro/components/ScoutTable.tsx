@@ -5,6 +5,8 @@ import { timeControlsApi } from '../services/api';
 import { TimeSelectionModal } from './TimeSelectionModal';
 import { MatchTypeModal, MatchType } from './MatchTypeModal';
 import { MatchScoutingWindow } from './MatchScoutingWindow';
+import { CollectionTypeSelector, CollectionType } from './CollectionTypeSelector';
+import { PostMatchCollectionSheet } from './PostMatchCollectionSheet';
 
 interface GoalTime {
     id: string;
@@ -101,6 +103,8 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
     const [preparationMatchType, setPreparationMatchType] = useState<MatchType>('normal'); // Tipo de partida para preparação
     const [preparationExtraTimeMinutes, setPreparationExtraTimeMinutes] = useState<number>(5); // Minutos de acréscimo
     const [showStartScoutConfirmation, setShowStartScoutConfirmation] = useState<boolean>(false); // Modal de confirmação
+    const [collectionType, setCollectionType] = useState<'realtime' | 'postmatch' | null>(null); // Tipo de coleta (null = seletor)
+    const [showPostMatchSheet, setShowPostMatchSheet] = useState<boolean>(false); // Planilha pós-jogo
 
     // Calendário: filtro de datas (default: mês atual) e modo de visualização
     const [startDate, setStartDate] = useState<string>(() => {
@@ -1677,19 +1681,20 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
     };
 
     const handleMatchClick = (item: CalendarMatchItem) => {
+        setCollectionType(null);
+        setShowPostMatchSheet(false);
         if (item.type === 'saved') {
             const m = item as MatchRecord;
             setSelectedMatch(m);
-            setSelectedScheduledMatch(null); // Limpar partida programada se houver
+            setSelectedScheduledMatch(null);
             setViewMode('analysis');
         } else {
             const cm = item as ChampionshipMatch & { type: 'scheduled' };
-            // Para partidas programadas, ir para análise com interface de preparação
             setSelectedScheduledMatch(cm);
-            setSelectedMatch(null); // Limpar partida salva se houver
-            setSelectedPlayersForMatch(new Set()); // Resetar seleção de jogadores
-            setPreparationMatchType('normal'); // Resetar tipo de partida
-            setPreparationExtraTimeMinutes(5); // Resetar minutos de acréscimo
+            setSelectedMatch(null);
+            setSelectedPlayersForMatch(new Set());
+            setPreparationMatchType('normal');
+            setPreparationExtraTimeMinutes(5);
             setViewMode('analysis');
         }
     };
@@ -1716,6 +1721,11 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
         setMatchResult('Sem informação');
         setGoalsConceded([]);
         setGoalsConcededSaved(false);
+        setCollectionType(null);
+        setShowPostMatchSheet(false);
+        setShowScoutingWindow(false);
+        setShowMatchTypeModal(false);
+        setShowStartScoutConfirmation(false);
         setEntries([{
             id: '1',
             date: new Date().toISOString().split('T')[0],
@@ -1875,10 +1885,39 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
 
             {viewMode === 'analysis' && (
                 <>
-                    {/* Interface de Preparação para Partida Programada */}
-                    {isScheduledMatch() && selectedScheduledMatch && (
+                    {/* Seletor de tipo de coleta — primeira tela para programada ou salva não executada */}
+                    {isScheduledMatch() && selectedScheduledMatch && collectionType === null && !showPostMatchSheet && (
+                        <CollectionTypeSelector
+                            matchContext={{
+                                date: selectedScheduledMatch.date,
+                                opponent: selectedScheduledMatch.opponent || '',
+                                competition: selectedScheduledMatch.competition,
+                            }}
+                            onSelect={(type: CollectionType) => setCollectionType(type)}
+                            onBack={handleBackToCalendar}
+                        />
+                    )}
+                    {!isScheduledMatch() && selectedMatch && isMatchNotExecuted(selectedMatch) && !showPostMatchSheet && (
+                        <CollectionTypeSelector
+                            matchContext={{
+                                date: selectedMatch.date,
+                                opponent: selectedMatch.opponent || '',
+                                competition: selectedMatch.competition,
+                            }}
+                            onSelect={(type: CollectionType) => {
+                                if (type === 'realtime') {
+                                    setShowMatchTypeModal(true);
+                                } else {
+                                    setShowPostMatchSheet(true);
+                                }
+                            }}
+                            onBack={handleBackToCalendar}
+                        />
+                    )}
+
+                    {/* Interface de Preparação para Partida Programada — tempo real */}
+                    {isScheduledMatch() && selectedScheduledMatch && collectionType === 'realtime' && !showPostMatchSheet && (
                         <div className="space-y-6 animate-fade-in pb-12">
-                            {/* Header com botão Voltar */}
                             <div className="flex items-center justify-between mb-6">
                                 <h2 className="text-2xl font-black text-white flex items-center gap-2 uppercase tracking-wide">
                                     <Target className="text-[#00f0ff]" size={28} /> Preparação da Partida
@@ -1892,7 +1931,6 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                 </button>
                             </div>
 
-                            {/* Informações Básicas da Partida */}
                             <div className="bg-black rounded-3xl border border-zinc-900 p-6 shadow-lg">
                                 <h3 className="text-white font-bold uppercase text-sm mb-4 flex items-center gap-2">
                                     <Calendar className="text-[#00f0ff]" size={16} /> Informações da Partida
@@ -1919,7 +1957,6 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                 </div>
                             </div>
 
-                            {/* Seção de Seleção de Atletas */}
                             <div className="bg-black rounded-3xl border border-zinc-900 p-6 shadow-lg">
                                 <h3 className="text-white font-bold uppercase text-sm mb-4 flex items-center gap-2">
                                     <Users className="text-[#00f0ff]" size={16} /> Selecionar Atletas
@@ -1961,7 +1998,6 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                 </div>
                             </div>
 
-                            {/* Seção de Tipo de Partida */}
                             <div className="bg-black rounded-3xl border border-zinc-900 p-6 shadow-lg">
                                 <h3 className="text-white font-bold uppercase text-sm mb-4 flex items-center gap-2">
                                     <Clock className="text-[#00f0ff]" size={16} /> Tipo de Partida
@@ -2028,7 +2064,6 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                     </label>
                                 </div>
 
-                                {/* Input de minutos de acréscimo */}
                                 {(preparationMatchType === 'extraTime' || preparationMatchType === 'extraTimePenalties') && (
                                     <div className="mt-4">
                                         <label className="block text-zinc-400 text-xs font-bold uppercase mb-2">
@@ -2052,7 +2087,6 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                 )}
                             </div>
 
-                            {/* Botão Iniciar Scout */}
                             <div className="flex justify-center">
                                 <button
                                     type="button"
@@ -2070,24 +2104,141 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                         </div>
                     )}
 
-                    {/* Interface de Análise para Partida Salva */}
-                    {!isScheduledMatch() && selectedMatch && (
+                    {/* Pós-jogo: seleção de atletas (só programada) — depois da partida */}
+                    {isScheduledMatch() && selectedScheduledMatch && collectionType === 'postmatch' && !showPostMatchSheet && (
                         <div className="space-y-6 animate-fade-in pb-12">
-                            {/* Header com botão Voltar */}
+                            <div className="flex items-center justify-between mb-6">
+                                <h2 className="text-2xl font-black text-white flex items-center gap-2 uppercase tracking-wide">
+                                    <Target className="text-[#00f0ff]" size={28} /> Depois da Partida — Selecionar Atletas
+                                </h2>
+                                <button
+                                    type="button"
+                                    onClick={handleBackToCalendar}
+                                    className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 hover:text-white font-bold uppercase text-xs px-3 py-2 rounded-xl transition-colors"
+                                >
+                                    <ArrowLeft size={16} /> Voltar ao Calendário
+                                </button>
+                            </div>
+
+                            <div className="bg-black rounded-3xl border border-zinc-900 p-6 shadow-lg">
+                                <h3 className="text-white font-bold uppercase text-sm mb-4 flex items-center gap-2">
+                                    <Calendar className="text-[#00f0ff]" size={16} /> Partida
+                                </h3>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                    <div>
+                                        <span className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Data</span>
+                                        <p className="text-white font-bold text-sm">{formatDate(selectedScheduledMatch.date)}</p>
+                                    </div>
+                                    <div>
+                                        <span className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Adversário</span>
+                                        <p className="text-white font-bold text-sm">{selectedScheduledMatch.opponent || '-'}</p>
+                                    </div>
+                                    <div>
+                                        <span className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Competição</span>
+                                        <p className="text-white font-bold text-sm">{selectedScheduledMatch.competition || '-'}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-black rounded-3xl border border-zinc-900 p-6 shadow-lg">
+                                <h3 className="text-white font-bold uppercase text-sm mb-4 flex items-center gap-2">
+                                    <Users className="text-[#00f0ff]" size={16} /> Selecionar Atletas
+                                </h3>
+                                <div className="max-h-96 overflow-y-auto space-y-2">
+                                    {players.map((player) => {
+                                        const isSelected = selectedPlayersForMatch.has(String(player.id).trim());
+                                        return (
+                                            <label
+                                                key={player.id}
+                                                className="flex items-center gap-3 p-3 bg-zinc-950 border-2 border-zinc-800 rounded-xl cursor-pointer hover:border-[#00f0ff]/50 transition-colors"
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isSelected}
+                                                    onChange={(e) => {
+                                                        const newSet = new Set(selectedPlayersForMatch);
+                                                        if (e.target.checked) {
+                                                            newSet.add(String(player.id).trim());
+                                                        } else {
+                                                            newSet.delete(String(player.id).trim());
+                                                        }
+                                                        setSelectedPlayersForMatch(newSet);
+                                                    }}
+                                                    className="w-5 h-5 text-[#00f0ff] bg-zinc-900 border-zinc-700 rounded focus:ring-[#00f0ff] focus:ring-2"
+                                                />
+                                                <div className="flex-1">
+                                                    <span className="text-white font-bold text-sm">
+                                                        #{player.jerseyNumber} {player.name}
+                                                    </span>
+                                                    <span className="text-zinc-500 text-xs ml-2">({player.position})</span>
+                                                </div>
+                                            </label>
+                                        );
+                                    })}
+                                    {players.length === 0 && (
+                                        <p className="text-zinc-500 text-sm text-center py-4">Nenhum jogador cadastrado</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="flex justify-center">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPostMatchSheet(true)}
+                                    disabled={selectedPlayersForMatch.size === 0}
+                                    className={`flex items-center gap-2 font-black uppercase text-sm px-6 py-3 rounded-xl transition-colors ${
+                                        selectedPlayersForMatch.size === 0
+                                            ? 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
+                                            : 'bg-[#00f0ff] hover:bg-[#00d9e6] text-black shadow-[0_0_15px_rgba(0,240,255,0.3)]'
+                                    }`}
+                                >
+                                    Continuar para planilha
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Planilha pós-jogo */}
+                    {showPostMatchSheet && (isScheduledMatch() ? selectedScheduledMatch : selectedMatch) && (
+                        <PostMatchCollectionSheet
+                            match={
+                                isScheduledMatch() && selectedScheduledMatch
+                                    ? {
+                                          id: `sched-${selectedScheduledMatch.id}`,
+                                          opponent: selectedScheduledMatch.opponent || '',
+                                          date: selectedScheduledMatch.date,
+                                          competition: selectedScheduledMatch.competition,
+                                      }
+                                    : selectedMatch!
+                            }
+                            players={
+                                isScheduledMatch()
+                                    ? players.filter((p) => selectedPlayersForMatch.has(String(p.id).trim()))
+                                    : (() => {
+                                          const m = selectedMatch!;
+                                          const ids = Object.keys(m.playerStats || {});
+                                          if (ids.length > 0) {
+                                              return players.filter((p) => ids.includes(String(p.id).trim()));
+                                          }
+                                          return players;
+                                      })()
+                            }
+                            onSave={(saved) => {
+                                onSave?.(saved);
+                                handleBackToCalendar();
+                            }}
+                            onBack={handleBackToCalendar}
+                        />
+                    )}
+
+                    {/* Interface de Análise para Partida Salva (apenas executadas) */}
+                    {!isScheduledMatch() && selectedMatch && !isMatchNotExecuted(selectedMatch) && (
+                        <div className="space-y-6 animate-fade-in pb-12">
                             <div className="flex items-center justify-between mb-6">
                                 <h2 className="text-2xl font-black text-white flex items-center gap-2 uppercase tracking-wide">
                                     <Target className="text-[#00f0ff]" size={28} /> Análise da Partida
                                 </h2>
                                 <div className="flex items-center gap-3">
-                                    {isMatchNotExecuted(selectedMatch) && (
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowMatchTypeModal(true)}
-                                            className="flex items-center gap-2 bg-[#00f0ff] hover:bg-[#00d9e6] text-black font-black uppercase text-xs px-4 py-2 rounded-xl transition-colors shadow-[0_0_15px_rgba(0,240,255,0.3)]"
-                                        >
-                                            <Play size={16} /> Iniciar Scout da Partida
-                                        </button>
-                                    )}
                                     <button
                                         type="button"
                                         onClick={handleBackToCalendar}

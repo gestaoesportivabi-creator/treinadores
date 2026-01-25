@@ -94,6 +94,44 @@ export interface MatchStats {
   tacklesWithoutBall: number;
   tacklesCounterAttack: number;
   transitionErrors: number;
+  /** Passes que geraram transição (planilha pós-jogo) */
+  passesTransition?: number;
+  /** Passes em progressão (planilha pós-jogo) */
+  passesProgression?: number;
+  /** Finalização em zona de chute (planilha pós-jogo) */
+  shotsShootZone?: number;
+  /** Faltas (planilha pós-jogo) */
+  fouls?: number;
+  /** Defesas – goleiro (planilha pós-jogo) */
+  saves?: number;
+}
+
+export type PostMatchAction =
+  | 'goal'
+  | 'assist'
+  | 'passCorrect'
+  | 'passWrong'
+  | 'passTransicao'
+  | 'passProgressao'
+  | 'shotOn'
+  | 'shotOff'
+  | 'shotZonaChute'
+  | 'falta'
+  | 'tackleWithBall'
+  | 'tackleWithoutBall'
+  | 'tackleCounter'
+  | 'save';
+
+export interface PostMatchEvent {
+  id: string;
+  time: string; // "MM:SS"
+  period: '1T' | '2T';
+  playerId: string;
+  action: PostMatchAction;
+  /** Tipo para exibição e dashboard (ex.: Gol, Passe, Finalização) */
+  tipo: string;
+  /** Subtipo para exibição e dashboard (ex.: A favor, Certo, No gol) */
+  subtipo: string;
 }
 
 export interface MatchRecord {
@@ -119,6 +157,14 @@ export interface MatchRecord {
     bench: string[]; // IDs dos jogadores no banco
     ballPossessionStart: 'us' | 'opponent'; // Quem começou com a bola
   };
+  postMatchEventLog?: PostMatchEvent[];
+  /** Histórico de substituições da partida */
+  substitutionHistory?: Array<{
+    playerOutId: string;
+    playerInId: string;
+    time: number; // segundos
+    period: '1T' | '2T';
+  }>;
 }
 
 // Physical Assessment Types
