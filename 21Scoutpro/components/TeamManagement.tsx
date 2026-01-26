@@ -325,9 +325,11 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
 
     const togglePositionExpanded = (pos: string) => {
         setExpandedPositions(prev => {
-            const next = new Set(prev);
-            if (next.has(pos)) next.delete(pos);
-            else next.add(pos);
+            const next = new Set<string>();
+            // Se já está expandida, fecha. Senão, abre só ela
+            if (!prev.has(pos)) {
+                next.add(pos);
+            }
             return next;
         });
     };
@@ -1037,52 +1039,69 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
                 </div>
             )}
 
-            {/* Cartões por posição */}
+            {/* Botões de Posição */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {config.positions.map(pos => {
                     const style = getPositionStyle(pos);
                     const list = playersByPosition.grouped[pos] || [];
                     const isExpanded = expandedPositions.has(pos);
                     return (
-                        <div
+                        <button
                             key={pos}
-                            className={`rounded-3xl border-2 ${style.bg} ${style.border} ${style.hover} transition-all overflow-hidden`}
+                            type="button"
+                            onClick={() => togglePositionExpanded(pos)}
+                            className={`rounded-3xl border-2 ${style.bg} ${style.border} ${style.hover} ${isExpanded ? 'ring-2 ring-white/50' : ''} transition-all p-4 flex items-center justify-between`}
                         >
-                            <button
-                                type="button"
-                                onClick={() => togglePositionExpanded(pos)}
-                                className="w-full flex items-center justify-between p-4 text-left"
-                            >
-                                <span className="font-black text-white uppercase tracking-tighter flex items-center gap-2">
-                                    <Shirt size={20} />
-                                    {pos}
-                                    <span className="text-sm text-zinc-400 font-bold normal-case">({list.length})</span>
-                                </span>
-                                {isExpanded ? <ChevronDown size={20} className="text-zinc-400" /> : <ChevronRight size={20} className="text-zinc-400" />}
-                            </button>
-                            {isExpanded && (
-                                <div className="px-4 pb-4 space-y-4 border-t border-white/10 pt-4">
-                                    <button
-                                        type="button"
-                                        onClick={() => openAddForPosition(pos as Position)}
-                                        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold uppercase transition-colors"
-                                    >
-                                        <Plus size={14} /> Cadastrar atleta em {pos}
-                                    </button>
-                                    <div className="grid grid-cols-1 gap-3 max-h-[420px] overflow-y-auto">
-                                        {list.filter(p => p && p.id).map(player => (
-                                            <PlayerCard key={player.id} player={player} />
-                                        ))}
-                                        {list.length === 0 && (
-                                            <p className="text-zinc-500 text-xs text-center py-4">Nenhum atleta nesta posição.</p>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
+                            <span className="font-black text-white uppercase tracking-tighter flex items-center gap-2">
+                                <Shirt size={20} />
+                                {pos}
+                                <span className="text-sm text-zinc-400 font-bold normal-case">({list.length})</span>
+                            </span>
+                            {isExpanded ? <ChevronDown size={20} className="text-white" /> : <ChevronRight size={20} className="text-zinc-400" />}
+                        </button>
                     );
                 })}
             </div>
+
+            {/* Área de Cards dos Jogadores - Tela Inteira */}
+            {Array.from(expandedPositions).map(pos => {
+                const list = playersByPosition.grouped[pos] || [];
+                const style = getPositionStyle(pos);
+                return (
+                    <div key={`expanded-${pos}`} className="animate-fade-in">
+                        <div className={`bg-zinc-950 rounded-3xl border-2 ${style.border} p-6`}>
+                            <div className="flex items-center justify-between mb-6">
+                                <h3 className="font-black text-white uppercase tracking-tighter flex items-center gap-3 text-2xl">
+                                    <Shirt size={28} className="text-[#10b981]" />
+                                    {pos}
+                                    <span className="text-lg text-zinc-400 font-bold normal-case">({list.length} atletas)</span>
+                                </h3>
+                                <button
+                                    type="button"
+                                    onClick={() => openAddForPosition(pos as Position)}
+                                    className="flex items-center gap-2 bg-[#10b981] hover:bg-[#34d399] text-white px-6 py-3 font-bold uppercase text-xs rounded-xl transition-colors shadow-[0_0_15px_rgba(16,185,129,0.4)]"
+                                >
+                                    <Plus size={16} /> Cadastrar atleta em {pos}
+                                </button>
+                            </div>
+                            
+                            {list.length > 0 ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                                    {list.filter(p => p && p.id).map(player => (
+                                        <PlayerCard key={player.id} player={player} />
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-center py-12">
+                                    <Shirt size={64} className="text-zinc-700 mx-auto mb-4" />
+                                    <p className="text-zinc-500 text-lg font-bold uppercase mb-2">Nenhum atleta cadastrado em {pos}</p>
+                                    <p className="text-zinc-600 text-sm">Clique no botão acima para cadastrar o primeiro atleta desta posição.</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                );
+            })}
         </div>
         </>
     );
