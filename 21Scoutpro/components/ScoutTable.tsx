@@ -1,8 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Table, Printer, Plus, Trash2, Save, ChevronDown, ChevronUp, X, Minus, Clock, Goal, Shield, Zap, AlertTriangle, ArrowRightLeft, Target, Users, Activity, Gauge, Square, ArrowUpDown } from 'lucide-react';
+import { Table, Printer, Trash2, Save, ChevronDown, ChevronUp, X, Minus, Clock, Goal, Shield, Zap, AlertTriangle, ArrowRightLeft, Target, Users, Activity, Gauge, Square, ArrowUpDown, Calendar, ArrowLeft, Play, Pause, RotateCcw } from 'lucide-react';
 import { MatchRecord, MatchStats, Player, PlayerTimeControl, Team } from '../types';
 import { timeControlsApi } from '../services/api';
 import { TimeSelectionModal } from './TimeSelectionModal';
+import { MatchTypeModal, MatchType } from './MatchTypeModal';
+import { MatchScoutingWindow } from './MatchScoutingWindow';
+import { CollectionTypeSelector, CollectionType } from './CollectionTypeSelector';
+import { PostMatchCollectionSheet } from './PostMatchCollectionSheet';
 
 interface GoalTime {
     id: string;
@@ -50,28 +54,6 @@ const GOAL_METHODS = [
     'Bola Rolando'
 ];
 
-// Gerar períodos de tempo de 00:00 a 40:00 em intervalos de 5 minutos (como faixas)
-// Cada período representa uma faixa: "00:00 a 05:00", "05:00 a 10:00", etc.
-// Mas salvamos apenas o tempo inicial para facilitar o processamento
-interface TimePeriod {
-    label: string; // Ex: "00:00 a 05:00"
-    value: string; // Ex: "00:00" (tempo inicial para salvar)
-}
-
-const generateTimePeriods = (): TimePeriod[] => {
-    const periods: TimePeriod[] = [];
-    for (let minutes = 0; minutes < 40; minutes += 5) {
-        const startTime = `${String(minutes).padStart(2, '0')}:00`;
-        const endTime = `${String(minutes + 5).padStart(2, '0')}:00`;
-        periods.push({
-            label: `${startTime} a ${endTime}`,
-            value: startTime // Salva o tempo inicial da faixa
-        });
-    }
-    return periods;
-};
-
-const TIME_PERIODS = generateTimePeriods(); // [{label: "00:00 a 05:00", value: "00:00"}, ...]
 
 // Campos de lesão removidos do Input de Dados - agora apenas na Gestão de Equipe
 
@@ -81,7 +63,11 @@ interface ChampionshipMatch {
     time: string;
     opponent: string;
     competition: string;
+    location?: string;
+    scoreTarget?: string;
 }
+
+type CalendarMatchItem = (MatchRecord & { type: 'saved' }) | (ChampionshipMatch & { type: 'scheduled' });
 
 interface ScoutTableProps {
     onSave?: (match: MatchRecord) => void;
@@ -105,9 +91,32 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
     
     // Estado para controlar quais partidas estão expandidas
     const [expandedMatches, setExpandedMatches] = useState<Set<string>>(new Set());
-    const [isCreatingNew, setIsCreatingNew] = useState(true); // Começar criando nova partida
+    const [isCreatingNew, setIsCreatingNew] = useState(false); // Inicialmente calendário; form ao clicar em partida ou Nova Partida
     const [savedMatchId, setSavedMatchId] = useState<string | null>(null); // ID da partida salva
     const [isViewMode, setIsViewMode] = useState(false); // Modo visualização (após salvar)
+    const [showMatchTypeModal, setShowMatchTypeModal] = useState(false); // Modal de tipo de partida
+    const [showScoutingWindow, setShowScoutingWindow] = useState(false); // Janela de coleta
+    const [selectedMatchType, setSelectedMatchType] = useState<MatchType>('normal');
+    const [selectedExtraTimeMinutes, setSelectedExtraTimeMinutes] = useState<number>(5);
+    const [selectedScheduledMatch, setSelectedScheduledMatch] = useState<ChampionshipMatch | null>(null); // Partida programada selecionada
+    const [selectedPlayersForMatch, setSelectedPlayersForMatch] = useState<Set<string>>(new Set()); // IDs dos jogadores selecionados
+    const [preparationMatchType, setPreparationMatchType] = useState<MatchType>('normal'); // Tipo de partida para preparação
+    const [preparationExtraTimeMinutes, setPreparationExtraTimeMinutes] = useState<number>(5); // Minutos de acréscimo
+    const [showStartScoutConfirmation, setShowStartScoutConfirmation] = useState<boolean>(false); // Modal de confirmação
+    const [collectionType, setCollectionType] = useState<'realtime' | 'postmatch' | null>(null); // Tipo de coleta (null = seletor)
+    const [showPostMatchSheet, setShowPostMatchSheet] = useState<boolean>(false); // Planilha pós-jogo
+
+    // Calendário: filtro de datas (default: mês atual) e modo de visualização
+    const [startDate, setStartDate] = useState<string>(() => {
+        const now = new Date();
+        return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    });
+    const [endDate, setEndDate] = useState<string>(() => {
+        const now = new Date();
+        return new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+    });
+    const [viewMode, setViewMode] = useState<'calendar' | 'form' | 'analysis'>('calendar');
+    const [selectedMatch, setSelectedMatch] = useState<MatchRecord | null>(null);
     
     // Header state for the Match Record - tudo neutro por padrão
     const [opponent, setOpponent] = useState('');
@@ -117,11 +126,14 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
     const [matchResult, setMatchResult] = useState<'Vitória' | 'Derrota' | 'Empate' | 'Sem informação'>('Sem informação');
     const [goalsConceded, setGoalsConceded] = useState<GoalConceded[]>([]); // Array de gols tomados com tempo e método
     const [goalsConcededSaved, setGoalsConcededSaved] = useState(false); // Flag para indicar se gols tomados foram salvos
-    const [showGoalPeriodsList, setShowGoalPeriodsList] = useState(false); // Controlar exibição da lista de períodos de gol
     const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null); // Jogador selecionado para registrar estatísticas
-    const [awaitingGoalPeriod, setAwaitingGoalPeriod] = useState<boolean>(false); // Controlar quando está aguardando seleção de período após clicar em GOL
-    const [awaitingGoalMethod, setAwaitingGoalMethod] = useState<boolean>(false); // Controlar quando está aguardando seleção de método após selecionar período
-    const [pendingGoalTime, setPendingGoalTime] = useState<string>(''); // Armazenar tempo do gol pendente
+    
+    // Estados do cronômetro
+    const [timerRunning, setTimerRunning] = useState(false);
+    const [elapsedTime, setElapsedTime] = useState(0); // em segundos
+    
+    // Estados para jogadores em quadra (seleção manual)
+    const [playersInField, setPlayersInField] = useState<Set<string>>(new Set());
     
     // Estados para Entradas e Saídas (TimeControl integrado)
     const [timeControls, setTimeControls] = useState<PlayerTimeControl[]>([]);
@@ -219,6 +231,33 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
             setEntries(newEntries);
         }
     }, [players, initialData]); // Dependências: players e initialData (não incluir entries para evitar loop)
+
+    // Cronômetro - atualizar tempo quando estiver rodando
+    useEffect(() => {
+        let interval: NodeJS.Timeout | null = null;
+        if (timerRunning) {
+            interval = setInterval(() => {
+                setElapsedTime(prev => prev + 1);
+            }, 1000);
+        }
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, [timerRunning]);
+
+    // Função para formatar tempo do cronômetro (MM:SS)
+    const formatTimerTime = (seconds: number): string => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    };
+
+    // Função para formatar tempo do cronômetro para registro de eventos (MM:SS)
+    const formatEventTime = (seconds: number): string => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    };
 
     // Calcular resultado automaticamente baseado em gols feitos vs tomados
     useEffect(() => {
@@ -489,6 +528,7 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
 
             setEntries(newEntries);
             setIsCreatingNew(true); // Abrir formulário de criação
+            setViewMode('form'); // Exibir formulário ao vir da Tabela de Campeonato
             
             // Notificar que os dados foram usados (após um pequeno delay para garantir que os estados foram atualizados)
             setTimeout(() => {
@@ -791,10 +831,57 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
             return;
         }
 
-        // Caso especial: GOL requer seleção de período
+        // Caso especial: GOL - registrar com tempo do cronômetro
         if (statField === 'goals') {
-            setAwaitingGoalPeriod(true);
-            return; // Não incrementa ainda, aguarda seleção de período
+            const currentTime = formatEventTime(elapsedTime);
+            // Encontrar o índice do entry correspondente ao jogador selecionado
+            let entryIndex = entries.findIndex(e => String(e.athleteId).trim() === String(selectedPlayerId).trim());
+            
+            if (entryIndex === -1) {
+                // Se não encontrar, criar um novo entry
+                const player = players.find(p => String(p.id).trim() === String(selectedPlayerId).trim());
+                if (!player) return;
+
+                const newEntry: ScoutEntry = {
+                    id: Date.now().toString(),
+                    date: entries[0]?.date || new Date().toISOString().split('T')[0],
+                    athleteId: String(player.id).trim(),
+                    athleteName: player.name,
+                    jerseyNumber: player.jerseyNumber,
+                    position: player.position,
+                    status: 'Ativo',
+                    goals: 1,
+                    goalTimes: [{
+                        id: Date.now().toString(),
+                        time: currentTime,
+                        method: '' // Método pode ser adicionado depois se necessário
+                    }],
+                    assists: 0,
+                    passesCorrect: 0,
+                    passesWrong: 0,
+                    shotsOn: 0,
+                    shotsOff: 0,
+                    tacklesPossession: 0,
+                    tacklesNoPossession: 0,
+                    tacklesCounter: 0,
+                    transitionError: 0,
+                    card: 'Nenhum',
+                    rpe: 5,
+                };
+                setEntries([...entries, newEntry]);
+            } else {
+                // Adicionar gol com tempo do cronômetro ao entry existente
+                const newEntries = [...entries];
+                const newGoalTime: GoalTime = {
+                    id: Date.now().toString(),
+                    time: currentTime,
+                    method: '' // Método pode ser adicionado depois se necessário
+                };
+                newEntries[entryIndex].goalTimes = [...newEntries[entryIndex].goalTimes, newGoalTime];
+                newEntries[entryIndex].goals = newEntries[entryIndex].goalTimes.length;
+                setEntries(newEntries);
+            }
+            return; // Já registrou o gol, não precisa incrementar mais
         }
 
         // Encontrar o índice do entry correspondente ao jogador selecionado
@@ -935,72 +1022,6 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
         }
     };
 
-    // Função para registrar gol com período selecionado
-    const handleGoalWithPeriod = (periodValue: string) => {
-        if (!selectedPlayerId) return;
-
-        // Armazenar tempo e aguardar seleção de método
-        setPendingGoalTime(periodValue);
-        setAwaitingGoalPeriod(false);
-        setAwaitingGoalMethod(true);
-    };
-    
-    // Função para registrar gol com método selecionado
-    const handleGoalWithMethod = (method: string) => {
-        if (!selectedPlayerId || !pendingGoalTime) return;
-
-        // Encontrar o índice do entry correspondente ao jogador selecionado
-        let entryIndex = entries.findIndex(e => String(e.athleteId).trim() === String(selectedPlayerId).trim());
-        
-        if (entryIndex === -1) {
-            // Se não encontrar, criar um novo entry
-            const player = players.find(p => String(p.id).trim() === String(selectedPlayerId).trim());
-            if (!player) return;
-
-            const newEntry: ScoutEntry = {
-                id: Date.now().toString(),
-                date: entries[0]?.date || new Date().toISOString().split('T')[0],
-                athleteId: String(player.id).trim(),
-                athleteName: player.name,
-                jerseyNumber: player.jerseyNumber,
-                position: player.position,
-                status: 'Ativo',
-                goals: 1,
-                goalTimes: [{
-                    id: Date.now().toString(),
-                    time: pendingGoalTime,
-                    method: method
-                }],
-                assists: 0,
-                passesCorrect: 0,
-                passesWrong: 0,
-                shotsOn: 0,
-                shotsOff: 0,
-                tacklesPossession: 0,
-                tacklesNoPossession: 0,
-                tacklesCounter: 0,
-                transitionError: 0,
-                card: 'Nenhum',
-                rpe: 5,
-            };
-            setEntries([...entries, newEntry]);
-        } else {
-            // Adicionar gol com período e método ao entry existente
-            const newEntries = [...entries];
-            const newGoalTime: GoalTime = {
-                id: Date.now().toString(),
-                time: pendingGoalTime,
-                method: method
-            };
-            newEntries[entryIndex].goalTimes = [...newEntries[entryIndex].goalTimes, newGoalTime];
-            newEntries[entryIndex].goals = newEntries[entryIndex].goalTimes.length;
-            setEntries(newEntries);
-        }
-
-        // Voltar ao estado normal após registrar
-        setAwaitingGoalMethod(false);
-        setPendingGoalTime('');
-    };
 
     const addGoalTime = (index: number) => {
         const newEntries = [...entries];
@@ -1042,9 +1063,10 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
     };
 
     const addGoalConceded = () => {
+        const currentTime = formatEventTime(elapsedTime);
         const newGoalConceded: GoalConceded = {
             id: Date.now().toString() + Math.random(),
-            time: '',
+            time: currentTime, // Usar tempo atual do cronômetro
             method: ''
         };
         setGoalsConceded([...goalsConceded, newGoalConceded]);
@@ -1208,15 +1230,6 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
         setShowTimeModal(true);
     };
 
-    // Carregar time controls quando uma partida é selecionada ou salva
-    useEffect(() => {
-        if (matches && matches.length > 0 && !currentMatchId) {
-            // Carregar time controls da partida mais recente
-            const latestMatch = matches[matches.length - 1];
-            loadTimeControls(latestMatch.id);
-        }
-    }, [matches]);
-
     const addRow = () => {
         const lastEntry = entries[entries.length - 1];
         setEntries([...entries, { 
@@ -1258,47 +1271,6 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
             }
             return newSet;
         });
-    };
-
-    const handleNewMatch = () => {
-        // Não permitir criar nova partida se estiver em modo visualização
-        if (isViewMode) {
-            alert('Não é possível criar nova partida. A partida salva está bloqueada para edição.');
-            return;
-        }
-        setIsCreatingNew(true);
-        setExpandedMatches(new Set());
-        setSavedMatchId(null);
-        setIsViewMode(false);
-        // Reset form
-        setOpponent('');
-        setCompetition('');
-        setLocation('');
-        setMatchResult('Sem informação');
-        setGoalsConceded([]);
-        setGoalsConcededSaved(false);
-        setEntries([{
-            id: Date.now().toString(),
-            date: new Date().toISOString().split('T')[0],
-            athleteId: '',
-            athleteName: '',
-            jerseyNumber: '',
-            position: '',
-            status: 'Ativo',
-            goals: 0,
-            goalTimes: [],
-            assists: 0,
-            passesCorrect: 0,
-            passesWrong: 0,
-            shotsOn: 0,
-            shotsOff: 0,
-            tacklesPossession: 0,
-            tacklesNoPossession: 0,
-            tacklesCounter: 0,
-            transitionError: 0,
-            card: 'Nenhum',
-            rpe: 5,
-        }]);
     };
 
     const handleSave = () => {
@@ -1656,6 +1628,127 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
     
     const scoreMessage = getScoreMessage();
     const teamName = teams.length > 0 ? teams[0].nome : 'Nossa Equipe';
+
+    // Função para verificar se uma partida não foi executada
+    const isMatchNotExecuted = (match: MatchRecord | null): boolean => {
+        if (!match) return false;
+        
+        // Verificar se é uma partida programada que foi salva mas não executada
+        // Uma partida não executada tem teamStats zerados ou inexistentes
+        if (!match.teamStats) return true;
+        
+        // Verificar se todas as estatísticas principais estão zeradas
+        const hasNoStats = 
+            match.teamStats.goals === 0 &&
+            match.teamStats.assists === 0 &&
+            match.teamStats.passesCorrect === 0 &&
+            match.teamStats.passesWrong === 0 &&
+            match.teamStats.shotsOnTarget === 0 &&
+            match.teamStats.shotsOffTarget === 0 &&
+            match.teamStats.tacklesWithBall === 0 &&
+            match.teamStats.tacklesWithoutBall === 0 &&
+            match.teamStats.tacklesCounterAttack === 0 &&
+            match.teamStats.transitionErrors === 0 &&
+            Object.keys(match.playerStats || {}).length === 0;
+        
+        return hasNoStats;
+    };
+
+    // Partidas unificadas (salvas + programadas) filtradas por intervalo de datas
+    const filteredMatches = useMemo((): CalendarMatchItem[] => {
+        const saved: CalendarMatchItem[] = matches.map((m) => ({ ...m, type: 'saved' as const }));
+        const scheduled: CalendarMatchItem[] = championshipMatches.map((m) => ({ ...m, type: 'scheduled' as const }));
+        const all: CalendarMatchItem[] = [...saved, ...scheduled];
+
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+
+        return all
+            .filter((match) => {
+                const matchDate = new Date(match.date);
+                matchDate.setHours(12, 0, 0, 0);
+                return matchDate >= start && matchDate <= end;
+            })
+            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    }, [matches, championshipMatches, startDate, endDate]);
+
+    const handleResetToCurrentMonth = () => {
+        const now = new Date();
+        setStartDate(new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]);
+        setEndDate(new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]);
+    };
+
+    const handleMatchClick = (item: CalendarMatchItem) => {
+        setCollectionType(null);
+        setShowPostMatchSheet(false);
+        if (item.type === 'saved') {
+            const m = item as MatchRecord;
+            setSelectedMatch(m);
+            setSelectedScheduledMatch(null);
+            setViewMode('analysis');
+        } else {
+            const cm = item as ChampionshipMatch & { type: 'scheduled' };
+            setSelectedScheduledMatch(cm);
+            setSelectedMatch(null);
+            setSelectedPlayersForMatch(new Set());
+            setPreparationMatchType('normal');
+            setPreparationExtraTimeMinutes(5);
+            setViewMode('analysis');
+        }
+    };
+
+    // Função helper para verificar se é partida programada
+    const isScheduledMatch = (): boolean => {
+        return selectedScheduledMatch !== null;
+    };
+
+    const handleBackToCalendar = () => {
+        setViewMode('calendar');
+        setSelectedMatch(null);
+        setSelectedScheduledMatch(null);
+        setSelectedPlayersForMatch(new Set());
+        setSavedMatchId(null);
+        setIsViewMode(false);
+        setIsCreatingNew(false);
+        setSelectedPlayerId(null);
+        setCurrentMatchId(null);
+        setOpponent('');
+        setCompetition('');
+        setLocation('');
+        setScoreTarget('');
+        setMatchResult('Sem informação');
+        setGoalsConceded([]);
+        setGoalsConcededSaved(false);
+        setCollectionType(null);
+        setShowPostMatchSheet(false);
+        setShowScoutingWindow(false);
+        setShowMatchTypeModal(false);
+        setShowStartScoutConfirmation(false);
+        setEntries([{
+            id: '1',
+            date: new Date().toISOString().split('T')[0],
+            athleteId: '',
+            athleteName: '',
+            jerseyNumber: '',
+            position: '',
+            status: 'Ativo',
+            goals: 0,
+            goalTimes: [],
+            assists: 0,
+            passesCorrect: 0,
+            passesWrong: 0,
+            shotsOn: 0,
+            shotsOff: 0,
+            tacklesPossession: 0,
+            tacklesNoPossession: 0,
+            tacklesCounter: 0,
+            transitionError: 0,
+            card: 'Nenhum',
+            rpe: 5,
+        }]);
+    };
     
     // Funções auxiliares para verificar status do atleta
     const isPlayerInjured = (player: Player): boolean => {
@@ -1711,60 +1804,681 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
 
     return (
         <div className="space-y-6 animate-fade-in pb-12">
-            
-            {/* Partidas Salvas */}
-            {matches.length > 0 && (
-                <div className="space-y-4">
-                    {matches.map(match => {
-                        const isExpanded = expandedMatches.has(match.id);
-                        return (
-                            <div key={match.id} className="bg-black rounded-3xl border border-zinc-900 shadow-lg overflow-hidden">
-                                {/* Cabeçalho da Partida */}
-                                <div 
-                                    className="p-4 flex items-center justify-between cursor-pointer hover:bg-zinc-950 transition-colors"
-                                    onClick={() => toggleMatchExpanded(match.id)}
-                                >
-                                    <div className="flex items-center gap-4 flex-1">
-                                        {isExpanded ? (
-                                            <ChevronUp className="text-[#00f0ff]" size={20} />
-                                        ) : (
-                                            <ChevronDown className="text-[#00f0ff]" size={20} />
-                                        )}
-                                        <div className="flex-1 grid grid-cols-3 gap-4">
-                                            <div>
-                                                <span className="text-[10px] text-zinc-500 font-bold uppercase">Competição</span>
-                                                <p className="text-white font-bold text-sm">{match.competition || '-'}</p>
-                                            </div>
-                                            <div>
-                                                <span className="text-[10px] text-zinc-500 font-bold uppercase">Data</span>
-                                                <p className="text-white font-bold text-sm">{formatDate(match.date)}</p>
-                                            </div>
-                                            <div>
-                                                <span className="text-[10px] text-zinc-500 font-bold uppercase">Resultado</span>
-                                                <p className="text-white font-bold text-sm">{match.result || '-'}</p>
-                                            </div>
-                                        </div>
-                                    </div>
+            {viewMode === 'calendar' && (
+                <div className="space-y-6" lang="pt-BR">
+                    <div className="bg-black rounded-3xl border border-zinc-900 p-6 shadow-lg">
+                        <h2 className="text-2xl font-black text-white flex items-center gap-2 uppercase tracking-wide mb-6">
+                            <Calendar className="text-[#00f0ff]" size={28} /> Calendário de Jogos
+                        </h2>
+                        <div className="flex flex-col md:flex-row md:items-end gap-4 flex-wrap">
+                            <div className="flex flex-col">
+                                <label className="text-[10px] text-zinc-500 font-bold uppercase mb-1">Data inicial</label>
+                                <input
+                                    type="date"
+                                    value={startDate}
+                                    onChange={(e) => setStartDate(e.target.value)}
+                                    lang="pt-BR"
+                                    className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-[#00f0ff]"
+                                />
+                            </div>
+                            <div className="flex flex-col">
+                                <label className="text-[10px] text-zinc-500 font-bold uppercase mb-1">Data final</label>
+                                <input
+                                    type="date"
+                                    value={endDate}
+                                    onChange={(e) => setEndDate(e.target.value)}
+                                    lang="pt-BR"
+                                    className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-[#00f0ff]"
+                                />
+                            </div>
+                            <button
+                                onClick={handleResetToCurrentMonth}
+                                className="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white font-bold uppercase text-xs px-4 py-2 rounded-xl transition-colors"
+                            >
+                                Mês atual
+                            </button>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        {filteredMatches.map((item) => (
+                            <button
+                                key={item.type === 'saved' ? item.id : `sched-${item.id}`}
+                                type="button"
+                                onClick={() => handleMatchClick(item)}
+                                className="bg-black rounded-2xl border-2 border-zinc-900 p-4 text-left hover:border-[#00f0ff]/50 hover:bg-zinc-950 transition-all cursor-pointer shadow-lg"
+                            >
+                                <div className="flex items-center justify-between mb-3">
+                                    <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${item.type === 'saved' ? 'bg-green-500/20 text-green-400 border border-green-500/50' : 'bg-[#00f0ff]/20 text-[#00f0ff] border border-[#00f0ff]/50'}`}>
+                                        {item.type === 'saved' ? 'Salva' : 'Programada'}
+                                    </span>
+                                    <span className="text-zinc-500 text-xs font-bold">{formatDate(item.date)}</span>
                                 </div>
-                                
-                                {/* Conteúdo Expandido (Tabela) */}
-                                {isExpanded && (
-                                    <div className="border-t border-zinc-900 p-4">
-                                        <div className="text-xs text-zinc-500 mb-4">
-                                            <p><strong>Adversário:</strong> {match.opponent || '-'}</p>
-                                            <p><strong>Local:</strong> {match.location || '-'}</p>
-                                            <p><strong>Gols Feitos:</strong> {match.teamStats?.goals || 0}</p>
-                                            <p><strong>Gols Tomados:</strong> {match.teamStats?.goalsConceded || 0}</p>
-                                        </div>
-                                        {/* Aqui você pode adicionar uma visualização da tabela de dados se necessário */}
+                                <p className="text-white font-bold text-sm truncate">{item.opponent || '-'}</p>
+                                <p className="text-zinc-500 text-xs mt-1 truncate">{item.competition || '-'}</p>
+                                {item.type === 'scheduled' && (item as ChampionshipMatch).time && (
+                                    <p className="text-zinc-400 text-xs mt-1 flex items-center gap-1">
+                                        <Clock size={12} /> {(item as ChampionshipMatch).time}
+                                    </p>
+                                )}
+                                {item.type === 'saved' && (
+                                    <div className="mt-2 flex items-center gap-2">
+                                        <span className={`text-xs font-bold ${(item as MatchRecord).result === 'V' ? 'text-green-400' : (item as MatchRecord).result === 'D' ? 'text-red-400' : 'text-yellow-400'}`}>
+                                            {(item as MatchRecord).result === 'V' ? 'Vitória' : (item as MatchRecord).result === 'D' ? 'Derrota' : 'Empate'}
+                                        </span>
+                                        <span className="text-zinc-500 text-xs">
+                                            {(item as MatchRecord).goalsFor} x {(item as MatchRecord).goalsAgainst}
+                                        </span>
                                     </div>
                                 )}
-                            </div>
-                        );
-                    })}
+                            </button>
+                        ))}
+                    </div>
+                    {filteredMatches.length === 0 && (
+                        <div className="text-center py-12 text-zinc-500 bg-black/50 rounded-2xl border border-zinc-900">
+                            <Calendar size={48} className="mx-auto mb-3 opacity-50" />
+                            <p className="font-bold text-sm">Nenhuma partida no período</p>
+                            <p className="text-xs mt-1">Ajuste as datas para visualizar as partidas</p>
+                        </div>
+                    )}
                 </div>
             )}
 
+            {viewMode === 'analysis' && (
+                <>
+                    {/* Seletor de tipo de coleta — primeira tela para programada ou salva não executada */}
+                    {isScheduledMatch() && selectedScheduledMatch && collectionType === null && !showPostMatchSheet && (
+                        <CollectionTypeSelector
+                            matchContext={{
+                                date: selectedScheduledMatch.date,
+                                opponent: selectedScheduledMatch.opponent || '',
+                                competition: selectedScheduledMatch.competition,
+                            }}
+                            onSelect={(type: CollectionType) => setCollectionType(type)}
+                            onBack={handleBackToCalendar}
+                        />
+                    )}
+                    {!isScheduledMatch() && selectedMatch && isMatchNotExecuted(selectedMatch) && !showPostMatchSheet && (
+                        <CollectionTypeSelector
+                            matchContext={{
+                                date: selectedMatch.date,
+                                opponent: selectedMatch.opponent || '',
+                                competition: selectedMatch.competition,
+                            }}
+                            onSelect={(type: CollectionType) => {
+                                if (type === 'realtime') {
+                                    setShowMatchTypeModal(true);
+                                } else {
+                                    setShowPostMatchSheet(true);
+                                }
+                            }}
+                            onBack={handleBackToCalendar}
+                        />
+                    )}
+
+                    {/* Interface de Preparação para Partida Programada — tempo real */}
+                    {isScheduledMatch() && selectedScheduledMatch && collectionType === 'realtime' && !showPostMatchSheet && (
+                        <div className="space-y-6 animate-fade-in pb-12">
+                            <div className="flex items-center justify-between mb-6">
+                                <h2 className="text-2xl font-black text-white flex items-center gap-2 uppercase tracking-wide">
+                                    <Target className="text-[#00f0ff]" size={28} /> Preparação da Partida
+                                </h2>
+                                <button
+                                    type="button"
+                                    onClick={handleBackToCalendar}
+                                    className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 hover:text-white font-bold uppercase text-xs px-3 py-2 rounded-xl transition-colors"
+                                >
+                                    <ArrowLeft size={16} /> Voltar ao Calendário
+                                </button>
+                            </div>
+
+                            <div className="bg-black rounded-3xl border border-zinc-900 p-6 shadow-lg">
+                                <h3 className="text-white font-bold uppercase text-sm mb-4 flex items-center gap-2">
+                                    <Calendar className="text-[#00f0ff]" size={16} /> Informações da Partida
+                                </h3>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                    <div>
+                                        <span className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Data</span>
+                                        <p className="text-white font-bold text-sm">{formatDate(selectedScheduledMatch.date)}</p>
+                                    </div>
+                                    <div>
+                                        <span className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Adversário</span>
+                                        <p className="text-white font-bold text-sm">{selectedScheduledMatch.opponent || '-'}</p>
+                                    </div>
+                                    <div>
+                                        <span className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Competição</span>
+                                        <p className="text-white font-bold text-sm">{selectedScheduledMatch.competition || '-'}</p>
+                                    </div>
+                                    {selectedScheduledMatch.time && (
+                                        <div>
+                                            <span className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Horário</span>
+                                            <p className="text-white font-bold text-sm">{selectedScheduledMatch.time}</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="bg-black rounded-3xl border border-zinc-900 p-6 shadow-lg">
+                                <h3 className="text-white font-bold uppercase text-sm mb-4 flex items-center gap-2">
+                                    <Users className="text-[#00f0ff]" size={16} /> Selecionar Atletas
+                                </h3>
+                                <div className="max-h-96 overflow-y-auto space-y-2">
+                                    {players.map((player) => {
+                                        const isSelected = selectedPlayersForMatch.has(String(player.id).trim());
+                                        return (
+                                            <label
+                                                key={player.id}
+                                                className="flex items-center gap-3 p-3 bg-zinc-950 border-2 border-zinc-800 rounded-xl cursor-pointer hover:border-[#00f0ff]/50 transition-colors"
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isSelected}
+                                                    onChange={(e) => {
+                                                        const newSet = new Set(selectedPlayersForMatch);
+                                                        if (e.target.checked) {
+                                                            newSet.add(String(player.id).trim());
+                                                        } else {
+                                                            newSet.delete(String(player.id).trim());
+                                                        }
+                                                        setSelectedPlayersForMatch(newSet);
+                                                    }}
+                                                    className="w-5 h-5 text-[#00f0ff] bg-zinc-900 border-zinc-700 rounded focus:ring-[#00f0ff] focus:ring-2"
+                                                />
+                                                <div className="flex-1">
+                                                    <span className="text-white font-bold text-sm">
+                                                        #{player.jerseyNumber} {player.name}
+                                                    </span>
+                                                    <span className="text-zinc-500 text-xs ml-2">({player.position})</span>
+                                                </div>
+                                            </label>
+                                        );
+                                    })}
+                                    {players.length === 0 && (
+                                        <p className="text-zinc-500 text-sm text-center py-4">Nenhum jogador cadastrado</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="bg-black rounded-3xl border border-zinc-900 p-6 shadow-lg">
+                                <h3 className="text-white font-bold uppercase text-sm mb-4 flex items-center gap-2">
+                                    <Clock className="text-[#00f0ff]" size={16} /> Tipo de Partida
+                                </h3>
+                                <div className="space-y-3">
+                                    <label className="flex items-center gap-3 p-4 bg-zinc-950 border-2 border-zinc-800 rounded-xl cursor-pointer hover:border-[#00f0ff]/50 transition-colors">
+                                        <input
+                                            type="radio"
+                                            name="preparationMatchType"
+                                            value="normal"
+                                            checked={preparationMatchType === 'normal'}
+                                            onChange={() => setPreparationMatchType('normal')}
+                                            className="w-5 h-5 text-[#00f0ff] border-zinc-700 focus:ring-[#00f0ff] focus:ring-2"
+                                        />
+                                        <div className="flex-1">
+                                            <div className="text-white font-bold text-sm">Partida Normal</div>
+                                            <div className="text-zinc-500 text-xs">Dois tempos de 20 minutos</div>
+                                        </div>
+                                    </label>
+
+                                    <label className="flex items-center gap-3 p-4 bg-zinc-950 border-2 border-zinc-800 rounded-xl cursor-pointer hover:border-[#00f0ff]/50 transition-colors">
+                                        <input
+                                            type="radio"
+                                            name="preparationMatchType"
+                                            value="extraTime"
+                                            checked={preparationMatchType === 'extraTime'}
+                                            onChange={() => setPreparationMatchType('extraTime')}
+                                            className="w-5 h-5 text-[#00f0ff] border-zinc-700 focus:ring-[#00f0ff] focus:ring-2"
+                                        />
+                                        <div className="flex-1">
+                                            <div className="text-white font-bold text-sm">Com Acréscimo</div>
+                                            <div className="text-zinc-500 text-xs">Partida normal + tempo extra</div>
+                                        </div>
+                                    </label>
+
+                                    <label className="flex items-center gap-3 p-4 bg-zinc-950 border-2 border-zinc-800 rounded-xl cursor-pointer hover:border-[#00f0ff]/50 transition-colors">
+                                        <input
+                                            type="radio"
+                                            name="preparationMatchType"
+                                            value="penalties"
+                                            checked={preparationMatchType === 'penalties'}
+                                            onChange={() => setPreparationMatchType('penalties')}
+                                            className="w-5 h-5 text-[#00f0ff] border-zinc-700 focus:ring-[#00f0ff] focus:ring-2"
+                                        />
+                                        <div className="flex-1">
+                                            <div className="text-white font-bold text-sm">Direto para Pênaltis</div>
+                                            <div className="text-zinc-500 text-xs">Sem tempo normal, apenas pênaltis</div>
+                                        </div>
+                                    </label>
+
+                                    <label className="flex items-center gap-3 p-4 bg-zinc-950 border-2 border-zinc-800 rounded-xl cursor-pointer hover:border-[#00f0ff]/50 transition-colors">
+                                        <input
+                                            type="radio"
+                                            name="preparationMatchType"
+                                            value="extraTimePenalties"
+                                            checked={preparationMatchType === 'extraTimePenalties'}
+                                            onChange={() => setPreparationMatchType('extraTimePenalties')}
+                                            className="w-5 h-5 text-[#00f0ff] border-zinc-700 focus:ring-[#00f0ff] focus:ring-2"
+                                        />
+                                        <div className="flex-1">
+                                            <div className="text-white font-bold text-sm">Acréscimo + Pênaltis</div>
+                                            <div className="text-zinc-500 text-xs">Partida normal + acréscimo + pênaltis</div>
+                                        </div>
+                                    </label>
+                                </div>
+
+                                {(preparationMatchType === 'extraTime' || preparationMatchType === 'extraTimePenalties') && (
+                                    <div className="mt-4">
+                                        <label className="block text-zinc-400 text-xs font-bold uppercase mb-2">
+                                            Minutos de Acréscimo
+                                        </label>
+                                        <div className="flex items-center gap-3">
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                max="30"
+                                                value={preparationExtraTimeMinutes}
+                                                onChange={(e) => setPreparationExtraTimeMinutes(Math.max(1, Math.min(30, parseInt(e.target.value) || 5)))}
+                                                className="flex-1 bg-zinc-950 border border-zinc-700 rounded-lg px-4 py-2 text-white text-sm outline-none focus:border-[#00f0ff]"
+                                            />
+                                            <div className="flex items-center gap-2 text-zinc-500 text-sm">
+                                                <Clock size={16} />
+                                                <span>minutos</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="flex justify-center">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowStartScoutConfirmation(true)}
+                                    disabled={selectedPlayersForMatch.size === 0}
+                                    className={`flex items-center gap-2 font-black uppercase text-sm px-6 py-3 rounded-xl transition-colors shadow-[0_0_15px_rgba(0,240,255,0.3)] ${
+                                        selectedPlayersForMatch.size === 0
+                                            ? 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
+                                            : 'bg-[#00f0ff] hover:bg-[#00d9e6] text-black'
+                                    }`}
+                                >
+                                    <Play size={18} /> Iniciar Scout da Partida
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Pós-jogo: seleção de atletas (só programada) — depois da partida */}
+                    {isScheduledMatch() && selectedScheduledMatch && collectionType === 'postmatch' && !showPostMatchSheet && (
+                        <div className="space-y-6 animate-fade-in pb-12">
+                            <div className="flex items-center justify-between mb-6">
+                                <h2 className="text-2xl font-black text-white flex items-center gap-2 uppercase tracking-wide">
+                                    <Target className="text-[#00f0ff]" size={28} /> Depois da Partida — Selecionar Atletas
+                                </h2>
+                                <button
+                                    type="button"
+                                    onClick={handleBackToCalendar}
+                                    className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 hover:text-white font-bold uppercase text-xs px-3 py-2 rounded-xl transition-colors"
+                                >
+                                    <ArrowLeft size={16} /> Voltar ao Calendário
+                                </button>
+                            </div>
+
+                            <div className="bg-black rounded-3xl border border-zinc-900 p-6 shadow-lg">
+                                <h3 className="text-white font-bold uppercase text-sm mb-4 flex items-center gap-2">
+                                    <Calendar className="text-[#00f0ff]" size={16} /> Partida
+                                </h3>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                    <div>
+                                        <span className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Data</span>
+                                        <p className="text-white font-bold text-sm">{formatDate(selectedScheduledMatch.date)}</p>
+                                    </div>
+                                    <div>
+                                        <span className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Adversário</span>
+                                        <p className="text-white font-bold text-sm">{selectedScheduledMatch.opponent || '-'}</p>
+                                    </div>
+                                    <div>
+                                        <span className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Competição</span>
+                                        <p className="text-white font-bold text-sm">{selectedScheduledMatch.competition || '-'}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-black rounded-3xl border border-zinc-900 p-6 shadow-lg">
+                                <h3 className="text-white font-bold uppercase text-sm mb-4 flex items-center gap-2">
+                                    <Users className="text-[#00f0ff]" size={16} /> Selecionar Atletas
+                                </h3>
+                                <div className="max-h-96 overflow-y-auto space-y-2">
+                                    {players.map((player) => {
+                                        const isSelected = selectedPlayersForMatch.has(String(player.id).trim());
+                                        return (
+                                            <label
+                                                key={player.id}
+                                                className="flex items-center gap-3 p-3 bg-zinc-950 border-2 border-zinc-800 rounded-xl cursor-pointer hover:border-[#00f0ff]/50 transition-colors"
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isSelected}
+                                                    onChange={(e) => {
+                                                        const newSet = new Set(selectedPlayersForMatch);
+                                                        if (e.target.checked) {
+                                                            newSet.add(String(player.id).trim());
+                                                        } else {
+                                                            newSet.delete(String(player.id).trim());
+                                                        }
+                                                        setSelectedPlayersForMatch(newSet);
+                                                    }}
+                                                    className="w-5 h-5 text-[#00f0ff] bg-zinc-900 border-zinc-700 rounded focus:ring-[#00f0ff] focus:ring-2"
+                                                />
+                                                <div className="flex-1">
+                                                    <span className="text-white font-bold text-sm">
+                                                        #{player.jerseyNumber} {player.name}
+                                                    </span>
+                                                    <span className="text-zinc-500 text-xs ml-2">({player.position})</span>
+                                                </div>
+                                            </label>
+                                        );
+                                    })}
+                                    {players.length === 0 && (
+                                        <p className="text-zinc-500 text-sm text-center py-4">Nenhum jogador cadastrado</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="flex justify-center">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPostMatchSheet(true)}
+                                    disabled={selectedPlayersForMatch.size === 0}
+                                    className={`flex items-center gap-2 font-black uppercase text-sm px-6 py-3 rounded-xl transition-colors ${
+                                        selectedPlayersForMatch.size === 0
+                                            ? 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
+                                            : 'bg-[#00f0ff] hover:bg-[#00d9e6] text-black shadow-[0_0_15px_rgba(0,240,255,0.3)]'
+                                    }`}
+                                >
+                                    Continuar para planilha
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Planilha pós-jogo */}
+                    {showPostMatchSheet && (isScheduledMatch() ? selectedScheduledMatch : selectedMatch) && (
+                        <PostMatchCollectionSheet
+                            match={
+                                isScheduledMatch() && selectedScheduledMatch
+                                    ? {
+                                          id: `sched-${selectedScheduledMatch.id}`,
+                                          opponent: selectedScheduledMatch.opponent || '',
+                                          date: selectedScheduledMatch.date,
+                                          competition: selectedScheduledMatch.competition,
+                                      }
+                                    : selectedMatch!
+                            }
+                            players={
+                                isScheduledMatch()
+                                    ? players.filter((p) => selectedPlayersForMatch.has(String(p.id).trim()))
+                                    : (() => {
+                                          const m = selectedMatch!;
+                                          const ids = Object.keys(m.playerStats || {});
+                                          if (ids.length > 0) {
+                                              return players.filter((p) => ids.includes(String(p.id).trim()));
+                                          }
+                                          return players;
+                                      })()
+                            }
+                            onSave={(saved) => {
+                                onSave?.(saved);
+                                handleBackToCalendar();
+                            }}
+                            onBack={handleBackToCalendar}
+                        />
+                    )}
+
+                    {/* Interface de Análise para Partida Salva (apenas executadas) */}
+                    {!isScheduledMatch() && selectedMatch && !isMatchNotExecuted(selectedMatch) && (
+                        <div className="space-y-6 animate-fade-in pb-12">
+                            <div className="flex items-center justify-between mb-6">
+                                <h2 className="text-2xl font-black text-white flex items-center gap-2 uppercase tracking-wide">
+                                    <Target className="text-[#00f0ff]" size={28} /> Análise da Partida
+                                </h2>
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={handleBackToCalendar}
+                                        className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 hover:text-white font-bold uppercase text-xs px-3 py-2 rounded-xl transition-colors"
+                                    >
+                                        <ArrowLeft size={16} /> Voltar ao Calendário
+                                    </button>
+                                </div>
+                            </div>
+
+                    {/* Resultado do Jogo (baseado no card) */}
+                    <div className="bg-black rounded-3xl border border-zinc-900 p-6 shadow-lg">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                            <div>
+                                <span className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Data</span>
+                                <p className="text-white font-bold text-sm">{formatDate(selectedMatch.date)}</p>
+                            </div>
+                            <div>
+                                <span className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Adversário</span>
+                                <p className="text-white font-bold text-sm">{selectedMatch.opponent}</p>
+                            </div>
+                            <div>
+                                <span className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Competição</span>
+                                <p className="text-white font-bold text-sm">{selectedMatch.competition || '-'}</p>
+                            </div>
+                            <div>
+                                <span className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Resultado</span>
+                                <p className={`font-bold text-sm ${selectedMatch.result === 'V' ? 'text-green-400' : selectedMatch.result === 'D' ? 'text-red-400' : 'text-yellow-400'}`}>
+                                    {selectedMatch.result === 'V' ? 'Vitória' : selectedMatch.result === 'D' ? 'Derrota' : 'Empate'}
+                                </p>
+                            </div>
+                        </div>
+                        
+                        {/* Placar destacado */}
+                        <div className="mt-6 text-center">
+                            <div className="flex items-center justify-center gap-6">
+                                <div>
+                                    <p className="text-zinc-400 text-xs font-bold uppercase mb-1">Nossa Equipe</p>
+                                    <p className="text-[#00f0ff] text-5xl font-black">{selectedMatch.goalsFor}</p>
+                                </div>
+                                <div className="text-zinc-600 text-3xl font-black">x</div>
+                                <div>
+                                    <p className="text-zinc-400 text-xs font-bold uppercase mb-1">Adversário</p>
+                                    <p className="text-red-400 text-5xl font-black">{selectedMatch.goalsAgainst}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Informações Básicas */}
+                    <div className="bg-black rounded-3xl border border-zinc-900 p-6 shadow-lg">
+                        <h3 className="text-white font-bold uppercase text-sm mb-4 flex items-center gap-2">
+                            <Clock className="text-[#00f0ff]" size={16} /> Informações do Jogo
+                        </h3>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            <div>
+                                <span className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Local</span>
+                                <p className="text-white text-sm font-bold">{(selectedMatch as any).location || '-'}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Estatísticas Resumidas da Equipe */}
+                    <div className="bg-black rounded-3xl border border-zinc-900 p-6 shadow-lg">
+                        <h3 className="text-white font-bold uppercase text-sm mb-4 flex items-center gap-2">
+                            <Activity className="text-[#00f0ff]" size={16} /> Estatísticas da Equipe
+                        </h3>
+                        {selectedMatch.teamStats && (
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div className="bg-zinc-950 rounded-xl p-4 border border-zinc-800">
+                                    <span className="text-[10px] text-zinc-500 font-bold uppercase block mb-2">Gols</span>
+                                    <p className="text-white text-2xl font-black">{selectedMatch.teamStats.goals}</p>
+                                </div>
+                                <div className="bg-zinc-950 rounded-xl p-4 border border-zinc-800">
+                                    <span className="text-[10px] text-zinc-500 font-bold uppercase block mb-2">Assistências</span>
+                                    <p className="text-white text-2xl font-black">{selectedMatch.teamStats.assists}</p>
+                                </div>
+                                <div className="bg-zinc-950 rounded-xl p-4 border border-zinc-800">
+                                    <span className="text-[10px] text-zinc-500 font-bold uppercase block mb-2">Passes Corretos</span>
+                                    <p className="text-white text-2xl font-black">{selectedMatch.teamStats.passesCorrect}</p>
+                                </div>
+                                <div className="bg-zinc-950 rounded-xl p-4 border border-zinc-800">
+                                    <span className="text-[10px] text-zinc-500 font-bold uppercase block mb-2">Passes Errados</span>
+                                    <p className="text-white text-2xl font-black">{selectedMatch.teamStats.passesWrong}</p>
+                                </div>
+                                <div className="bg-zinc-950 rounded-xl p-4 border border-zinc-800">
+                                    <span className="text-[10px] text-zinc-500 font-bold uppercase block mb-2">Chutes no Gol</span>
+                                    <p className="text-white text-2xl font-black">{selectedMatch.teamStats.shotsOnTarget}</p>
+                                </div>
+                                <div className="bg-zinc-950 rounded-xl p-4 border border-zinc-800">
+                                    <span className="text-[10px] text-zinc-500 font-bold uppercase block mb-2">Chutes Fora</span>
+                                    <p className="text-white text-2xl font-black">{selectedMatch.teamStats.shotsOffTarget}</p>
+                                </div>
+                                <div className="bg-zinc-950 rounded-xl p-4 border border-zinc-800">
+                                    <span className="text-[10px] text-zinc-500 font-bold uppercase block mb-2">Desarmes (c/ Bola)</span>
+                                    <p className="text-white text-2xl font-black">{selectedMatch.teamStats.tacklesWithBall}</p>
+                                </div>
+                                <div className="bg-zinc-950 rounded-xl p-4 border border-zinc-800">
+                                    <span className="text-[10px] text-zinc-500 font-bold uppercase block mb-2">Desarmes (s/ Bola)</span>
+                                    <p className="text-white text-2xl font-black">{selectedMatch.teamStats.tacklesWithoutBall}</p>
+                                </div>
+                                <div className="bg-zinc-950 rounded-xl p-4 border border-zinc-800">
+                                    <span className="text-[10px] text-zinc-500 font-bold uppercase block mb-2">Desarmes (C/A)</span>
+                                    <p className="text-white text-2xl font-black">{selectedMatch.teamStats.tacklesCounterAttack}</p>
+                                </div>
+                                <div className="bg-zinc-950 rounded-xl p-4 border border-zinc-800">
+                                    <span className="text-[10px] text-zinc-500 font-bold uppercase block mb-2">Erros Transição</span>
+                                    <p className="text-white text-2xl font-black">{selectedMatch.teamStats.transitionErrors}</p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+                    {/* Modal de Confirmação para Iniciar Scout */}
+                    {showStartScoutConfirmation && selectedScheduledMatch && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in">
+                            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+                                {/* Header */}
+                                <div className="flex items-center justify-between p-6 border-b border-zinc-800">
+                                    <div className="flex items-center gap-3">
+                                        <Play className="text-[#00f0ff]" size={24} />
+                                        <h3 className="text-xl font-black text-white uppercase tracking-wide">Confirmar Início do Scout</h3>
+                                    </div>
+                                    <button
+                                        onClick={() => setShowStartScoutConfirmation(false)}
+                                        className="p-2 hover:bg-zinc-800 rounded-lg transition-colors"
+                                    >
+                                        <X size={20} className="text-zinc-500 hover:text-white" />
+                                    </button>
+                                </div>
+
+                                {/* Content */}
+                                <div className="p-6">
+                                    <p className="text-zinc-400 text-sm mb-6">
+                                        Confirme os dados antes de iniciar a coleta:
+                                    </p>
+
+                                    {/* Resumo da Partida */}
+                                    <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 mb-4">
+                                        <h4 className="text-white font-bold text-sm mb-3 uppercase">Partida</h4>
+                                        <div className="space-y-2 text-sm">
+                                            <div className="flex justify-between">
+                                                <span className="text-zinc-400">Adversário:</span>
+                                                <span className="text-white font-bold">{selectedScheduledMatch.opponent || '-'}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-zinc-400">Data:</span>
+                                                <span className="text-white font-bold">{formatDate(selectedScheduledMatch.date)}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-zinc-400">Competição:</span>
+                                                <span className="text-white font-bold">{selectedScheduledMatch.competition || '-'}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Resumo do Tipo de Partida */}
+                                    <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 mb-4">
+                                        <h4 className="text-white font-bold text-sm mb-3 uppercase">Tipo de Partida</h4>
+                                        <p className="text-white text-sm">
+                                            {preparationMatchType === 'normal' && 'Partida Normal (dois tempos de 20 minutos)'}
+                                            {preparationMatchType === 'extraTime' && `Com Acréscimo (${preparationExtraTimeMinutes} minutos)`}
+                                            {preparationMatchType === 'penalties' && 'Direto para Pênaltis'}
+                                            {preparationMatchType === 'extraTimePenalties' && `Acréscimo + Pênaltis (${preparationExtraTimeMinutes} minutos)`}
+                                        </p>
+                                    </div>
+
+                                    {/* Resumo dos Atletas Selecionados */}
+                                    <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 mb-6">
+                                        <h4 className="text-white font-bold text-sm mb-3 uppercase">
+                                            Atletas Selecionados ({selectedPlayersForMatch.size})
+                                        </h4>
+                                        <div className="max-h-40 overflow-y-auto space-y-1">
+                                            {Array.from(selectedPlayersForMatch).map((playerId) => {
+                                                const player = players.find(p => String(p.id).trim() === playerId);
+                                                if (!player) return null;
+                                                return (
+                                                    <div key={playerId} className="text-sm text-zinc-300">
+                                                        #{player.jerseyNumber} {player.name} ({player.position})
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+
+                                    {/* Botões */}
+                                    <div className="flex gap-3">
+                                        <button
+                                            onClick={() => setShowStartScoutConfirmation(false)}
+                                            className="flex-1 px-4 py-3 bg-zinc-800 hover:bg-zinc-700 text-white font-bold uppercase text-xs rounded-xl transition-colors"
+                                        >
+                                            Cancelar
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                // Criar MatchRecord temporário
+                                                const tempMatch: MatchRecord = {
+                                                    id: `temp-${Date.now()}`,
+                                                    opponent: selectedScheduledMatch.opponent || '',
+                                                    date: selectedScheduledMatch.date,
+                                                    result: 'E',
+                                                    goalsFor: 0,
+                                                    goalsAgainst: 0,
+                                                    competition: selectedScheduledMatch.competition,
+                                                    playerStats: {},
+                                                    teamStats: {
+                                                        goals: 0,
+                                                        assists: 0,
+                                                        passesCorrect: 0,
+                                                        passesWrong: 0,
+                                                        shotsOnTarget: 0,
+                                                        shotsOffTarget: 0,
+                                                        tacklesWithBall: 0,
+                                                        tacklesWithoutBall: 0,
+                                                        tacklesCounterAttack: 0,
+                                                        transitionErrors: 0,
+                                                    },
+                                                };
+                                                setSelectedMatch(tempMatch);
+                                                setSelectedMatchType(preparationMatchType);
+                                                setSelectedExtraTimeMinutes(preparationExtraTimeMinutes);
+                                                setShowStartScoutConfirmation(false);
+                                                setShowScoutingWindow(true);
+                                            }}
+                                            className="flex-1 px-4 py-3 bg-[#00f0ff] hover:bg-[#00d9e6] text-black font-black uppercase text-xs rounded-xl transition-colors shadow-[0_0_15px_rgba(0,240,255,0.3)]"
+                                        >
+                                            Confirmar e Iniciar
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </>
+            )}
+
+            {viewMode === 'form' && (
+                <>
             {/* Badge de Partida Salva */}
             {isViewMode && savedMatchId && (
                 <div className="bg-green-500/20 border-2 border-green-500 rounded-xl p-4 mb-6">
@@ -1776,9 +2490,36 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                 </div>
             )}
             
-            {/* Formulário de Nova Partida */}
-            {isCreatingNew && (
-                <>
+            {/* Formulário de Nova Partida / Input de Dados */}
+                    {/* Cronômetro */}
+                    <div className="bg-black rounded-3xl border border-zinc-900 p-6 shadow-lg mb-6">
+                        <div className="flex items-center justify-center gap-6">
+                            <div className="text-center">
+                                <p className="text-zinc-400 text-xs font-bold uppercase mb-2">Cronômetro</p>
+                                <p className="text-[#00f0ff] text-6xl font-black font-mono">{formatTimerTime(elapsedTime)}</p>
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <button
+                                    onClick={() => setTimerRunning(!timerRunning)}
+                                    className="flex items-center justify-center gap-2 bg-[#00f0ff] hover:bg-[#60a5fa] text-black font-bold uppercase text-sm px-6 py-3 rounded-xl transition-colors"
+                                >
+                                    {timerRunning ? <Pause size={20} /> : <Play size={20} />}
+                                    {timerRunning ? 'Pausar' : 'Iniciar'}
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setTimerRunning(false);
+                                        setElapsedTime(0);
+                                    }}
+                                    className="flex items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-white font-bold uppercase text-sm px-6 py-3 rounded-xl transition-colors"
+                                >
+                                    <RotateCcw size={20} />
+                                    Resetar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Placar Centralizado */}
                     {opponent && (
                         <div className="bg-gradient-to-r from-zinc-900 via-zinc-950 to-zinc-900 border-2 border-[#00f0ff]/30 rounded-3xl p-6 shadow-2xl mb-6">
@@ -1819,139 +2560,23 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                     
                     {/* Header / Controls */}
                     <div className="bg-black p-6 rounded-3xl border border-zinc-900 shadow-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-4 print:hidden">
-                <div className="flex-1">
+                <div className="flex-1 w-full">
+                    <div className="flex flex-wrap items-center gap-3 mb-3">
+                        <button
+                            type="button"
+                            onClick={handleBackToCalendar}
+                            className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 hover:text-white font-bold uppercase text-xs px-3 py-2 rounded-xl transition-colors"
+                        >
+                            <ArrowLeft size={16} /> Voltar ao Calendário
+                        </button>
+                    </div>
                     <h2 className="text-2xl font-black text-white flex items-center gap-2 uppercase tracking-wide">
                         <Table className="text-[#00f0ff]" /> Input de Dados (Tempo Real)
                     </h2>
                     <p className="text-zinc-500 text-xs font-bold mt-1">Preenchimento manual para controle e alimentação do sistema.</p>
-                    {/* Lista de Períodos de Gol - Sempre Visível */}
-                    <div className="mt-3">
-                        <span className="text-zinc-600 text-[10px] font-bold uppercase mb-2 block">Períodos:</span>
-                        <div className="flex items-center gap-1 flex-wrap">
-                            {TIME_PERIODS.map(period => (
-                                <button
-                                    key={period.value}
-                                    onClick={() => awaitingGoalPeriod ? handleGoalWithPeriod(period.value) : undefined}
-                                    className={`text-[9px] font-medium px-2 py-0.5 rounded border transition-all ${
-                                        awaitingGoalPeriod 
-                                            ? 'text-black bg-[#ccff00] border-[#ccff00] hover:bg-[#ccff00]/80 animate-pulse cursor-pointer' 
-                                            : 'text-zinc-500 bg-zinc-900 border-zinc-800 cursor-default'
-                                    }`}
-                                    disabled={!awaitingGoalPeriod}
-                                >
-                                    {period.label}
-                                </button>
-                            ))}
-                        </div>
-                        {awaitingGoalPeriod && (
-                            <div className="mt-2 text-center">
-                                <button
-                                    onClick={() => {
-                                        setAwaitingGoalPeriod(false);
-                                        setPendingGoalTime('');
-                                    }}
-                                    className="text-zinc-400 hover:text-white text-[9px] font-bold uppercase"
-                                >
-                                    Cancelar
-                                </button>
-                            </div>
-                        )}
-                        {awaitingGoalMethod && (
-                            <div className="mt-4 p-4 bg-zinc-900 border border-[#ccff00] rounded-xl">
-                                <p className="text-[#ccff00] text-xs font-bold uppercase mb-3 text-center">
-                                    Selecione o método do gol:
-                                </p>
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                                    {GOAL_METHODS.map(method => (
-                                        <button
-                                            key={method}
-                                            onClick={() => handleGoalWithMethod(method)}
-                                            className="bg-[#ccff00] hover:bg-[#ccff00]/80 text-black font-bold uppercase text-xs py-2 px-3 rounded-lg transition-all"
-                                        >
-                                            {method}
-                                        </button>
-                                    ))}
-                                </div>
-                                <div className="mt-3 text-center">
-                                    <button
-                                        onClick={() => {
-                                            handleGoalWithMethod('');
-                                            setAwaitingGoalMethod(false);
-                                            setPendingGoalTime('');
-                                        }}
-                                        className="text-zinc-400 hover:text-white text-xs font-bold uppercase"
-                                    >
-                                        Sem método / Cancelar
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
                 </div>
                 
                 <div className="flex flex-wrap gap-4 items-end">
-                    <div className="flex flex-col">
-                        <label className="text-[10px] text-zinc-500 font-bold uppercase mb-1">Competição</label>
-                        <select 
-                            value={competition} 
-                            onChange={(e) => setCompetition(e.target.value)}
-                            disabled={isViewMode}
-                            className="bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-white text-xs outline-none focus:border-[#00f0ff] uppercase disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <option value="">Selecione...</option>
-                            {competitions.map((c, i) => <option key={i} value={c}>{c}</option>)}
-                        </select>
-                    </div>
-                    <div className="flex flex-col">
-                        <label className="text-[10px] text-zinc-500 font-bold uppercase mb-1">Local</label>
-                        <select 
-                            value={location} 
-                            onChange={(e) => setLocation(e.target.value)}
-                            disabled={isViewMode}
-                            className="bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-white text-xs outline-none focus:border-[#00f0ff] uppercase disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <option value="">Selecione...</option>
-                            <option value="Mandante">Mandante</option>
-                            <option value="Visitante">Visitante</option>
-                        </select>
-                    </div>
-                    <div className="flex flex-col">
-                        <label className="text-[10px] text-zinc-500 font-bold uppercase mb-1">Adversário</label>
-                        <input 
-                            type="text" 
-                            value={opponent} 
-                            onChange={(e) => setOpponent(e.target.value)}
-                            placeholder="Nome do Time"
-                            disabled={isViewMode}
-                            className="bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-white text-xs outline-none focus:border-[#00f0ff] disabled:opacity-50 disabled:cursor-not-allowed"
-                        />
-                    </div>
-                     <div className="flex flex-col">
-                        <label className="text-[10px] text-zinc-500 font-bold uppercase mb-1">Resultado</label>
-                        <select 
-                            value={matchResult} 
-                            onChange={(e) => setMatchResult(e.target.value as any)}
-                            disabled={isViewMode}
-                            className="bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-white text-xs outline-none focus:border-[#00f0ff] disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <option value="Sem informação">Sem informação</option>
-                            <option value="Vitória">Vitória</option>
-                            <option value="Empate">Empate</option>
-                            <option value="Derrota">Derrota</option>
-                        </select>
-                    </div>
-                    <div className="flex flex-col">
-                        <label className="text-[10px] text-zinc-500 font-bold uppercase mb-1">Meta de Pontuação</label>
-                        <input
-                            type="text"
-                            value={scoreTarget}
-                            onChange={(e) => setScoreTarget(e.target.value)}
-                            placeholder="Ex: Vencer por 2 gols"
-                            disabled={isViewMode}
-                            className="bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-white text-xs outline-none focus:border-[#00f0ff] disabled:opacity-50 disabled:cursor-not-allowed"
-                        />
-                    </div>
-
                     <div className="flex gap-2">
                         {isCreatingNew ? (
                             <>
@@ -1968,60 +2593,91 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                 </div>
             </div>
 
-            {/* Interface Dinâmica - Atletas Fixos + Estatísticas */}
+            {/* Interface Dinâmica - Jogadores em Quadra + Estatísticas */}
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                {/* Lista Fixa de Atletas (Lado Esquerdo) */}
+                {/* Coluna de Jogadores em Quadra (Lado Esquerdo) */}
                 <div className="lg:col-span-1 bg-black rounded-3xl border border-zinc-900 p-4">
-                    <h3 className="text-white font-bold uppercase text-sm mb-4 flex items-center gap-2">
-                        <Users size={16} className="text-[#00f0ff]" /> Atletas
-                    </h3>
-                    <div className="space-y-3 max-h-[700px] overflow-y-auto">
-                        {players.filter(p => (p as any).status === 'Ativo' || !(p as any).status).map(player => {
-                            const entry = entries.find(e => String(e.athleteId).trim() === String(player.id).trim());
-                            const isSelected = selectedPlayerId === String(player.id).trim();
-                            const isInjured = isPlayerInjured(player);
-                            const isSuspended = isPlayerSuspended(player.id);
-                            const yellowCards = getYellowCardCount(player.id);
-                            const isDisabled = isSuspended || isInjured;
-                            
-                            return (
-                                <div
-                                    key={player.id}
-                                    className={`relative rounded-xl border-2 transition-all ${
-                                        isSelected 
-                                            ? 'border-[#00f0ff] bg-[#00f0ff]/10 shadow-[0_0_20px_rgba(0,240,255,0.5)]' 
-                                            : 'border-zinc-800 bg-zinc-950'
-                                    } ${isDisabled ? 'opacity-60' : ''}`}
-                                >
-                                    {/* Overlay cinza se suspenso */}
-                                    {isSuspended && (
-                                        <div className="absolute inset-0 bg-zinc-900/80 rounded-xl z-10 flex items-center justify-center">
-                                            <span className="text-red-400 font-black text-xs uppercase">Suspenso</span>
-                                        </div>
-                                    )}
-                                    
-                                    <div className="p-3">
-                                        {/* Foto e Identificação */}
-                                        <div className="flex items-center gap-3 mb-3">
-                                            <div className={`w-16 h-16 rounded-full overflow-hidden border-2 ${isSelected ? 'border-[#00f0ff]' : 'border-zinc-700'} bg-zinc-900 flex-shrink-0`}>
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-white font-bold uppercase text-sm flex items-center gap-2">
+                            <Users size={16} className="text-[#00f0ff]" /> Jogadores em Quadra
+                        </h3>
+                    </div>
+                    
+                    {/* Lista de todos os jogadores para seleção manual */}
+                    <div className="mb-4 p-3 bg-zinc-950 rounded-xl border border-zinc-800">
+                        <p className="text-zinc-400 text-[10px] font-bold uppercase mb-2">Selecionar Jogadores:</p>
+                        <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                            {players.filter(p => (p as any).status === 'Ativo' || !(p as any).status).map(player => {
+                                const isInField = playersInField.has(String(player.id).trim());
+                                return (
+                                    <label key={player.id} className="flex items-center gap-2 cursor-pointer hover:bg-zinc-900 p-2 rounded">
+                                        <input
+                                            type="checkbox"
+                                            checked={isInField}
+                                            onChange={(e) => {
+                                                const newSet = new Set(playersInField);
+                                                if (e.target.checked) {
+                                                    newSet.add(String(player.id).trim());
+                                                } else {
+                                                    newSet.delete(String(player.id).trim());
+                                                    // Se remover da quadra e estava selecionado, limpar seleção
+                                                    if (selectedPlayerId === String(player.id).trim()) {
+                                                        setSelectedPlayerId(null);
+                                                    }
+                                                }
+                                                setPlayersInField(newSet);
+                                            }}
+                                            className="w-4 h-4 text-[#00f0ff] bg-zinc-900 border-zinc-700 rounded focus:ring-[#00f0ff]"
+                                        />
+                                        <span className="text-white text-xs font-bold">#{player.jerseyNumber} {player.name}</span>
+                                    </label>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Lista de jogadores em quadra */}
+                    <div className="space-y-3 max-h-[500px] overflow-y-auto">
+                        {Array.from(playersInField).length === 0 ? (
+                            <div className="text-center py-8 text-zinc-600 text-xs">
+                                <p>Nenhum jogador selecionado</p>
+                                <p className="mt-2 text-[10px]">Marque os jogadores acima</p>
+                            </div>
+                        ) : (
+                            players.filter(p => playersInField.has(String(p.id).trim())).map(player => {
+                                const entry = entries.find(e => String(e.athleteId).trim() === String(player.id).trim());
+                                const isSelected = selectedPlayerId === String(player.id).trim();
+                                const isInjured = isPlayerInjured(player);
+                                const isSuspended = isPlayerSuspended(player.id);
+                                const yellowCards = getYellowCardCount(player.id);
+                                const isDisabled = isSuspended || isInjured;
+                                
+                                return (
+                                    <button
+                                        key={player.id}
+                                        onClick={() => {
+                                            if (isViewMode) return;
+                                            setSelectedPlayerId(String(player.id).trim());
+                                        }}
+                                        disabled={isViewMode}
+                                        className={`w-full p-3 rounded-xl border-2 transition-all text-left ${
+                                            isSelected 
+                                                ? 'border-[#00f0ff] bg-[#00f0ff]/10 shadow-[0_0_20px_rgba(0,240,255,0.5)]' 
+                                                : 'border-zinc-800 bg-zinc-950 hover:border-zinc-700'
+                                        } ${isDisabled ? 'opacity-60' : ''}`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-12 h-12 rounded-full overflow-hidden border-2 ${isSelected ? 'border-[#00f0ff]' : 'border-zinc-700'} bg-zinc-900 flex-shrink-0`}>
                                                 {player.photoUrl ? (
                                                     <img src={player.photoUrl} alt={player.name} className="w-full h-full object-cover" />
                                                 ) : (
-                                                    <div className="w-full h-full flex items-center justify-center text-zinc-500 text-sm font-bold">
+                                                    <div className="w-full h-full flex items-center justify-center text-zinc-500 text-xs font-bold">
                                                         {player.name?.substring(0, 2).toUpperCase() || '??'}
                                                     </div>
                                                 )}
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2 flex-wrap">
-                                                    <p className="text-white font-bold text-sm truncate">{player.name}</p>
-                                                    {isInjured && (
-                                                        <span className="bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded uppercase">Lesionado</span>
-                                                    )}
-                                                    {isSuspended && (
-                                                        <span className="bg-orange-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded uppercase">Suspenso</span>
-                                                    )}
-                                                </div>
+                                                <p className="text-white font-bold text-sm truncate">{player.name}</p>
                                                 <p className="text-zinc-400 text-xs">#{player.jerseyNumber} • {player.position}</p>
                                                 {entry && (
                                                     <div className="flex items-center gap-2 mt-1 text-[10px]">
@@ -2033,84 +2689,10 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                                 )}
                                             </div>
                                         </div>
-                                        
-                                        {/* Botões de Ação */}
-                                        <div className="grid grid-cols-2 gap-2">
-                                            <button
-                                                onClick={() => {
-                                                    if (isDisabled || isViewMode) return;
-                                                    setSelectedPlayerId(String(player.id).trim());
-                                                    if (currentMatchId) {
-                                                        setTimeModalType('entry');
-                                                        setShowTimeModal(true);
-                                                    } else {
-                                                        alert('Salve a partida primeiro para registrar entradas.');
-                                                    }
-                                                }}
-                                                disabled={isDisabled || isViewMode}
-                                                className="bg-green-600 hover:bg-green-500 disabled:bg-zinc-800 disabled:opacity-50 text-white font-bold uppercase text-xs py-2 rounded-lg transition-all flex items-center justify-center gap-1"
-                                            >
-                                                <ArrowUpDown size={14} /> Entrada
-                                            </button>
-                                            <button
-                                                onClick={() => {
-                                                    if (isDisabled || isViewMode) return;
-                                                    setSelectedPlayerId(String(player.id).trim());
-                                                    if (currentMatchId) {
-                                                        setTimeModalType('exit');
-                                                        setShowTimeModal(true);
-                                                    } else {
-                                                        alert('Salve a partida primeiro para registrar saídas.');
-                                                    }
-                                                }}
-                                                disabled={isDisabled || isViewMode}
-                                                className="bg-red-600 hover:bg-red-500 disabled:bg-zinc-800 disabled:opacity-50 text-white font-bold uppercase text-xs py-2 rounded-lg transition-all flex items-center justify-center gap-1"
-                                            >
-                                                <ArrowUpDown size={14} /> Saída
-                                            </button>
-                                            <button
-                                                onClick={() => {
-                                                    if (isDisabled || isViewMode) return;
-                                                    setSelectedPlayerId(String(player.id).trim());
-                                                    handleCardClick('Amarelo');
-                                                }}
-                                                disabled={isDisabled || isViewMode}
-                                                className="bg-yellow-500 hover:bg-yellow-400 disabled:bg-zinc-800 disabled:opacity-50 text-black font-bold uppercase text-xs py-2 rounded-lg transition-all"
-                                            >
-                                                🟨 Amarelo
-                                            </button>
-                                            <button
-                                                onClick={() => {
-                                                    if (isDisabled || isViewMode) return;
-                                                    setSelectedPlayerId(String(player.id).trim());
-                                                    handleCardClick('Vermelho');
-                                                }}
-                                                disabled={isDisabled || isViewMode}
-                                                className="bg-red-600 hover:bg-red-500 disabled:bg-zinc-800 disabled:opacity-50 text-white font-bold uppercase text-xs py-2 rounded-lg transition-all"
-                                            >
-                                                🟥 Vermelho
-                                            </button>
-                                        </div>
-                                        
-                                        {/* Botão para selecionar e registrar estatísticas */}
-                                        <button
-                                            onClick={() => {
-                                                if (isViewMode) return;
-                                                setSelectedPlayerId(String(player.id).trim());
-                                            }}
-                                            disabled={isDisabled || isViewMode}
-                                            className={`w-full mt-2 py-2 rounded-lg font-bold uppercase text-xs transition-all ${
-                                                isSelected
-                                                    ? 'bg-[#00f0ff] text-black'
-                                                    : 'bg-zinc-800 hover:bg-zinc-700 text-white disabled:opacity-50'
-                                            }`}
-                                        >
-                                            {isSelected ? '✓ Selecionado' : 'Selecionar para Estatísticas'}
-                                        </button>
-                                    </div>
-                                </div>
-                            );
-                        })}
+                                    </button>
+                                );
+                            })
+                        )}
                     </div>
                 </div>
 
@@ -2129,7 +2711,7 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                         <div className="text-center py-12 text-zinc-500">
                             <Users size={48} className="mx-auto mb-4 opacity-50" />
                             <p className="text-sm font-bold">Selecione um jogador para começar</p>
-                            <p className="text-xs mt-2">Clique na foto do jogador à esquerda</p>
+                            <p className="text-xs mt-2">Clique em um jogador em quadra à esquerda</p>
                         </div>
                     )}
 
@@ -2161,7 +2743,7 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                 {/* Gols */}
                                 <StatButton 
                                     label="GOL" 
-                                    color={awaitingGoalPeriod ? "bg-[#ccff00] text-black border-[#ccff00] animate-pulse" : "bg-white text-black border-white"} 
+                                    color="bg-white text-black border-white" 
                                     icon={Goal} 
                                     onClick={() => handleStatButtonClick('goals')}
                                     onDecrement={() => handleStatButtonDecrement('goals')}
@@ -2346,22 +2928,23 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                 </div>
                                 <div className="flex flex-col gap-2">
                                     <div className="flex flex-col gap-1">
-                                        <label className="text-[9px] text-zinc-500 font-bold uppercase">Minuto:</label>
-                                        <select
+                                        <label className="text-[9px] text-zinc-500 font-bold uppercase">Tempo:</label>
+                                        <input
+                                            type="text"
                                             value={goalConceded.time || ''}
                                             onChange={e => updateGoalConcededTime(goalConceded.id, e.target.value)}
-                                            className="bg-black border border-zinc-700 rounded-lg p-2 text-white outline-none focus:border-[#ff0055] text-xs"
+                                            placeholder="MM:SS"
+                                            className="bg-black border border-zinc-700 rounded-lg p-2 text-white outline-none focus:border-[#ff0055] text-xs font-mono"
+                                        />
+                                        <button
+                                            onClick={() => {
+                                                const currentTime = formatEventTime(elapsedTime);
+                                                updateGoalConcededTime(goalConceded.id, currentTime);
+                                            }}
+                                            className="text-[#00f0ff] hover:text-[#60a5fa] text-[9px] font-bold uppercase mt-1"
                                         >
-                                            <option value="">Selecione...</option>
-                                            {TIME_PERIODS.map(period => (
-                                                <option key={period.value} value={period.value}>{period.label}</option>
-                                            ))}
-                                        </select>
-                                        {goalConceded.time && (
-                                            <span className="text-[9px] text-red-400 font-bold">
-                                                {getGoalPeriod(goalConceded.time)}
-                                            </span>
-                                        )}
+                                            Usar tempo do cronômetro
+                                        </button>
                                     </div>
                                     <div className="flex flex-col gap-1">
                                         <label className="text-[9px] text-zinc-500 font-bold uppercase">Método:</label>
@@ -2403,8 +2986,6 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                 </div>
                 )}
             </div>
-                </>
-            )}
 
             {/* Seção de Entradas e Saídas */}
             {currentMatchId && (
@@ -2500,6 +3081,8 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                     )}
                 </div>
             )}
+                </>
+            )}
 
             {/* Modal de Seleção de Tempo */}
             <TimeSelectionModal
@@ -2508,6 +3091,39 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                 onConfirm={handleTimeModalConfirm}
                 title={timeModalType === 'entry' ? 'Registrar Entrada' : 'Registrar Saída'}
             />
+
+            {/* Modal de Tipo de Partida */}
+            <MatchTypeModal
+                isOpen={showMatchTypeModal}
+                onClose={() => setShowMatchTypeModal(false)}
+                onConfirm={(matchType, extraTimeMinutes) => {
+                    setSelectedMatchType(matchType);
+                    if (extraTimeMinutes) {
+                        setSelectedExtraTimeMinutes(extraTimeMinutes);
+                    }
+                    setShowMatchTypeModal(false);
+                    setShowScoutingWindow(true);
+                }}
+            />
+
+            {/* Janela de Coleta da Partida */}
+            {selectedMatch && (
+                <MatchScoutingWindow
+                    isOpen={showScoutingWindow}
+                    onClose={() => {
+                        setShowScoutingWindow(false);
+                        setSelectedMatchType('normal');
+                        setSelectedExtraTimeMinutes(5);
+                        setSelectedPlayersForMatch(new Set());
+                    }}
+                    match={selectedMatch}
+                    players={players || []}
+                    teams={teams || []}
+                    matchType={selectedMatchType}
+                    extraTimeMinutes={selectedExtraTimeMinutes}
+                    selectedPlayerIds={isScheduledMatch() && selectedPlayersForMatch ? Array.from(selectedPlayersForMatch) : undefined}
+                />
+            )}
         </div>
     );
 };

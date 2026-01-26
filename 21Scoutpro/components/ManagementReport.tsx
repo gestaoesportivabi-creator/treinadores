@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Player, MatchRecord, PhysicalAssessment, PlayerTimeControl, MatchStats } from '../types';
+import { FileText, Calendar, User, Printer, Download, Activity, Trophy, Clock, AlertTriangle, BarChart3, Users } from 'lucide-react';
 
 // Tipo para lesão (mesmo formato usado em TeamManagement)
 interface InjuryRecord {
@@ -15,7 +16,6 @@ interface InjuryRecord {
     endDate?: string;
     daysOut?: number;
 }
-import { FileText, Calendar, User, Printer, Download, Activity, Trophy, Clock, AlertTriangle, BarChart3 } from 'lucide-react';
 
 interface ManagementReportProps {
     players: Player[];
@@ -470,12 +470,12 @@ export const ManagementReport: React.FC<ManagementReportProps> = ({
                                                 {new Date(assessment.date).toLocaleDateString('pt-BR')}
                                             </p>
                                             <p className="text-[#00f0ff] font-black text-xl">
-                                                {assessment.bodyFatPercent}% BF
+                                                {assessment.bodyFat}% BF
                                             </p>
                                         </div>
-                                        {assessment.actionPlan && (
+                                        {(assessment as any).actionPlan && (
                                             <p className="text-zinc-400 text-sm font-bold mt-2 border-t border-zinc-900 pt-2">
-                                                {assessment.actionPlan}
+                                                {(assessment as any).actionPlan}
                                             </p>
                                         )}
                                     </div>
@@ -483,6 +483,101 @@ export const ManagementReport: React.FC<ManagementReportProps> = ({
                             </div>
                         </div>
                     )}
+
+                    {/* Dualidades - Relacionamentos entre Jogadores */}
+                    {filteredMatches.length > 0 && (() => {
+                        // Agregar relacionamentos de todas as partidas
+                        const allRelationships: Array<{
+                            player1Id: string;
+                            player1Name: string;
+                            player2Id: string;
+                            player2Name: string;
+                            totalPasses: number;
+                            totalAssists: number;
+                        }> = [];
+
+                        filteredMatches.forEach(match => {
+                            if (match.playerRelationships) {
+                                Object.entries(match.playerRelationships).forEach(([player1Id, relationships]) => {
+                                    Object.entries(relationships).forEach(([player2Id, stats]) => {
+                                        const player1 = players.find(p => String(p.id).trim() === player1Id);
+                                        const player2 = players.find(p => String(p.id).trim() === player2Id);
+                                        
+                                        if (player1 && player2) {
+                                            // Verificar se já existe relacionamento (ordem pode variar)
+                                            const existing = allRelationships.find(r => 
+                                                (r.player1Id === player1Id && r.player2Id === player2Id) ||
+                                                (r.player1Id === player2Id && r.player2Id === player1Id)
+                                            );
+                                            
+                                            if (existing) {
+                                                existing.totalPasses += stats.passes;
+                                                existing.totalAssists += stats.assists;
+                                            } else {
+                                                allRelationships.push({
+                                                    player1Id,
+                                                    player1Name: player1.name,
+                                                    player2Id,
+                                                    player2Name: player2.name,
+                                                    totalPasses: stats.passes,
+                                                    totalAssists: stats.assists,
+                                                });
+                                            }
+                                        }
+                                    });
+                                });
+                            }
+                        });
+
+                        // Filtrar apenas relacionamentos que envolvem o jogador selecionado
+                        const playerRelationships = allRelationships.filter(r => 
+                            String(r.player1Id).trim() === selectedPlayerId || 
+                            String(r.player2Id).trim() === selectedPlayerId
+                        ).sort((a, b) => (b.totalPasses + b.totalAssists) - (a.totalPasses + a.totalAssists));
+
+                        if (playerRelationships.length > 0) {
+                            return (
+                                <div className="bg-black p-6 rounded-3xl border border-zinc-900 shadow-lg">
+                                    <h4 className="text-xl font-black text-white uppercase mb-4 flex items-center gap-2">
+                                        <Users className="text-[#00f0ff]" /> Dualidades
+                                    </h4>
+                                    <p className="text-zinc-400 text-xs mb-4">
+                                        Relacionamentos de passes e assistências com outros jogadores
+                                    </p>
+                                    <div className="space-y-3">
+                                        {playerRelationships.map((rel, index) => {
+                                            const otherPlayer = String(rel.player1Id).trim() === selectedPlayerId 
+                                                ? rel.player2Name 
+                                                : rel.player1Name;
+                                            return (
+                                                <div key={index} className="border border-zinc-900 rounded-xl p-4">
+                                                    <div className="flex justify-between items-center mb-2">
+                                                        <p className="text-white font-bold text-sm">
+                                                            {selectedPlayer?.name} ↔ {otherPlayer}
+                                                        </p>
+                                                        <p className="text-[#00f0ff] font-black text-lg">
+                                                            {rel.totalPasses + rel.totalAssists} interações
+                                                        </p>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-4 mt-3 pt-3 border-t border-zinc-900">
+                                                        <div>
+                                                            <p className="text-zinc-500 text-xs font-bold uppercase mb-1">Passes</p>
+                                                            <p className="text-green-400 font-black text-xl">{rel.totalPasses}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-zinc-500 text-xs font-bold uppercase mb-1">Assistências</p>
+                                                            <p className="text-blue-400 font-black text-xl">{rel.totalAssists}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            );
+                        }
+                        return null;
+                    })()}
                 </div>
             )}
         </div>
