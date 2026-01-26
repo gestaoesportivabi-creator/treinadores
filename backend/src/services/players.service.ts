@@ -121,36 +121,44 @@ export const playersService = {
         throw new Error('Tenant info não fornecido');
       }
 
-      // Verificar se o tenant tem equipes
+      // Equipes do tenant (podem estar vazias – cadastro é só de atletas)
       const equipeIds = tenantInfo.equipe_ids || [];
       console.log('[PLAYERS_SERVICE] create - Equipes do tenant:', equipeIds);
-      
-      if (equipeIds.length === 0) {
-        console.error('[PLAYERS_SERVICE] create - ERRO: Nenhuma equipe encontrada para o tenant');
-        throw new Error('É necessário ter pelo menos uma equipe cadastrada antes de criar jogadores. Por favor, crie uma equipe primeiro.');
-      }
 
-      // Determinar qual equipe usar: a fornecida no payload ou a primeira do tenant
-      let equipeIdParaVincular = data.equipeId;
-      
-      // Se não foi fornecido equipeId, usar a primeira equipe do tenant
-      if (!equipeIdParaVincular) {
-        equipeIdParaVincular = equipeIds[0];
-        console.log('[PLAYERS_SERVICE] create - Usando primeira equipe do tenant:', equipeIdParaVincular);
-      } else {
-        console.log('[PLAYERS_SERVICE] create - Usando equipe fornecida:', equipeIdParaVincular);
-      }
+      let equipeIdParaVincular: string | undefined = data.equipeId;
 
-      // Validar que a equipe fornecida pertence ao tenant
-      if (!equipeIds.includes(equipeIdParaVincular)) {
-        console.error('[PLAYERS_SERVICE] create - ERRO: Equipe não pertence ao tenant', {
-          equipe_fornecida: equipeIdParaVincular,
-          equipes_tenant: equipeIds,
+      if (equipeIds.length > 0) {
+        equipeIdParaVincular = equipeIdParaVincular || equipeIds[0];
+        if (equipeIdParaVincular && !equipeIds.includes(equipeIdParaVincular)) {
+          console.error('[PLAYERS_SERVICE] create - ERRO: Equipe não pertence ao tenant');
+          throw new Error('A equipe selecionada não pertence ao seu tenant.');
+        }
+        console.log('[PLAYERS_SERVICE] create - Usando equipe:', equipeIdParaVincular);
+      } else if (tenantInfo.tecnico_id) {
+        // Sem equipes: criar equipe padrão "Elenco" e usar para o vínculo
+        const existente = await prisma.equipe.findFirst({
+          where: {
+            tecnicoId: tenantInfo.tecnico_id,
+            nome: 'Elenco',
+          },
         });
-        throw new Error('A equipe selecionada não pertence ao seu tenant.');
+        if (existente) {
+          equipeIdParaVincular = existente.id;
+          console.log('[PLAYERS_SERVICE] create - Usando equipe padrão existente:', equipeIdParaVincular);
+        } else {
+          const elenco = await prisma.equipe.create({
+            data: {
+              nome: 'Elenco',
+              tecnicoId: tenantInfo.tecnico_id,
+            },
+          });
+          equipeIdParaVincular = elenco.id;
+          console.log('[PLAYERS_SERVICE] create - Equipe padrão "Elenco" criada:', equipeIdParaVincular);
+        }
+      } else {
+        console.error('[PLAYERS_SERVICE] create - ERRO: Tenant sem técnico nem equipes');
+        throw new Error('Configuração do tenant inválida. Entre em contato com o suporte.');
       }
-
-      console.log('[PLAYERS_SERVICE] create - Equipe validada:', equipeIdParaVincular);
 
       // Remover equipeId, id e injuryHistory dos dados antes de criar o jogador
       // (equipeId não é campo da tabela jogadores, id é gerado pelo banco, injuryHistory é criado separadamente)
@@ -349,18 +357,41 @@ export const playersService = {
 
   /**
    * Atualizar jogador
+   * Mapeia campos do frontend (name, jerseyNumber, etc.) para o banco (nome, numeroCamisa, etc.)
    */
   async update(id: string, data: Partial<any>, tenantInfo: TenantInfo): Promise<Player> {
-    // Verificar se jogador existe e pertence ao tenant
     const existing = await playersRepository.findById(id, tenantInfo);
     if (!existing) {
       throw new NotFoundError('Jogador', id);
     }
 
-    // Atualizar
-    const jogador = await playersRepository.update(id, data);
+    const d = data as any;
+    const mapNum = (v: any) => (v !== undefined && v !== null && v !== '') ? Number(v) : undefined;
+    const mapDate = (v: any) => (v && String(v).trim() !== '') ? new Date(v) : undefined;
+    const mapStr = (v: any) => (v != null && String(v).trim() !== '') ? String(v).trim() : undefined;
 
-    // Buscar lesões e avaliações
+    const payload: Record<string, unknown> = {};
+    const nome = mapStr(d.nome ?? d.name); if (nome !== undefined) payload.nome = nome;
+    const apelido = mapStr(d.apelido ?? d.nickname); if (apelido !== undefined) payload.apelido = apelido;
+    const idade = mapNum(d.idade ?? d.age); if (idade !== undefined) payload.idade = idade;
+    const funcao = mapStr(d.funcaoEmQuadra ?? d.position); if (funcao !== undefined) payload.funcaoEmQuadra = funcao;
+    const numero = mapNum(d.numeroCamisa ?? d.jerseyNumber); if (numero !== undefined) payload.numeroCamisa = numero;
+    const pe = mapStr(d.peDominante ?? d.dominantFoot); if (pe !== undefined) payload.peDominante = pe;
+    const altura = mapNum(d.altura ?? d.height); if (altura !== undefined) payload.altura = altura;
+    const peso = mapNum(d.peso ?? d.weight); if (peso !== undefined) payload.peso = peso;
+    const ultimo = mapStr(d.ultimoClube ?? d.lastClub); if (ultimo !== undefined) payload.ultimoClube = ultimo;
+    const foto = mapStr(d.fotoUrl ?? d.photoUrl); if (foto !== undefined) payload.fotoUrl = foto;
+    if (d.isTransferido !== undefined || d.isTransferred !== undefined) {
+      payload.isTransferido = Boolean(d.isTransferido ?? d.isTransferred);
+    }
+    const dtTransfer = mapDate(d.dataTransferencia ?? d.transferDate);
+    if (dtTransfer !== undefined) payload.dataTransferencia = dtTransfer;
+    const dtNasc = mapDate(d.dataNascimento ?? d.birthDate);
+    if (dtNasc !== undefined) payload.dataNascimento = dtNasc;
+    if (d.isAtivo !== undefined) payload.isAtivo = Boolean(d.isAtivo);
+
+    const jogador = await playersRepository.update(id, payload as any);
+
     const [lesoes, avaliacoes] = await Promise.all([
       lesoesRepository.findByJogador(id, tenantInfo),
       assessmentsRepository.findByJogador(id, tenantInfo),

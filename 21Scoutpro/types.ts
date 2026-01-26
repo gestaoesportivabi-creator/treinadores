@@ -47,6 +47,8 @@ export interface InjuryRecord {
   origin: 'Treino' | 'Jogo' | 'Outros';
   startDate: string;
   endDate?: string;
+  returnDate?: string; // Data de retorno prevista
+  returnDateActual?: string; // Data de retorno real
   daysOut?: number;
 }
 
@@ -72,13 +74,13 @@ export interface Player {
   dominantFoot: 'Destro' | 'Canhoto' | 'Ambidestro';
   age: number;
   height: number;
+  weight?: number; // Peso (kg)
   lastClub: string;
   photoUrl?: string;
   isTransferred?: boolean;
   transferDate?: string;
   injuryHistory?: InjuryRecord[];
   birthDate?: string; // YYYY-MM-DD
-  cpf?: string; // Formato: XXX.XXX.XXX-XX
   maxLoads?: MaxLoad[];
 }
 
@@ -179,6 +181,7 @@ export interface Team {
   temporada?: string;
   tecnicoId: string;
   clubeId?: string;
+  logoUrl?: string; // URL/base64 do escudo da equipe
   createdAt: string;
 }
 
