@@ -82,10 +82,17 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
             return;
         }
 
-        const matchToSave: ChampionshipMatch = {
-            ...formData,
-            id: editingId || formData.id || Date.now().toString()
-        };
+        // Se estiver editando, incluir o ID. Se for nova partida, não incluir
+        const matchToSave: ChampionshipMatch = editingId 
+            ? { ...formData, id: editingId }
+            : {
+                date: formData.date,
+                time: formData.time,
+                opponent: formData.opponent,
+                competition: formData.competition,
+                location: formData.location,
+                scoreTarget: formData.scoreTarget
+            } as any;
 
         if (onSave) {
             onSave(matchToSave);

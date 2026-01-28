@@ -804,21 +804,39 @@ export default function App() {
             }}
             onSave={async (match) => {
               try {
+                console.log('💾 Salvando partida:', match);
+                console.log('📋 Partidas atuais na lista:', championshipMatches.length);
+                
                 if (match.id && championshipMatches.find(m => m.id === match.id)) {
                   // Atualizar
+                  console.log('🔄 Atualizando partida existente:', match.id);
                   const updated = await championshipMatchesApi.update(match.id, match);
+                  console.log('📥 API retornou (update):', updated);
                   if (updated) {
                     setChampionshipMatches(prev => prev.map(m => m.id === match.id ? updated : m));
+                    console.log('✅ Partida atualizada com sucesso');
+                  } else {
+                    console.error('❌ API retornou null ao atualizar');
+                    alert('Erro: A API não retornou a partida atualizada. Verifique o console.');
                   }
                 } else {
                   // Criar
+                  console.log('➕ Criando nova partida (sem ID ou ID não encontrado)');
                   const saved = await championshipMatchesApi.create(match);
+                  console.log('📥 API retornou (create):', saved);
                   if (saved) {
-                    setChampionshipMatches(prev => [...prev, saved]);
+                    setChampionshipMatches(prev => {
+                      const newList = [...prev, saved];
+                      console.log('✅ Partida criada e adicionada à lista. Total:', newList.length);
+                      return newList;
+                    });
+                  } else {
+                    console.error('❌ API retornou null ao criar');
+                    alert('Erro: A API não retornou a partida criada. Verifique o console do navegador e do backend.');
                   }
                 }
               } catch (error) {
-                console.error('Erro ao salvar partida do campeonato:', error);
+                console.error('❌ Erro ao salvar partida do campeonato:', error);
                 alert('Erro ao salvar partida. Verifique o console.');
               }
             }}
