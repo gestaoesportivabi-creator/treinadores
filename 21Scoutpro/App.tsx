@@ -27,11 +27,6 @@ import { playersApi, matchesApi, assessmentsApi, schedulesApi, competitionsApi, 
 
 const SLIDES = [
     {
-        img: "https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=2070&auto=format&fit=crop",
-        quote: "A força do time está em cada membro. A força de cada membro é o time.",
-        author: "Phil Jackson"
-    },
-    {
         img: "https://images.unsplash.com/photo-1551958219-acbc608c6377?q=80&w=2070&auto=format&fit=crop",
         quote: "A disciplina é a ponte entre metas e realizações.",
         author: "Jim Rohn"
@@ -40,6 +35,11 @@ const SLIDES = [
         img: "https://images.unsplash.com/photo-1517649763962-0c623066013b?q=80&w=2070&auto=format&fit=crop",
         quote: "Concentre-se em onde você quer chegar, não no que você teme.",
         author: "Tony Robbins"
+    },
+    {
+        img: "https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=2070&auto=format&fit=crop",
+        quote: "A força do time está em cada membro. A força de cada membro é o time.",
+        author: "Phil Jackson"
     },
     {
         img: "https://images.unsplash.com/photo-1517466787929-bc90951d0528?q=80&w=2070&auto=format&fit=crop",
@@ -62,7 +62,7 @@ const SLIDES = [
         author: "Michael Jordan"
     },
     {
-        img: "https://images.unsplash.com/photo-1594736797933-d0cbc3dc5bdb?q=80&w=2070&auto=format&fit=crop",
+        img: "https://images.unsplash.com/photo-1529900748604-07564a03e7a6?q=80&w=2070&auto=format&fit=crop",
         quote: "A excelência não é um ato, mas um hábito.",
         author: "Aristóteles"
     }
@@ -914,12 +914,12 @@ export default function App() {
             {SLIDES.map((slide, index) => (
                 <div 
                     key={index}
-                    className={`absolute inset-0 z-0 transition-opacity duration-1000 ease-in-out ${index === currentSlide ? 'opacity-50' : 'opacity-0'}`}
+                    className={`absolute inset-0 z-0 transition-opacity duration-1000 ease-in-out ${index === currentSlide ? 'opacity-100' : 'opacity-0'}`}
                 >
                     <img 
                         src={slide.img}
                         alt="Background" 
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover object-top"
                     />
                      {/* Gradient Overlays */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent mix-blend-multiply" />
