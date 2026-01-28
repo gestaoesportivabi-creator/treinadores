@@ -74,7 +74,7 @@ export const championshipMatchesService = {
       campeonatoId: campeonato.id,
       data: new Date(data.date),
       horario: data.time || null,
-      equipe: tenantInfo.clube_nome || 'Minha Equipe',
+      equipe: 'Minha Equipe',
       adversario: data.opponent,
       competicao: data.competition || null,
       local: data.location || null,
