@@ -196,11 +196,24 @@ export const Schedule: React.FC<ScheduleProps> = ({ schedules, onSaveSchedule, o
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                         <div>
                             <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Data Início</label>
-                            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full bg-black border border-zinc-800 rounded-xl p-3 text-white outline-none focus:border-[#10b981]" />
+                            <input 
+                                type="date" 
+                                value={startDate} 
+                                onChange={e => setStartDate(e.target.value)} 
+                                className="w-full bg-black border border-zinc-800 rounded-xl p-3 text-white outline-none focus:border-[#10b981] [color-scheme:dark]" 
+                                style={{ colorScheme: 'dark' }}
+                            />
                         </div>
                         <div>
                             <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Data Fim</label>
-                            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full bg-black border border-zinc-800 rounded-xl p-3 text-white outline-none focus:border-[#10b981]" />
+                            <input 
+                                type="date" 
+                                value={endDate} 
+                                onChange={e => setEndDate(e.target.value)} 
+                                min={startDate || undefined}
+                                className="w-full bg-black border border-zinc-800 rounded-xl p-3 text-white outline-none focus:border-[#10b981] [color-scheme:dark]" 
+                                style={{ colorScheme: 'dark' }}
+                            />
                         </div>
                     </div>
                     <div className="flex justify-end gap-4">
