@@ -45,6 +45,7 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
 
     const [isCreating, setIsCreating] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
+    const [isAmistoso, setIsAmistoso] = useState(false);
     const [formData, setFormData] = useState<ChampionshipMatch>({
         id: '',
         date: new Date().toISOString().split('T')[0],
@@ -102,11 +103,14 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
         });
         setIsCreating(false);
         setEditingId(null);
+        setIsAmistoso(false);
     };
 
     const handleEdit = (match: ChampionshipMatch) => {
         setFormData(match);
         setEditingId(match.id);
+        // Detectar se é amistoso
+        setIsAmistoso(match.competition === 'Amistoso');
         setIsCreating(true);
     };
 
@@ -122,6 +126,7 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
         });
         setIsCreating(false);
         setEditingId(null);
+        setIsAmistoso(false);
     };
 
     const handleUseForInput = (match: ChampionshipMatch) => {
@@ -525,6 +530,30 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
                         <h3 className="text-white font-bold text-sm mb-4 uppercase">
                             {editingId ? 'Editar Partida' : 'Nova Partida'}
                         </h3>
+                        
+                        {/* Toggle Amistoso */}
+                        <div className="mb-4 flex items-center gap-3 p-3 bg-black rounded-lg border border-zinc-800">
+                            <input
+                                type="checkbox"
+                                id="amistoso-toggle"
+                                checked={isAmistoso}
+                                onChange={(e) => {
+                                    const checked = e.target.checked;
+                                    setIsAmistoso(checked);
+                                    if (checked) {
+                                        setFormData({ ...formData, competition: 'Amistoso' });
+                                    } else {
+                                        setFormData({ ...formData, competition: competitions.length > 0 ? competitions[0] : '' });
+                                    }
+                                }}
+                                className="w-4 h-4 accent-[#10b981] cursor-pointer"
+                            />
+                            <label htmlFor="amistoso-toggle" className="text-white text-xs font-bold uppercase cursor-pointer flex items-center gap-2">
+                                <Users size={14} className="text-[#10b981]" />
+                                Partida Amistosa (não vinculada a campeonato)
+                            </label>
+                        </div>
+
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
                                 <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Data</label>
@@ -532,7 +561,8 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
                                     type="date"
                                     value={formData.date}
                                     onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                                    className="w-full bg-black border border-zinc-700 rounded-lg p-2 text-white text-xs outline-none focus:border-[#10b981]"
+                                    className="w-full bg-black border border-zinc-700 rounded-lg p-2 text-white text-xs outline-none focus:border-[#10b981] [color-scheme:dark]"
+                                    style={{ colorScheme: 'dark' }}
                                 />
                             </div>
                             <div>
@@ -541,7 +571,8 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
                                     type="time"
                                     value={formData.time}
                                     onChange={(e) => setFormData({ ...formData, time: e.target.value })}
-                                    className="w-full bg-black border border-zinc-700 rounded-lg p-2 text-white text-xs outline-none focus:border-[#10b981]"
+                                    className="w-full bg-black border border-zinc-700 rounded-lg p-2 text-white text-xs outline-none focus:border-[#10b981] [color-scheme:dark]"
+                                    style={{ colorScheme: 'dark' }}
                                 />
                             </div>
                             <div>
@@ -555,15 +586,22 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
                                 />
                             </div>
                             <div>
-                                <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Competição</label>
+                                <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">
+                                    Competição {isAmistoso && <span className="text-zinc-600">(desabilitado)</span>}
+                                </label>
                                 <select
                                     value={formData.competition}
                                     onChange={(e) => setFormData({ ...formData, competition: e.target.value })}
-                                    className="w-full bg-black border border-zinc-700 rounded-lg p-2 text-white text-xs outline-none focus:border-[#10b981]"
+                                    disabled={isAmistoso}
+                                    className={`w-full bg-black border border-zinc-700 rounded-lg p-2 text-white text-xs outline-none focus:border-[#10b981] ${isAmistoso ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 >
-                                    {competitions.map(comp => (
-                                        <option key={comp} value={comp}>{comp}</option>
-                                    ))}
+                                    {isAmistoso ? (
+                                        <option value="Amistoso">Amistoso</option>
+                                    ) : (
+                                        competitions.map(comp => (
+                                            <option key={comp} value={comp}>{comp}</option>
+                                        ))
+                                    )}
                                 </select>
                             </div>
                             <div>

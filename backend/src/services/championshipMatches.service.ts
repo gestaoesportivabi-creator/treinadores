@@ -2,6 +2,7 @@
  * Service para Jogos de Campeonato
  */
 
+import prisma from '../config/database';
 import { TenantInfo } from '../utils/tenant.helper';
 import { championshipMatchesRepository } from '../repositories/championshipMatches.repository';
 import { NotFoundError } from '../utils/errors';
@@ -12,10 +13,10 @@ function transformChampionshipMatchToFrontend(jogo: any) {
     id: jogo.id,
     date: jogo.data instanceof Date ? jogo.data.toISOString().split('T')[0] : jogo.data,
     time: jogo.horario || '',
-    team: jogo.equipe,
     opponent: jogo.adversario,
     competition: jogo.competicao || '',
-    matchId: jogo.jogoId,
+    location: jogo.local || '',
+    scoreTarget: jogo.metaPontuacao || '',
   };
 }
 
@@ -44,8 +45,43 @@ export const championshipMatchesService = {
   /**
    * Criar jogo de campeonato
    */
-  async create(data: any, _tenantInfo: TenantInfo) {
-    const jogo = await championshipMatchesRepository.create(data);
+  async create(data: any, tenantInfo: TenantInfo) {
+    // Garantir que temos um campeonato padrão para a equipe
+    const equipeId = tenantInfo.equipe_ids?.[0];
+    if (!equipeId) {
+      throw new Error('Equipe não encontrada para o tenant');
+    }
+
+    // Buscar ou criar campeonato padrão "Jogos Agendados"
+    let campeonato = await prisma.campeonato.findFirst({
+      where: {
+        equipeId: equipeId,
+        nome: 'Jogos Agendados',
+      },
+    });
+
+    if (!campeonato) {
+      campeonato = await prisma.campeonato.create({
+        data: {
+          equipeId: equipeId,
+          nome: 'Jogos Agendados',
+        },
+      });
+    }
+
+    // Transformar dados do frontend para formato do banco
+    const jogoData = {
+      campeonatoId: campeonato.id,
+      data: new Date(data.date),
+      horario: data.time || null,
+      equipe: tenantInfo.clube_nome || 'Minha Equipe',
+      adversario: data.opponent,
+      competicao: data.competition || null,
+      local: data.location || null,
+      metaPontuacao: data.scoreTarget || null,
+    };
+
+    const jogo = await championshipMatchesRepository.create(jogoData);
     return transformChampionshipMatchToFrontend(jogo);
   },
 
@@ -58,7 +94,16 @@ export const championshipMatchesService = {
       throw new NotFoundError('Jogo de campeonato', id);
     }
 
-    const jogo = await championshipMatchesRepository.update(id, data);
+    // Transformar dados do frontend para formato do banco
+    const jogoData: any = {};
+    if (data.date) jogoData.data = new Date(data.date);
+    if (data.time !== undefined) jogoData.horario = data.time || null;
+    if (data.opponent !== undefined) jogoData.adversario = data.opponent;
+    if (data.competition !== undefined) jogoData.competicao = data.competition || null;
+    if (data.location !== undefined) jogoData.local = data.location || null;
+    if (data.scoreTarget !== undefined) jogoData.metaPontuacao = data.scoreTarget || null;
+
+    const jogo = await championshipMatchesRepository.update(id, jogoData);
     return transformChampionshipMatchToFrontend(jogo);
   },
 

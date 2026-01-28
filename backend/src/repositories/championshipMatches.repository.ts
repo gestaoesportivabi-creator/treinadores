@@ -13,6 +13,8 @@ type CampeonatoJogoDB = {
   equipe: string;
   adversario: string;
   competicao: string | null;
+  local: string | null;
+  metaPontuacao: string | null;
   jogoId: string | null;
   createdAt: Date;
 };
@@ -80,6 +82,8 @@ export const championshipMatchesRepository = {
     equipe: string;
     adversario: string;
     competicao?: string;
+    local?: string;
+    metaPontuacao?: string;
     jogoId?: string;
   }): Promise<CampeonatoJogoDB> {
     return prisma.campeonatosJogos.create({

@@ -318,17 +318,19 @@ model Campeonato {
 }
 
 model CampeonatosJogos {
-  id           String     @id @default(uuid())
-  campeonatoId String     @map("campeonato_id")
-  data         DateTime   @db.Date
-  horario      String?    @db.VarChar(10)
-  equipe       String     @db.VarChar(255)
-  adversario   String     @db.VarChar(255)
-  competicao   String?    @db.VarChar(255)
-  jogoId       String?    @map("jogo_id")
-  createdAt    DateTime   @default(now()) @map("created_at")
-  campeonato   Campeonato @relation(fields: [campeonatoId], references: [id], onDelete: Cascade)
-  jogo         Jogo?      @relation(fields: [jogoId], references: [id])
+  id             String     @id @default(uuid())
+  campeonatoId   String     @map("campeonato_id")
+  data           DateTime   @db.Date
+  horario        String?    @db.VarChar(10)
+  equipe         String     @db.VarChar(255)
+  adversario     String     @db.VarChar(255)
+  competicao     String?    @db.VarChar(255)
+  local          String?    @db.VarChar(50)
+  metaPontuacao  String?    @map("meta_pontuacao") @db.VarChar(255)
+  jogoId         String?    @map("jogo_id")
+  createdAt      DateTime   @default(now()) @map("created_at")
+  campeonato     Campeonato @relation(fields: [campeonatoId], references: [id], onDelete: Cascade)
+  jogo           Jogo?      @relation(fields: [jogoId], references: [id])
 
   @@index([jogoId])
   @@map("campeonatos_jogos")
