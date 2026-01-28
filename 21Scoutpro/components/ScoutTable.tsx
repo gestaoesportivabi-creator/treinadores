@@ -1654,6 +1654,42 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
         return hasNoStats;
     };
 
+    // Função para determinar o status da partida
+    const getMatchStatus = (item: CalendarMatchItem): 'programada' | 'incompleto' | 'finalizado' => {
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        const matchDate = new Date(item.date);
+        matchDate.setHours(0, 0, 0, 0);
+        
+        const isPast = matchDate <= now;
+        
+        if (item.type === 'scheduled') {
+            if (isPast) {
+                const hasMatchRecord = matches.find(m => {
+                    const mDate = new Date(m.date);
+                    mDate.setHours(0, 0, 0, 0);
+                    return mDate.getTime() === matchDate.getTime() &&
+                           m.opponent === item.opponent;
+                });
+                return hasMatchRecord ? 'finalizado' : 'incompleto';
+            }
+            return 'programada';
+        }
+        
+        if (item.type === 'saved') {
+            const match = item as MatchRecord;
+            const hasData = 
+                match.teamStats &&
+                (match.teamStats.goals > 0 ||
+                 match.teamStats.goalsConceded > 0 ||
+                 Object.keys(match.playerStats || {}).length > 0);
+            
+            return hasData ? 'finalizado' : 'incompleto';
+        }
+        
+        return 'programada';
+    };
+
     // Partidas unificadas (salvas + programadas) filtradas por intervalo de datas
     const filteredMatches = useMemo((): CalendarMatchItem[] => {
         const saved: CalendarMatchItem[] = matches.map((m) => ({ ...m, type: 'saved' as const }));
@@ -1848,8 +1884,22 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                 className="bg-black rounded-2xl border-2 border-zinc-900 p-4 text-left hover:border-[#00f0ff]/50 hover:bg-zinc-950 transition-all cursor-pointer shadow-lg"
                             >
                                 <div className="flex items-center justify-between mb-3">
-                                    <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${item.type === 'saved' ? 'bg-green-500/20 text-green-400 border border-green-500/50' : 'bg-[#00f0ff]/20 text-[#00f0ff] border border-[#00f0ff]/50'}`}>
-                                        {item.type === 'saved' ? 'Salva' : 'Programada'}
+                                    <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${
+                                        (() => {
+                                            const status = getMatchStatus(item);
+                                            if (status === 'programada') return 'bg-[#00f0ff]/20 text-[#00f0ff] border border-[#00f0ff]/50';
+                                            if (status === 'incompleto') return 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50';
+                                            if (status === 'finalizado') return 'bg-red-500/20 text-red-400 border border-red-500/50';
+                                            return 'bg-zinc-500/20 text-zinc-400 border border-zinc-500/50';
+                                        })()
+                                    }`}>
+                                        {(() => {
+                                            const status = getMatchStatus(item);
+                                            if (status === 'programada') return 'Programada';
+                                            if (status === 'incompleto') return 'Incompleto';
+                                            if (status === 'finalizado') return 'Finalizado';
+                                            return 'N/A';
+                                        })()}
                                     </span>
                                     <span className="text-zinc-500 text-xs font-bold">{formatDate(item.date)}</span>
                                 </div>

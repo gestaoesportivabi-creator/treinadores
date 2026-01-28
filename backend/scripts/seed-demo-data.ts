@@ -158,7 +158,10 @@ async function main() {
   const campeonatosData = await seedCampeonatos(equipes, jogos);
   progress.campeonatos = campeonatosData.campeonatos;
   progress.campeonatosJogos = campeonatosData.campeonatosJogos;
-  console.log(`✓ ${campeonatosData.campeonatos} campeonatos e ${campeonatosData.campeonatosJogos} jogos de campeonato criados\n`);
+  console.log(`✓ ${campeonatosData.campeonatos} campeonatos e ${campeonatosData.campeonatosJogos} jogos de campeonato criados`);
+  console.log(`   - Partidas FINALIZADAS: 60 (com dados de scout)`);
+  console.log(`   - Partidas INCOMPLETAS: 5 (passadas sem dados)`);
+  console.log(`   - Partidas PROGRAMADAS: 8 (futuras)\n`);
   
   // 10. Criar Metas de Estatísticas
   console.log('🎯 Criando metas de estatísticas...');
@@ -248,11 +251,7 @@ async function cleanData(tenantInfo: any) {
 
 async function seedEquipes(tecnicoId: string) {
   const categorias = [
-    { nome: 'Equipe Principal', categoria: 'Adulto', temporada: '2024' },
-    { nome: 'Equipe Sub-20', categoria: 'Sub-20', temporada: '2024' },
-    { nome: 'Equipe Sub-17', categoria: 'Sub-17', temporada: '2024' },
-    { nome: 'Equipe Sub-15', categoria: 'Sub-15', temporada: '2024' },
-    { nome: 'Equipe Feminino', categoria: 'Feminino', temporada: '2024' },
+    { nome: 'Equipe Principal - Futsal', categoria: 'Adulto', temporada: '2024' },
   ];
   
   const equipes = [];
@@ -274,8 +273,8 @@ async function seedEquipes(tecnicoId: string) {
 async function seedJogadores(equipes: any[], tenantInfo: any) {
   const distribuicaoPosicoes: Record<string, number> = {
     'Goleiro': 3,
-    'Fixo': 4,
-    'Ala': 9,
+    'Fixo': 5,
+    'Ala': 10,
     'Pivô': 7,
   };
   
@@ -286,7 +285,7 @@ async function seedJogadores(equipes: any[], tenantInfo: any) {
     const idadeMin = categoria === 'Sub-15' ? 13 : categoria === 'Sub-17' ? 15 : categoria === 'Sub-20' ? 18 : 20;
     const idadeMax = categoria === 'Sub-15' ? 15 : categoria === 'Sub-17' ? 17 : categoria === 'Sub-20' ? 20 : 35;
     
-    const numJogadores = 25 + Math.floor(Math.random() * 6); // 25-30 por equipe
+    const numJogadores = 25; // Exatamente 25 jogadores
     const numerosUsados = new Set<number>();
     let jogadoresEquipe = 0;
     
@@ -411,12 +410,10 @@ async function seedJogadores(equipes: any[], tenantInfo: any) {
 
 async function seedCompetitions() {
   const nomes = [
-    'Campeonato Estadual 2024',
-    'Copa Regional 2024',
-    'Torneio Municipal 2024',
-    'Liga Local 2024',
-    'Taça Cidade 2024',
-    'Supercopa Regional 2024',
+    'Campeonato Estadual de Futsal 2024',
+    'Copa Regional de Futsal 2024',
+    'Liga Municipal de Futsal 2024',
+    'Taça Cidade de Futsal 2024',
   ];
   
   const competicoes = [];
@@ -439,8 +436,8 @@ async function seedJogos(equipes: any[], competicoes: any[]) {
   const tresMesesAtras = new Date(hoje);
   tresMesesAtras.setMonth(tresMesesAtras.getMonth() - 3);
   
-  // Gerar 50-60 jogos (4-5 por semana)
-  const numJogos = 50 + Math.floor(Math.random() * 11);
+  // Gerar exatamente 60 jogos (15 por campeonato x 4 campeonatos)
+  const numJogos = 60;
   const diasSemana = [1, 3, 6, 0]; // Segunda, Quarta, Sábado, Domingo
   
   // Criar lista de datas possíveis (apenas dias úteis para jogos)
@@ -677,10 +674,10 @@ async function seedProgramacoes(equipes: any[]) {
 
 async function seedCampeonatos(equipes: any[], jogos: any[]) {
   const nomes = [
-    'Campeonato Estadual 2024',
-    'Copa Regional 2024',
-    'Torneio Municipal 2024',
-    'Liga Local 2024',
+    'Campeonato Estadual de Futsal 2024',
+    'Copa Regional de Futsal 2024',
+    'Liga Municipal de Futsal 2024',
+    'Taça Cidade de Futsal 2024',
   ];
   
   const campeonatos = [];
@@ -695,22 +692,109 @@ async function seedCampeonatos(equipes: any[], jogos: any[]) {
     campeonatos.push(campeonato);
   }
   
-  // Vincular 30-40 jogos aos campeonatos
-  const numJogosCampeonato = 30 + Math.floor(Math.random() * 11);
-  const jogosSelecionados = [...jogos].sort(() => Math.random() - 0.5).slice(0, numJogosCampeonato);
+  // Buscar jogos completos com competição para usar o nome correto
+  const jogosCompletos = await prisma.jogo.findMany({
+    where: {
+      id: { in: jogos.map((j: any) => j.id) }
+    },
+    include: {
+      competicao: {
+        select: { nome: true }
+      }
+    },
+    orderBy: { data: 'asc' }
+  });
   
+  // Distribuir 60 jogos uniformemente: 15 por campeonato
+  const jogosPorCampeonato = 15;
   let count = 0;
-  for (const jogo of jogosSelecionados) {
+  
+  for (let i = 0; i < campeonatos.length; i++) {
+    const campeonato = campeonatos[i];
+    const inicio = i * jogosPorCampeonato;
+    const fim = inicio + jogosPorCampeonato;
+    const jogosParaCampeonato = jogosCompletos.slice(inicio, fim);
+    
+    for (const jogo of jogosParaCampeonato) {
+      await prisma.campeonatosJogos.create({
+        data: {
+          campeonatoId: campeonato.id,
+          data: jogo.data,
+          horario: '20:00',
+          equipe: 'Nossa Equipe',
+          adversario: jogo.adversario,
+          competicao: jogo.competicao?.nome || campeonato.nome,
+          local: Math.random() < 0.5 ? 'Mandante' : 'Visitante',
+          metaPontuacao: 'Vencer',
+          jogoId: jogo.id,
+        },
+      });
+      count++;
+    }
+  }
+  
+  // ADICIONAR: Partidas INCOMPLETO (passadas sem dados)
+  const hoje = new Date();
+  const umMesAtras = new Date(hoje);
+  umMesAtras.setMonth(umMesAtras.getMonth() - 1);
+  
+  // 5 partidas passadas sem dados (INCOMPLETO) - uma por semana no último mês
+  for (let i = 0; i < 5; i++) {
+    const dataJogo = new Date(umMesAtras);
+    dataJogo.setDate(dataJogo.getDate() + (i * 7));
+    
     const campeonato = campeonatos[Math.floor(Math.random() * campeonatos.length)];
+    const adversarios = ['Futsal Cidade FC', 'Esporte Clube União', 'Atlético Regional', 'Sport Clube Estrela', 'Associação Vitória'];
+    
     await prisma.campeonatosJogos.create({
       data: {
         campeonatoId: campeonato.id,
-        data: jogo.data,
+        data: dataJogo,
         horario: '20:00',
         equipe: 'Nossa Equipe',
-        adversario: jogo.adversario,
-        competicao: 'Campeonato',
-        jogoId: jogo.id,
+        adversario: adversarios[i],
+        competicao: campeonato.nome,
+        local: i % 2 === 0 ? 'Mandante' : 'Visitante',
+        metaPontuacao: 'Vencer',
+        jogoId: null, // Sem jogo vinculado = INCOMPLETO
+      },
+    });
+    count++;
+  }
+  
+  // ADICIONAR: Partidas PROGRAMADAS (futuras)
+  const umMesAFrente = new Date(hoje);
+  umMesAFrente.setMonth(umMesAFrente.getMonth() + 1);
+  
+  // 8 partidas futuras (PROGRAMADA) - 2 por semana nas próximas 4 semanas
+  for (let i = 0; i < 8; i++) {
+    const dataJogo = new Date(hoje);
+    dataJogo.setDate(dataJogo.getDate() + 3 + (i * 3)); // A cada 3 dias
+    
+    const campeonato = campeonatos[Math.floor(Math.random() * campeonatos.length)];
+    const adversarios = [
+      'Futebol São Paulo Esporte', 
+      'Associação São Paulo FC', 
+      'Sport Fortaleza FC', 
+      'Atlético Salvador Team', 
+      'Futebol São Paulo FC',
+      'Sport Porto Alegre Futsal',
+      'Clube Rio de Janeiro Futsal',
+      'Associação Belo Horizonte Team'
+    ];
+    const horarios = ['18:00', '19:00', '20:00', '20:30', '21:00'];
+    
+    await prisma.campeonatosJogos.create({
+      data: {
+        campeonatoId: campeonato.id,
+        data: dataJogo,
+        horario: horarios[Math.floor(Math.random() * horarios.length)],
+        equipe: 'Nossa Equipe',
+        adversario: adversarios[i],
+        competicao: campeonato.nome,
+        local: i % 2 === 0 ? 'Mandante' : 'Visitante',
+        metaPontuacao: 'Vencer',
+        jogoId: null, // Sem jogo vinculado = PROGRAMADA (mas com data futura)
       },
     });
     count++;

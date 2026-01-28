@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Calendar, Clock, Users, Trophy, Plus, Save, Trash2, Edit2, RefreshCw, X, Upload, Target, TrendingUp, Award, BarChart3 } from 'lucide-react';
-import { Championship, ChampionshipMatch as ChampionshipMatchType, MatchRecord } from '../types';
+import { Calendar, Clock, Users, Trophy, Plus, Save, Trash2, Edit2, RefreshCw, X, Upload, BarChart3 } from 'lucide-react';
+import { Championship } from '../types';
 
 export interface ChampionshipMatch {
     id: string;
     date: string; // YYYY-MM-DD
     time: string; // HH:MM
+    team?: string;
     opponent: string;
     competition: string;
     location?: string; // Mandante/Visitante
@@ -21,7 +22,7 @@ interface ChampionshipTableProps {
     onRefresh?: () => void; // Callback para recarregar dados da API
     championships?: Championship[]; // Campeonatos cadastrados
     onSaveChampionship?: (championship: Championship) => void; // Callback para salvar campeonato
-    allMatches?: MatchRecord[]; // Partidas salvas (MatchRecord) para calcular estatísticas
+    
 }
 
 export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({ 
@@ -32,8 +33,7 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
     onUseForInput,
     onRefresh,
     championships = [],
-    onSaveChampionship,
-    allMatches = []
+    onSaveChampionship
 }) => {
     // Debug: log matches
     useEffect(() => {
@@ -75,6 +75,10 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
     // Estados para importação
     const [showImportModal, setShowImportModal] = useState(false);
     const [importData, setImportData] = useState<string>('');
+    
+    // Estados para filtros de tempo e visualização
+    const [timeFilter, setTimeFilter] = useState<'all' | '7days' | '30days' | '90days'>('all');
+    const [viewMode, setViewMode] = useState<'all' | 'past' | 'future'>('all');
 
     const handleSave = () => {
         if (!formData.opponent.trim()) {
@@ -314,85 +318,69 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
         }
     };
 
-    // Calcular estatísticas do campeonato
-    const championshipStats = useMemo(() => {
-        if (!allMatches || allMatches.length === 0 || !matches || matches.length === 0) {
-            return {
-                totalMatches: matches.length,
-                matchesWithResult: 0,
-                wins: 0,
-                draws: 0,
-                losses: 0,
-                pointsConquered: 0,
-                pointsPossible: matches.length * 3,
-                aproveitamento: 0
-            };
+    const formatMatchDate = (dateValue: string | undefined) => {
+        if (!dateValue) return '-';
+        try {
+            const date = new Date(dateValue);
+            if (Number.isNaN(date.getTime())) return dateValue;
+            return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+        } catch {
+            return dateValue;
         }
-
-        // Agrupar matches por competição
-        const matchesByCompetition = new Map<string, ChampionshipMatch[]>();
+    };
+    
+    // Separar e ordenar partidas por tempo (passadas vs futuras)
+    const { pastMatches, futureMatches } = useMemo(() => {
+        const now = new Date();
+        now.setHours(0, 0, 0, 0); // Zerar hora para comparação apenas de data
+        
+        const past: ChampionshipMatch[] = [];
+        const future: ChampionshipMatch[] = [];
+        
         matches.forEach(match => {
-            const comp = match.competition || 'Sem Competição';
-            if (!matchesByCompetition.has(comp)) {
-                matchesByCompetition.set(comp, []);
-            }
-            matchesByCompetition.get(comp)!.push(match);
-        });
-
-        // Calcular estatísticas agregadas de todas as competições
-        let totalMatches = matches.length;
-        let matchesWithResult = 0;
-        let wins = 0;
-        let draws = 0;
-        let losses = 0;
-
-        // Para cada partida cadastrada, verificar se existe correspondência em allMatches
-        matches.forEach(championshipMatch => {
-            // Buscar correspondência por competition, date e opponent
-            const correspondingMatch = allMatches.find(savedMatch => {
-                // Normalizar datas para comparação (apenas YYYY-MM-DD)
-                const championshipDate = championshipMatch.date.split('T')[0];
-                const savedDate = savedMatch.date.split('T')[0];
-                
-                return (
-                    savedMatch.competition === championshipMatch.competition &&
-                    savedDate === championshipDate &&
-                    savedMatch.opponent === championshipMatch.opponent
-                );
-            });
-
-            if (correspondingMatch) {
-                matchesWithResult++;
-                // Verificar resultado (pode ser 'V'/'D'/'E' ou 'Vitória'/'Derrota'/'Empate')
-                const result = correspondingMatch.result;
-                if (result === 'Vitória' || result === 'V') {
-                    wins++;
-                } else if (result === 'Empate' || result === 'E') {
-                    draws++;
-                } else if (result === 'Derrota' || result === 'D') {
-                    losses++;
-                }
+            const matchDate = new Date(match.date);
+            matchDate.setHours(0, 0, 0, 0);
+            
+            if (matchDate < now) {
+                past.push(match);
+            } else {
+                future.push(match);
             }
         });
-
-        // Calcular pontos (padrão: Vitória = 3, Empate = 1, Derrota = 0)
-        const pointsConquered = (wins * 3) + (draws * 1) + (losses * 0);
-        const pointsPossible = totalMatches * 3;
-        const aproveitamento = pointsPossible > 0 
-            ? ((pointsConquered / pointsPossible) * 100).toFixed(1)
-            : '0.0';
-
-        return {
-            totalMatches,
-            matchesWithResult,
-            wins,
-            draws,
-            losses,
-            pointsConquered,
-            pointsPossible,
-            aproveitamento: parseFloat(aproveitamento)
-        };
-    }, [matches, allMatches]);
+        
+        // Ordenar passadas: mais recente primeiro (DESC)
+        past.sort((a, b) => {
+            const dateCompare = new Date(b.date).getTime() - new Date(a.date).getTime();
+            if (dateCompare !== 0) return dateCompare;
+            return (b.time || '').localeCompare(a.time || '');
+        });
+        
+        // Ordenar futuras: mais próxima primeiro (ASC)
+        future.sort((a, b) => {
+            const dateCompare = new Date(a.date).getTime() - new Date(b.date).getTime();
+            if (dateCompare !== 0) return dateCompare;
+            return (a.time || '').localeCompare(b.time || '');
+        });
+        
+        return { pastMatches: past, futureMatches: future };
+    }, [matches]);
+    
+    // Aplicar filtro de período às partidas passadas
+    const applyTimeFilter = (matchesList: ChampionshipMatch[]) => {
+        if (timeFilter === 'all') return matchesList;
+        
+        const now = new Date();
+        const daysMap = { '7days': 7, '30days': 30, '90days': 90 };
+        const days = daysMap[timeFilter];
+        
+        const cutoffDate = new Date(now);
+        cutoffDate.setDate(cutoffDate.getDate() - days);
+        
+        return matchesList.filter(match => {
+            const matchDate = new Date(match.date);
+            return matchDate >= cutoffDate && matchDate <= now;
+        });
+    };
 
     return (
         <div className="space-y-6 animate-fade-in pb-12">
@@ -451,85 +439,35 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
                     )}
                 </div>
 
-                {/* Cards de Estatísticas */}
-                {matches.length > 0 && (
-                    <div className="mb-6">
-                        <h3 className="text-white font-bold text-sm mb-4 uppercase tracking-wider">Estatísticas do Campeonato</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                            {/* Card: Partidas Cadastradas */}
-                            <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
-                                <div className="flex items-center justify-between mb-2">
-                                    <Calendar className="text-blue-400" size={20} />
-                                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Partidas Cadastradas</span>
-                                </div>
-                                <p className="text-3xl font-black text-white italic">{championshipStats.totalMatches}</p>
-                            </div>
-
-                            {/* Card: Jogos com Resultado */}
-                            <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
-                                <div className="flex items-center justify-between mb-2">
-                                    <Target className="text-green-400" size={20} />
-                                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Jogos com Resultado</span>
-                                </div>
-                                <p className="text-3xl font-black text-white italic">{championshipStats.matchesWithResult}</p>
-                            </div>
-
-                            {/* Card: Vitórias */}
-                            <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
-                                <div className="flex items-center justify-between mb-2">
-                                    <Trophy className="text-yellow-400" size={20} />
-                                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Vitórias</span>
-                                </div>
-                                <p className="text-3xl font-black text-green-400 italic">{championshipStats.wins}</p>
-                            </div>
-
-                            {/* Card: Empates */}
-                            <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
-                                <div className="flex items-center justify-between mb-2">
-                                    <BarChart3 className="text-blue-400" size={20} />
-                                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Empates</span>
-                                </div>
-                                <p className="text-3xl font-black text-blue-400 italic">{championshipStats.draws}</p>
-                            </div>
-
-                            {/* Card: Derrotas */}
-                            <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
-                                <div className="flex items-center justify-between mb-2">
-                                    <Award className="text-red-400" size={20} />
-                                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Derrotas</span>
-                                </div>
-                                <p className="text-3xl font-black text-red-400 italic">{championshipStats.losses}</p>
-                            </div>
-
-                            {/* Card: Pontos Conquistados */}
-                            <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
-                                <div className="flex items-center justify-between mb-2">
-                                    <TrendingUp className="text-[#10b981]" size={20} />
-                                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Pontos Conquistados</span>
-                                </div>
-                                <p className="text-3xl font-black text-[#10b981] italic">{championshipStats.pointsConquered}</p>
-                            </div>
-
-                            {/* Card: Pontos Possíveis */}
-                            <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
-                                <div className="flex items-center justify-between mb-2">
-                                    <Target className="text-purple-400" size={20} />
-                                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Pontos Possíveis</span>
-                                </div>
-                                <p className="text-3xl font-black text-purple-400 italic">{championshipStats.pointsPossible}</p>
-                            </div>
-
-                            {/* Card: Aproveitamento */}
-                            <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
-                                <div className="flex items-center justify-between mb-2">
-                                    <BarChart3 className="text-[#00f0ff]" size={20} />
-                                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Aproveitamento</span>
-                                </div>
-                                <p className="text-3xl font-black text-[#00f0ff] italic">{championshipStats.aproveitamento.toFixed(1)}%</p>
-                            </div>
+                <div className="mb-6">
+                    <h3 className="text-white font-bold text-sm mb-4 uppercase tracking-wider">Partidas Futuras</h3>
+                    {futureMatches.length === 0 ? (
+                        <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-sm text-zinc-400">
+                            Nenhuma partida futura cadastrada.
                         </div>
-                    </div>
-                )}
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                            {futureMatches.slice(0, 5).map(match => (
+                                <div key={match.id} className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
+                                            {match.competition || 'Sem competição'}
+                                        </span>
+                                        <span className="text-[10px] text-zinc-600 font-semibold uppercase">
+                                            {formatMatchDate(match.date)} • {formatTime(match.time)}
+                                        </span>
+                                    </div>
+                                    <p className="text-sm font-semibold text-white truncate">
+                                        {match.team || 'Nosso time'} x {match.opponent}
+                                    </p>
+                                    <p className="mt-2 text-[10px] uppercase tracking-wider text-zinc-500">
+                                        {match.location || 'Local indefinido'}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
 
                 {/* Formulário de criação/edição */}
                 {isCreating && (
@@ -650,6 +588,91 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
                     </div>
                 )}
 
+                {/* Filtros de Visualização e Período */}
+                <div className="mb-4 space-y-3">
+                    {/* Filtro: Ver Todas / Passadas / Futuras */}
+                    <div className="flex flex-wrap gap-2">
+                        <button
+                            onClick={() => {
+                                setViewMode('all');
+                                setTimeFilter('all');
+                            }}
+                            className={`px-4 py-2 text-xs font-bold uppercase rounded-lg transition-colors ${
+                                viewMode === 'all' 
+                                    ? 'bg-[#10b981] text-white' 
+                                    : 'bg-zinc-900 text-zinc-400 hover:bg-zinc-800'
+                            }`}
+                        >
+                            Todas ({matches.length})
+                        </button>
+                        <button
+                            onClick={() => {
+                                setViewMode('past');
+                                setTimeFilter('all');
+                            }}
+                            className={`px-4 py-2 text-xs font-bold uppercase rounded-lg transition-colors ${
+                                viewMode === 'past' 
+                                    ? 'bg-blue-500 text-white' 
+                                    : 'bg-zinc-900 text-zinc-400 hover:bg-zinc-800'
+                            }`}
+                        >
+                            Passadas ({pastMatches.length})
+                        </button>
+                        <button
+                            onClick={() => {
+                                setViewMode('future');
+                                setTimeFilter('all');
+                            }}
+                            className={`px-4 py-2 text-xs font-bold uppercase rounded-lg transition-colors ${
+                                viewMode === 'future' 
+                                    ? 'bg-purple-500 text-white' 
+                                    : 'bg-zinc-900 text-zinc-400 hover:bg-zinc-800'
+                            }`}
+                        >
+                            Futuras ({futureMatches.length})
+                        </button>
+                    </div>
+                    
+                    {/* Filtro de Período (apenas para partidas passadas) */}
+                    {viewMode === 'past' && (
+                        <div className="flex flex-wrap gap-2 pl-2 border-l-2 border-blue-500">
+                            <span className="text-zinc-500 text-xs font-bold uppercase self-center">Período:</span>
+                            <button
+                                onClick={() => setTimeFilter('7days')}
+                                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${
+                                    timeFilter === '7days' ? 'bg-zinc-700 text-white' : 'bg-zinc-900 text-zinc-500 hover:bg-zinc-800'
+                                }`}
+                            >
+                                Últimos 7 dias
+                            </button>
+                            <button
+                                onClick={() => setTimeFilter('30days')}
+                                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${
+                                    timeFilter === '30days' ? 'bg-zinc-700 text-white' : 'bg-zinc-900 text-zinc-500 hover:bg-zinc-800'
+                                }`}
+                            >
+                                Últimos 30 dias
+                            </button>
+                            <button
+                                onClick={() => setTimeFilter('90days')}
+                                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${
+                                    timeFilter === '90days' ? 'bg-zinc-700 text-white' : 'bg-zinc-900 text-zinc-500 hover:bg-zinc-800'
+                                }`}
+                            >
+                                Últimos 90 dias
+                            </button>
+                            <button
+                                onClick={() => setTimeFilter('all')}
+                                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${
+                                    timeFilter === 'all' ? 'bg-zinc-700 text-white' : 'bg-zinc-900 text-zinc-500 hover:bg-zinc-800'
+                                }`}
+                            >
+                                Todas
+                            </button>
+                        </div>
+                    )}
+                </div>
+
                 {/* Tabela de partidas */}
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
@@ -669,10 +692,13 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
                                         Nenhuma partida cadastrada. Clique em "Nova Partida" para começar.
                                     </td>
                                 </tr>
-                            ) : (
-                                matches.map((match) => {
+                            ) : (() => {
+                                // Função auxiliar para renderizar uma linha de partida
+                                const renderMatchRow = (match: ChampionshipMatch) => {
                                     // Tratamento seguro de data
                                     let dateDisplay = '-';
+                                    const isPast = new Date(match.date) < new Date();
+                                    
                                     try {
                                         if (match.date) {
                                             const date = new Date(match.date);
@@ -687,7 +713,18 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
                                     return (
                                         <tr key={match.id} className="border-b border-zinc-900 hover:bg-zinc-950">
                                             <td className="p-3 border-r border-zinc-900 text-white text-xs">
-                                                {dateDisplay}
+                                                <div className="flex items-center gap-2">
+                                                    {dateDisplay}
+                                                    {isPast ? (
+                                                        <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-[9px] font-bold rounded uppercase">
+                                                            Realizada
+                                                        </span>
+                                                    ) : (
+                                                        <span className="px-2 py-0.5 bg-purple-500/20 text-purple-400 text-[9px] font-bold rounded uppercase">
+                                                            Agendada
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </td>
                                             <td className="p-3 border-r border-zinc-900 text-white text-xs">
                                                 {formatTime(match.time)}
@@ -731,8 +768,75 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
                                             </td>
                                         </tr>
                                     );
-                                })
-                            )}
+                                };
+                                
+                                // Determinar quais partidas exibir baseado no modo de visualização
+                                if (viewMode === 'all') {
+                                    // Mostrar ambas as seções separadas
+                                    return (
+                                        <>
+                                            {/* Seção: Partidas Passadas */}
+                                            {pastMatches.length > 0 && (
+                                                <>
+                                                    <tr className="bg-zinc-950">
+                                                        <td colSpan={5} className="p-3">
+                                                            <div className="flex items-center gap-2">
+                                                                <BarChart3 className="text-blue-400" size={16} />
+                                                                <span className="text-blue-400 font-bold text-xs uppercase tracking-wider">
+                                                                    Partidas Passadas ({pastMatches.length})
+                                                                </span>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    {pastMatches.map(renderMatchRow)}
+                                                </>
+                                            )}
+                                            
+                                            {/* Seção: Partidas Futuras */}
+                                            {futureMatches.length > 0 && (
+                                                <>
+                                                    <tr className="bg-zinc-950">
+                                                        <td colSpan={5} className="p-3">
+                                                            <div className="flex items-center gap-2">
+                                                                <Calendar className="text-purple-400" size={16} />
+                                                                <span className="text-purple-400 font-bold text-xs uppercase tracking-wider">
+                                                                    Partidas Futuras ({futureMatches.length})
+                                                                </span>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    {futureMatches.map(renderMatchRow)}
+                                                </>
+                                            )}
+                                        </>
+                                    );
+                                } else if (viewMode === 'past') {
+                                    // Mostrar apenas passadas com filtro de tempo
+                                    const filteredPast = applyTimeFilter(pastMatches);
+                                    if (filteredPast.length === 0) {
+                                        return (
+                                            <tr>
+                                                <td colSpan={5} className="p-8 text-center text-zinc-500 text-sm">
+                                                    Nenhuma partida passada encontrada no período selecionado.
+                                                </td>
+                                            </tr>
+                                        );
+                                    }
+                                    return filteredPast.map(renderMatchRow);
+                                } else {
+                                    // Mostrar apenas futuras
+                                    if (futureMatches.length === 0) {
+                                        return (
+                                            <tr>
+                                                <td colSpan={5} className="p-8 text-center text-zinc-500 text-sm">
+                                                    Nenhuma partida futura cadastrada.
+                                                </td>
+                                            </tr>
+                                        );
+                                    }
+                                    return futureMatches.map(renderMatchRow);
+                                }
+                            })()}
                         </tbody>
                     </table>
                 </div>
