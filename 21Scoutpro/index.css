@@ -1,8 +1,13 @@
 /* Custom Styles */
 /* Tailwind is loaded via CDN in index.html, so @tailwind directives are not needed */
 
+html {
+  scroll-behavior: smooth;
+}
+
 /* Theme Variables */
 :root {
+  --font-sans: 'DM Sans', sans-serif;
   --bg-primary-dark: #000000;
   --bg-secondary-dark: #09090b;
   --text-primary-dark: #ffffff;

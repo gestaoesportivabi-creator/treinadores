@@ -1,6 +1,10 @@
 /**
  * Configuração da API
  * Backend PostgreSQL - SCOUT 21 PRO
+ *
+ * Rodando local com backend online: crie .env.local com
+ *   VITE_API_URL=https://sua-api.vercel.app/api
+ * (ou a URL do seu backend em produção). Assim o front local usa os dados do backend online.
  */
 
 // URL do Backend PostgreSQL

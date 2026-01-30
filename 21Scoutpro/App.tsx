@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Login } from './components/Login';
 import { LandingPage } from './components/LandingPage';
@@ -19,19 +19,53 @@ import { ScheduleAlerts } from './components/ScheduleAlerts';
 import { TabBackgroundWrapper } from './components/TabBackgroundWrapper';
 import { ManagementReport } from './components/ManagementReport';
 import { NextMatchAlert } from './components/NextMatchAlert';
-import { RealtimeScoutPage } from './components/RealtimeScoutPage';
 import { SPORT_CONFIGS } from './constants';
-import { BarChart3, FileText } from 'lucide-react';
+import { Activity, BarChart3, Clock, Database, PlayCircle, ArrowRight, User as UserIcon, Quote, Trophy, HeartPulse, FileText } from 'lucide-react';
 import { User, MatchRecord, Player, PhysicalAssessment, WeeklySchedule, StatTargets, PlayerTimeControl, Team, Championship } from './types';
 import { playersApi, matchesApi, assessmentsApi, schedulesApi, competitionsApi, statTargetsApi, timeControlsApi, championshipMatchesApi, teamsApi } from './services/api';
 
-type StatCardProps = {
-  label: string;
-  value: React.ReactNode;
-  helper?: string;
-  highlight?: boolean;
-};
-
+const SLIDES = [
+    {
+        img: "https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=2070&auto=format&fit=crop",
+        quote: "A força do time está em cada membro. A força de cada membro é o time.",
+        author: "Phil Jackson"
+    },
+    {
+        img: "https://images.unsplash.com/photo-1551958219-acbc608c6377?q=80&w=2070&auto=format&fit=crop",
+        quote: "A disciplina é a ponte entre metas e realizações.",
+        author: "Jim Rohn"
+    },
+    {
+        img: "https://images.unsplash.com/photo-1517649763962-0c623066013b?q=80&w=2070&auto=format&fit=crop",
+        quote: "Concentre-se em onde você quer chegar, não no que você teme.",
+        author: "Tony Robbins"
+    },
+    {
+        img: "https://images.unsplash.com/photo-1517466787929-bc90951d0528?q=80&w=2070&auto=format&fit=crop",
+        quote: "Não diminua a meta. Aumente o esforço.",
+        author: "Mentalidade de Elite"
+    },
+    {
+        img: "https://images.unsplash.com/photo-1579952363873-27f3bade9f55?q=80&w=2070&auto=format&fit=crop",
+        quote: "Os vencedores nunca desistem, e os que desistem nunca vencem.",
+        author: "Vince Lombardi"
+    },
+    {
+        img: "https://images.unsplash.com/photo-1551698618-1dfe5d97d256?q=80&w=2070&auto=format&fit=crop",
+        quote: "O sucesso não é final, o fracasso não é fatal: é a coragem de continuar que conta.",
+        author: "Winston Churchill"
+    },
+    {
+        img: "https://images.unsplash.com/photo-1560272564-c83b66b1ad12?q=80&w=2070&auto=format&fit=crop",
+        quote: "O trabalho em equipe faz o sonho funcionar.",
+        author: "Michael Jordan"
+    },
+    {
+        img: "https://images.unsplash.com/photo-1594736797933-d0cbc3dc5bdb?q=80&w=2070&auto=format&fit=crop",
+        quote: "A excelência não é um ato, mas um hábito.",
+        author: "Aristóteles"
+    }
+];
 
 export default function App() {
   // Route state: 'landing' | 'login' | 'register' | 'app'
@@ -41,6 +75,7 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [currentSlide, setCurrentSlide] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
 
@@ -71,117 +106,6 @@ export default function App() {
   
   const config = SPORT_CONFIGS['futsal'];
 
-  const normalizeResult = (result: MatchRecord['result'] | string | undefined) => {
-    if (result === 'Vitória' || result === 'V') return 'V';
-    if (result === 'Derrota' || result === 'D') return 'D';
-    if (result === 'Empate' || result === 'E') return 'E';
-    return undefined;
-  };
-
-  const overviewStats = useMemo(() => {
-    const totals = matches.reduce(
-      (acc, match) => {
-        const normalizedResult = normalizeResult(match.result);
-        acc.totalGames += 1;
-        if (normalizedResult === 'V') acc.wins += 1;
-        if (normalizedResult === 'D') acc.losses += 1;
-        if (normalizedResult === 'E') acc.draws += 1;
-
-        if (match.playerStats) {
-          Object.entries(match.playerStats).forEach(([playerId, stats]) => {
-            if (!stats) return;
-            const goals = stats.goals || 0;
-            if (goals <= 0) return;
-            acc.goalsByPlayer.set(playerId, (acc.goalsByPlayer.get(playerId) || 0) + goals);
-          });
-        }
-
-        return acc;
-      },
-      {
-        totalGames: 0,
-        wins: 0,
-        losses: 0,
-        draws: 0,
-        goalsByPlayer: new Map<string, number>()
-      }
-    );
-
-    let topScorerId: string | null = null;
-    let topScorerGoals = 0;
-    totals.goalsByPlayer.forEach((goals, playerId) => {
-      if (goals > topScorerGoals) {
-        topScorerGoals = goals;
-        topScorerId = playerId;
-      }
-    });
-
-    const topScorerName =
-      topScorerId ? players.find(player => player.id === topScorerId)?.name || 'Atleta' : '—';
-
-    const now = new Date();
-    const year = now.getFullYear();
-    const injuriesThisYear = players.reduce((acc, player) => {
-      const injuries = player.injuryHistory || [];
-      injuries.forEach(injury => {
-        const dateValue =
-          injury.startDate || injury.date || injury.endDate || injury.returnDate || injury.returnDateActual;
-        if (!dateValue) return;
-        const injuryDate = new Date(dateValue);
-        if (!Number.isNaN(injuryDate.getTime()) && injuryDate.getFullYear() === year) {
-          acc += 1;
-        }
-      });
-      return acc;
-    }, 0);
-
-    const upcomingMatches = championshipMatches
-      .map(match => ({
-        ...match,
-        dateTime: new Date(`${match.date}T${match.time || '00:00'}`)
-      }))
-      .filter(match => !Number.isNaN(match.dateTime.getTime()) && match.dateTime >= now)
-      .sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime());
-
-    const nextMatch = upcomingMatches[0];
-
-    return {
-      totalAthletes: players.length,
-      totalGames: totals.totalGames,
-      wins: totals.wins,
-      losses: totals.losses,
-      draws: totals.draws,
-      topScorerName,
-      topScorerGoals,
-      injuriesThisYear,
-      currentYear: year,
-      nextMatch
-    };
-  }, [matches, players, championshipMatches]);
-
-  const StatCard = ({ label, value, helper, highlight = false }: StatCardProps) => (
-    <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
-      <p className="text-[10px] uppercase tracking-[0.35em] text-zinc-500">{label}</p>
-      <p className={`mt-2 text-2xl font-semibold ${highlight ? 'text-[#00f0ff]' : 'text-white'}`}>
-        {value}
-      </p>
-      {helper && <p className="mt-1 text-xs text-zinc-500">{helper}</p>}
-    </div>
-  );
-
-  const formatMatchDate = (dateTime?: Date) => {
-    if (!dateTime || Number.isNaN(dateTime.getTime())) return 'Sem data definida';
-    const dateLabel = dateTime.toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: 'short'
-    });
-    const timeLabel = dateTime.toLocaleTimeString('pt-BR', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-    return `${dateLabel} • ${timeLabel}`;
-  };
-
   // Carregar dados da API quando o componente monta E quando o usuário faz login
   useEffect(() => {
     // Só carregar dados se o usuário estiver logado
@@ -194,10 +118,6 @@ export default function App() {
     const loadData = async () => {
       try {
         setIsInitializing(true);
-        
-        // Pequeno delay para garantir que o token foi salvo
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
         const token = localStorage.getItem('token');
         console.log('🔄 Carregando dados da API...');
         console.log('👤 Usuário logado:', currentUser?.email);
@@ -353,6 +273,16 @@ export default function App() {
         return validSchedules;
     });
   }, []);
+
+  // Carousel Timer
+  useEffect(() => {
+    if (activeTab === 'dashboard') {
+        const interval = setInterval(() => {
+            setCurrentSlide((prev) => (prev + 1) % SLIDES.length);
+        }, 10000); // 10 seconds
+        return () => clearInterval(interval);
+    }
+  }, [activeTab]);
 
   const handleLogin = (user: User) => {
       console.log('🔐 handleLogin chamado com usuário:', user);
@@ -675,16 +605,58 @@ export default function App() {
       }
   };
 
-  // Sync URL with route on mount
+  // Restaurar sessão ao carregar/atualizar: se houver token, buscar perfil e manter na plataforma.
+  // Se restaurar com sucesso, não chamar setIsInitializing(false) aqui — loadData fará isso após carregar os dados (uma única tela de loading).
   useEffect(() => {
+    let cancelled = false;
+    let restored = false;
     const path = window.location.pathname;
-    if (path === '/registro' || path === '/register') {
-      setCurrentRoute('register');
-    } else if (path === '/login') {
-      setCurrentRoute('login');
-    } else if (path === '/' || path === '') {
-      setCurrentRoute('landing');
-    }
+    const token = localStorage.getItem('token');
+
+    const setRouteFromPath = () => {
+      if (path === '/registro' || path === '/register') setCurrentRoute('register');
+      else if (path === '/login') setCurrentRoute('login');
+      else if (path === '/dashboard') setCurrentRoute('login');
+      else if (path === '/' || path === '') setCurrentRoute('landing');
+    };
+
+    const run = async () => {
+      if (!token) {
+        setRouteFromPath();
+        setIsInitializing(false);
+        return;
+      }
+      try {
+        const { getApiUrl } = await import('./config');
+        const response = await fetch(`${getApiUrl()}/auth/profile`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        const result = await response.json();
+        if (cancelled) return;
+        if (result.success && result.data) {
+          const u = result.data;
+          setCurrentUser({
+            name: u.name,
+            email: u.email,
+            role: u.role === 'TECNICO' ? 'Treinador' : u.role,
+            photoUrl: u.photoUrl,
+          });
+          setCurrentRoute('app');
+          restored = true;
+        } else {
+          localStorage.removeItem('token');
+          setRouteFromPath();
+        }
+      } catch {
+        if (cancelled) return;
+        localStorage.removeItem('token');
+        setRouteFromPath();
+      } finally {
+        if (!cancelled && !restored) setIsInitializing(false);
+      }
+    };
+    run();
+    return () => { cancelled = true; };
   }, []);
 
   // Update URL when route changes
@@ -713,19 +685,6 @@ export default function App() {
     setCurrentRoute('app');
   };
 
-  // Verificar se está na rota de coleta em tempo real
-  useEffect(() => {
-    const path = window.location.pathname;
-    if (path === '/scout-realtime') {
-      setCurrentRoute('realtime-scout' as any);
-    }
-  }, []);
-
-  // Mostrar página de coleta em tempo real (standalone)
-  if (window.location.pathname === '/scout-realtime') {
-    return <RealtimeScoutPage />;
-  }
-
   // Mostrar landing page
   if (currentRoute === 'landing') {
     return <LandingPage 
@@ -746,15 +705,17 @@ export default function App() {
       onLogin={handleLoginWithRoute} 
       initialMode="register"
       onSwitchToLogin={() => setCurrentRoute('login')}
+      onSwitchToRegister={() => setCurrentRoute('register')}
+      onBackToHome={() => setCurrentRoute('landing')}
     />;
   }
 
-  // Mostrar página de login
   if (currentRoute === 'login') {
     return <Login 
       onLogin={handleLoginWithRoute}
       initialMode="login"
       onSwitchToRegister={() => setCurrentRoute('register')}
+      onBackToHome={() => setCurrentRoute('landing')}
     />;
   }
 
@@ -858,6 +819,7 @@ export default function App() {
             matches={championshipMatches}
             competitions={competitions}
             championships={championships}
+            allMatches={matches}
             onSaveChampionship={(championship) => {
               setChampionships(prev => {
                 const updated = prev.filter(c => c.id !== championship.id);
@@ -868,39 +830,21 @@ export default function App() {
             }}
             onSave={async (match) => {
               try {
-                console.log('💾 Salvando partida:', match);
-                console.log('📋 Partidas atuais na lista:', championshipMatches.length);
-                
                 if (match.id && championshipMatches.find(m => m.id === match.id)) {
                   // Atualizar
-                  console.log('🔄 Atualizando partida existente:', match.id);
                   const updated = await championshipMatchesApi.update(match.id, match);
-                  console.log('📥 API retornou (update):', updated);
                   if (updated) {
                     setChampionshipMatches(prev => prev.map(m => m.id === match.id ? updated : m));
-                    console.log('✅ Partida atualizada com sucesso');
-                  } else {
-                    console.error('❌ API retornou null ao atualizar');
-                    alert('Erro: A API não retornou a partida atualizada. Verifique o console.');
                   }
                 } else {
                   // Criar
-                  console.log('➕ Criando nova partida (sem ID ou ID não encontrado)');
                   const saved = await championshipMatchesApi.create(match);
-                  console.log('📥 API retornou (create):', saved);
                   if (saved) {
-                    setChampionshipMatches(prev => {
-                      const newList = [...prev, saved];
-                      console.log('✅ Partida criada e adicionada à lista. Total:', newList.length);
-                      return newList;
-                    });
-                  } else {
-                    console.error('❌ API retornou null ao criar');
-                    alert('Erro: A API não retornou a partida criada. Verifique o console do navegador e do backend.');
+                    setChampionshipMatches(prev => [...prev, saved]);
                   }
                 }
               } catch (error) {
-                console.error('❌ Erro ao salvar partida do campeonato:', error);
+                console.error('Erro ao salvar partida do campeonato:', error);
                 alert('Erro ao salvar partida. Verifique o console.');
               }
             }}
@@ -991,75 +935,116 @@ export default function App() {
       case 'dashboard':
       default:
         return (
-          <div className="h-full w-full rounded-3xl border border-zinc-900 bg-black p-6 md:p-10 shadow-2xl animate-fade-in">
-            <div className="flex flex-col gap-8">
-              <div className="flex flex-col gap-4">
-                <div className="flex flex-col gap-3">
-                  <span className="text-[10px] uppercase tracking-[0.4em] text-zinc-500">Visão Geral</span>
-                  <h1 className="text-3xl md:text-4xl font-semibold text-white">Primeira impressão</h1>
-                  <p className="text-sm text-zinc-400 max-w-2xl">
-                    Insights essenciais do scout coletivo, resultados e participações recentes.
-                  </p>
-                </div>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  <NextMatchAlert matches={championshipMatches} />
-                  <ScheduleAlerts schedules={schedules} />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
-                <StatCard
-                  label="Quantidade de atletas"
-                  value={overviewStats.totalAthletes}
-                  helper={overviewStats.totalAthletes > 0 ? 'Cadastros ativos' : 'Sem atletas cadastrados'}
-                />
-                <StatCard
-                  label="Próximo jogo"
-                  value={overviewStats.nextMatch ? `${overviewStats.nextMatch.team} x ${overviewStats.nextMatch.opponent}` : '—'}
-                  helper={
-                    overviewStats.nextMatch
-                      ? `${formatMatchDate(overviewStats.nextMatch.dateTime)} • ${overviewStats.nextMatch.competition}`
-                      : 'Sem partidas agendadas'
-                  }
-                />
-                <StatCard
-                  label="Quantidade de jogos"
-                  value={overviewStats.totalGames}
-                  helper={`Vitórias ${overviewStats.wins} • Derrotas ${overviewStats.losses}`}
-                  highlight={overviewStats.totalGames > 0}
-                />
-                <StatCard
-                  label="Artilheiro do time"
-                  value={overviewStats.topScorerName}
-                  helper={
-                    overviewStats.topScorerGoals > 0
-                      ? `${overviewStats.topScorerGoals} gols`
-                      : 'Sem gols registrados'
-                  }
-                />
-                <StatCard
-                  label="Lesões no ano"
-                  value={overviewStats.injuriesThisYear}
-                  helper={`Ano ${overviewStats.currentYear}`}
-                />
-              </div>
-
-              <div className="flex flex-wrap gap-3">
-                <button
-                  onClick={() => handleTabChange('general')}
-                  className="flex items-center gap-2 rounded-full border border-zinc-800 bg-black px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-zinc-200 transition-colors hover:border-[#00f0ff]/60 hover:text-white"
+          <div className="h-full w-full relative rounded-3xl overflow-hidden flex flex-col p-8 md:p-16 group shadow-2xl border border-zinc-900 bg-black animate-fade-in">
+            {/* Background Carousel */}
+            {SLIDES.map((slide, index) => (
+                <div 
+                    key={index}
+                    className={`absolute inset-0 z-0 transition-opacity duration-1000 ease-in-out ${index === currentSlide ? 'opacity-50' : 'opacity-0'}`}
                 >
-                  <BarChart3 size={14} />
-                  Scout Coletivo
-                </button>
-                <button
-                  onClick={() => handleTabChange('management-report')}
-                  className="flex items-center gap-2 rounded-full border border-zinc-800 bg-black px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-zinc-200 transition-colors hover:border-[#00f0ff]/60 hover:text-white"
-                >
-                  <FileText size={14} />
-                  Relatório Gerencial
-                </button>
-              </div>
+                    <img 
+                        src={slide.img}
+                        alt="Background" 
+                        className="w-full h-full object-cover"
+                    />
+                     {/* Gradient Overlays */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent mix-blend-multiply" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-black via-black/60 to-transparent" />
+                </div>
+            ))}
+
+            {/* Content Content */}
+            <div className="relative z-10 max-w-5xl h-full flex flex-col justify-between">
+                
+                {/* Schedule Alerts - Top Section */}
+                <div className="flex-1 overflow-y-auto">
+                    <NextMatchAlert matches={championshipMatches} />
+                    <ScheduleAlerts schedules={schedules} />
+                </div>
+                
+                {/* Bottom Content */}
+                <div className="flex flex-col justify-end">
+                
+                {/* User Greeting */}
+                <div className="flex items-center gap-3 mb-8">
+                    <div className="h-[2px] w-16 bg-[#00f0ff] shadow-[0_0_10px_#00f0ff]"></div>
+                    <span className="text-[#00f0ff] font-bold tracking-[0.3em] uppercase text-xs">
+                        Bem-vindo, {currentUser.name}
+                    </span>
+                </div>
+
+                {/* Quote Carousel Text */}
+                <div className="mb-8 min-h-[200px] flex flex-col justify-end">
+                     <h1 className="text-4xl md:text-5xl lg:text-7xl font-black text-white leading-[1.1] tracking-tighter drop-shadow-2xl italic uppercase mb-6 animate-fade-in-up transition-all duration-700">
+                        "{SLIDES[currentSlide].quote}"
+                    </h1>
+                    <p className="text-zinc-400 font-bold text-lg uppercase tracking-widest flex items-center gap-2 animate-fade-in">
+                        — {SLIDES[currentSlide].author}
+                    </p>
+                </div>
+                
+                {/* Carousel Indicators */}
+                <div className="flex gap-2 mb-12">
+                    {SLIDES.map((_, idx) => (
+                        <div 
+                            key={idx} 
+                            className={`h-1 rounded-full transition-all duration-500 ${idx === currentSlide ? 'w-12 bg-[#00f0ff]' : 'w-4 bg-zinc-800'}`}
+                        ></div>
+                    ))}
+                </div>
+
+                {/* Quick Navigation - Modern Design with New Palette (65% opacity) */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* Performance → Scout Coletivo */}
+                    <button 
+                        onClick={() => handleTabChange('general')}
+                        className="relative bg-[#00f0ff]/65 border border-[#00f0ff]/40 p-6 rounded-2xl text-left hover:bg-[#00f0ff]/75 hover:border-[#00f0ff]/60 transition-all group/btn overflow-hidden shadow-lg hover:shadow-xl hover:shadow-[#00f0ff]/40 backdrop-blur-sm"
+                    >
+                        <div className="absolute inset-0 bg-gradient-to-br from-[#00f0ff]/65 via-[#00f0ff]/50 to-[#00f0ff]/80 opacity-0 group-hover/btn:opacity-100 transition-opacity duration-300"></div>
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl opacity-0 group-hover/btn:opacity-100 transition-opacity duration-500"></div>
+                        <div className="relative z-10">
+                            <BarChart3 className="text-black mb-4 group-hover/btn:scale-110 group-hover/btn:rotate-3 transition-all duration-300 drop-shadow-lg" size={32} />
+                            <h3 className="text-black font-black uppercase text-sm tracking-wider drop-shadow-md">Scout Coletivo</h3>
+                            <div className="flex items-center gap-2 text-[10px] text-black/80 font-bold uppercase mt-2">
+                                Performance <ArrowRight size={12} className="group-hover/btn:translate-x-2 transition-transform duration-300" />
+                            </div>
+                        </div>
+                    </button>
+
+                    {/* Fisiologia → Bem-Estar */}
+                    <button 
+                        onClick={() => handleTabChange('assessment')}
+                        className="relative bg-[#10b981]/65 border border-[#10b981]/40 p-6 rounded-2xl text-left hover:bg-[#10b981]/75 hover:border-[#10b981]/60 transition-all group/btn overflow-hidden shadow-lg hover:shadow-xl hover:shadow-[#10b981]/40 backdrop-blur-sm"
+                    >
+                        <div className="absolute inset-0 bg-gradient-to-br from-[#10b981]/65 via-[#10b981]/50 to-[#10b981]/80 opacity-0 group-hover/btn:opacity-100 transition-opacity duration-300"></div>
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl opacity-0 group-hover/btn:opacity-100 transition-opacity duration-500"></div>
+                        <div className="relative z-10">
+                            <HeartPulse className="text-white mb-4 group-hover/btn:scale-110 group-hover/btn:rotate-3 transition-all duration-300 drop-shadow-lg" size={32} />
+                            <h3 className="text-white font-black uppercase text-sm tracking-wider drop-shadow-md">Bem-Estar</h3>
+                            <div className="flex items-center gap-2 text-[10px] text-white/90 font-bold uppercase mt-2">
+                                Fisiologia <ArrowRight size={12} className="group-hover/btn:translate-x-2 transition-transform duration-300" />
+                            </div>
+                        </div>
+                    </button>
+
+                    {/* Gestão → Relatório Gerencial */}
+                    <button 
+                         onClick={() => handleTabChange('management-report')}
+                        className="relative bg-[#8b5cf6]/65 border border-[#8b5cf6]/40 p-6 rounded-2xl text-left hover:bg-[#8b5cf6]/75 hover:border-[#8b5cf6]/60 transition-all group/btn overflow-hidden shadow-lg hover:shadow-xl hover:shadow-[#8b5cf6]/40 backdrop-blur-sm"
+                    >
+                        <div className="absolute inset-0 bg-gradient-to-br from-[#8b5cf6]/65 via-[#8b5cf6]/50 to-[#8b5cf6]/80 opacity-0 group-hover/btn:opacity-100 transition-opacity duration-300"></div>
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl opacity-0 group-hover/btn:opacity-100 transition-opacity duration-500"></div>
+                        <div className="relative z-10">
+                            <FileText className="text-white mb-4 group-hover/btn:scale-110 group-hover/btn:rotate-3 transition-all duration-300 drop-shadow-lg" size={32} />
+                            <h3 className="text-white font-black uppercase text-sm tracking-wider drop-shadow-md">Relatório Gerencial</h3>
+                            <div className="flex items-center gap-2 text-[10px] text-white/90 font-bold uppercase mt-2">
+                                Gestão <ArrowRight size={12} className="group-hover/btn:translate-x-2 transition-transform duration-300" />
+                            </div>
+                        </div>
+                    </button>
+                </div>
+                
+                </div>
             </div>
           </div>
         );
