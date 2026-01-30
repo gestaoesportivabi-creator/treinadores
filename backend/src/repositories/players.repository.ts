@@ -102,7 +102,7 @@ export const playersRepository = {
     isAtivo?: boolean;
   }): Promise<JogadorDB> {
     return prisma.jogador.create({
-      data,
+      data: data as any,
     }) as Promise<JogadorDB>;
   },
 
@@ -112,7 +112,7 @@ export const playersRepository = {
   async update(id: string, data: Partial<JogadorDB>): Promise<JogadorDB> {
     return prisma.jogador.update({
       where: { id },
-      data,
+      data: data as any,
     }) as Promise<JogadorDB>;
   },
 

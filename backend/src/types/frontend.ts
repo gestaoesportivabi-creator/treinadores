@@ -14,11 +14,14 @@ export interface Player {
   dominantFoot: 'Destro' | 'Canhoto' | 'Ambidestro';
   age: number;
   height: number;
+  weight?: number;
+  birthDate?: string;
   lastClub: string;
   photoUrl?: string;
   isTransferred?: boolean;
   transferDate?: string;
   injuryHistory?: InjuryRecord[];
+  maxLoads?: unknown[];
 }
 
 export interface InjuryRecord {
