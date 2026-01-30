@@ -1,16 +1,13 @@
 /**
  * Serviço de Autenticação
  * 
- * MODO PRODUÇÃO:
- * - Autentica via API Mestra (Google Admin Sheet)
- * - Recebe dados do usuário + URL da planilha dele
- * 
- * MODO DESENVOLVIMENTO (Fallback):
- * - Se a API Mestra não estiver configurada, usa Login Mock
+ * Usa o Backend PostgreSQL (SCOUT 21 PRO)
+ * - Login: POST /api/auth/login
+ * - Registro: POST /api/auth/register
  */
 
 import { User } from '../types';
-import { AUTH_API_URL } from '../config';
+import { getApiUrl } from '../config';
 
 // Interface para dados do coach (armazenado localmente)
 export interface CoachData {
@@ -54,33 +51,13 @@ export async function authenticateCoach(email: string, password: string): Promis
   console.log('Parameters:', { email, passwordLength: password.length });
 
   try {
-    // 1. Tentar login Mock Local (apenas se for o email de teste e não tiver API configurada)
-    if (email === 'treinador@clube.com' && (!AUTH_API_URL || AUTH_API_URL.includes('SUA_URL'))) {
-      console.warn('⚠️ Usando login MOCK local (API Mestra não configurada)');
-      console.groupEnd();
-      const coach = MOCK_COACHES[0];
-      if (password === 'afc25') {
-        return {
-          id: coach.id,
-          name: coach.name,
-          email: coach.email,
-          role: coach.role,
-          photoUrl: coach.photoUrl,
-          teamName: coach.teamName,
-          sport: coach.sport,
-          spreadsheetId: coach.spreadsheetId,
-          spreadsheetUrl: coach.spreadsheetUrl
-        };
-      }
-      return null;
-    }
+    // Login via Backend PostgreSQL
+    const apiUrl = `${getApiUrl()}/auth/login`;
+    console.log('📡 Calling API:', apiUrl);
 
-    // 2. Login Real via API Mestra
-    console.log('📡 Calling API:', AUTH_API_URL);
-
-    const response = await fetch(AUTH_API_URL, {
+    const response = await fetch(apiUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // Evita preflight
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
     });
 
@@ -89,15 +66,21 @@ export async function authenticateCoach(email: string, password: string): Promis
     const result = await response.json();
     console.log('📦 Result Body:', result);
 
-    if (!result.success) {
+    if (!result.success || !result.data) {
       console.error('❌ Login failed:', result.error);
       console.groupEnd();
       return null;
     }
 
-    console.log('✅ Login successful:', result.user);
+    const userData = result.data.user;
+    console.log('✅ Login successful:', userData);
     console.groupEnd();
-    return result.user;
+    return {
+      id: userData.id,
+      name: userData.name,
+      email: userData.email,
+      role: userData.role === 'TECNICO' ? 'Treinador' : userData.role,
+    };
 
   } catch (error) {
     console.error('❌ Exception in authentication:', error);
@@ -114,24 +97,19 @@ export async function registerCoach(name: string, email: string, password: strin
   console.log('Parameters:', { name, email, passwordLength: password.length });
 
   try {
-    if (!AUTH_API_URL || AUTH_API_URL.includes('SUA_URL')) {
-      console.error('❌ API URL not configured');
-      console.groupEnd();
-      return { success: false, error: 'API de Registro não configurada.' };
-    }
-
+    const apiUrl = `${getApiUrl()}/auth/register`;
     const payload = {
-      action: 'register',
-      name,
-      email,
-      password
+      name: name.trim(),
+      email: email.trim(),
+      password,
+      roleName: 'TECNICO'
     };
 
     console.log('📡 Sending Registration Payload:', payload);
 
-    const response = await fetch(AUTH_API_URL, {
+    const response = await fetch(apiUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
 
@@ -140,7 +118,19 @@ export async function registerCoach(name: string, email: string, password: strin
     console.log('📦 Result Body:', result);
 
     console.groupEnd();
-    return result;
+
+    if (result.success && result.data) {
+      return {
+        success: true,
+        user: {
+          id: result.data.user.id,
+          name: result.data.user.name,
+          email: result.data.user.email,
+          role: result.data.user.role === 'TECNICO' ? 'Treinador' : result.data.user.role,
+        }
+      };
+    }
+    return { success: false, error: result.error || 'Erro ao criar conta' };
 
   } catch (e: any) {
     console.error('❌ Exception in registration:', e);

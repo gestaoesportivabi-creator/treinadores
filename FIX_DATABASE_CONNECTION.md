@@ -1,7 +1,25 @@
 # 🔧 Como Corrigir a Conexão com o Banco de Dados
 
+## Acesso ao Supabase
+
+- **Dashboard:** https://supabase.com/dashboard/project/jhjrqnggsfeztgkpqcjm
+- **Login:** via GitHub
+
 ## Problema
 Erro: `Can't reach database server at db.jhjrqnggsfeztgkpqcjm.supabase.co:5432`
+
+---
+
+## ⚠️ IP BANIDO (Fail2ban) - CAUSA COMUM
+
+O Supabase **bane seu IP** após 2 tentativas de senha incorreta. O ban expira em 30 minutos.
+
+### Como desbanir:
+1. Acesse: [Database Settings → Banned IPs](https://supabase.com/dashboard/project/jhjrqnggsfeztgkpqcjm/settings/database#banned-ips)
+2. Se seu IP aparecer na lista, clique em **Unban IP**
+3. Aguarde 1-2 minutos e tente conectar novamente
+
+---
 
 ## Soluções
 
@@ -22,7 +40,7 @@ postgresql://postgres:%23Gestaoesportiva21@db.jhjrqnggsfeztgkpqcjm.supabase.co:5
 
 O Supabase oferece connection pooling que é melhor para serverless functions como o Vercel.
 
-1. Acesse: https://supabase.com/dashboard/project/jhjrqnggsfeztgkpqcjm
+1. Acesse o [Dashboard Supabase](https://supabase.com/dashboard/project/jhjrqnggsfeztgkpqcjm) (login via GitHub)
 2. Vá em: **Settings → Database**
 3. Role até **Connection Pooling**
 4. Copie a **Connection String** (formato: `postgresql://postgres.jhjrqnggsfeztgkpqcjm:...@aws-0-us-east-1.pooler.supabase.com:6543/postgres`)
@@ -35,7 +53,7 @@ O Supabase oferece connection pooling que é melhor para serverless functions co
 
 ### 3. Verificar Firewall do Supabase
 
-1. Acesse: https://supabase.com/dashboard/project/jhjrqnggsfeztgkpqcjm
+1. Acesse o [Dashboard Supabase](https://supabase.com/dashboard/project/jhjrqnggsfeztgkpqcjm) (login via GitHub)
 2. Vá em: **Settings → Database**
 3. Verifique **Network Restrictions**
 4. Se houver restrições, adicione os IPs do Vercel ou permita todas as conexões temporariamente
@@ -58,10 +76,22 @@ Se funcionar localmente mas não no Vercel, o problema é de firewall ou connect
    - Vercel Dashboard → Deployments → Último deploy → **Redeploy**
 2. Teste novamente o cadastro de usuário
 
-## URL Atual (Direta)
+## URLs para `backend/.env`
+
+### Connection Pooling (DATABASE_URL) - Recomendada
 ```
-postgresql://postgres:%23Gestaoesportiva21@db.jhjrqnggsfeztgkpqcjm.supabase.co:5432/postgres
+postgresql://postgres.jhjrqnggsfeztgkpqcjm:%23Gestaoesportiva21@aws-0-us-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true
 ```
 
-## URL de Connection Pooling (Recomendada)
-Obtenha no dashboard do Supabase em **Settings → Database → Connection Pooling**
+**Nota:** Se a região for diferente (ex: `sa-east-1`), obtenha a URL exata em: **Supabase Dashboard → Settings → Database → Connection Pooling**
+
+### Conexão Direta (DIRECT_URL) - Para migrations
+```
+postgresql://postgres:%23Gestaoesportiva21@db.jhjrqnggsfeztgkpqcjm.supabase.co:5432/postgres?sslmode=require
+```
+
+### Configuração completa no `backend/.env`
+```env
+DATABASE_URL=postgresql://postgres.jhjrqnggsfeztgkpqcjm:%23Gestaoesportiva21@aws-0-us-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true
+DIRECT_URL=postgresql://postgres:%23Gestaoesportiva21@db.jhjrqnggsfeztgkpqcjm.supabase.co:5432/postgres?sslmode=require
+```

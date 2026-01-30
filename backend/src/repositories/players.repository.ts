@@ -20,6 +20,7 @@ type JogadorDB = {
   peso: number | null;
   ultimoClube: string | null;
   fotoUrl: string | null;
+  maxLoadsJson?: unknown;
   isTransferido: boolean;
   dataTransferencia: Date | null;
   isAtivo: boolean;
@@ -95,6 +96,7 @@ export const playersRepository = {
     peso?: number;
     ultimoClube?: string;
     fotoUrl?: string;
+    maxLoadsJson?: unknown;
     isTransferido?: boolean;
     dataTransferencia?: Date;
     isAtivo?: boolean;

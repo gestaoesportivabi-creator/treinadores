@@ -110,7 +110,7 @@ Acesse: **http://localhost:5555**
 - **Database:** `postgres`
 - **Usuário:** `postgres`
 - **Senha:** `#Gestaoesportiva21`
-- **Dashboard:** https://supabase.com/dashboard/project/jhjrqnggsfeztgkpqcjm
+- **Dashboard:** https://supabase.com/dashboard/project/jhjrqnggsfeztgkpqcjm (login via GitHub)
 
 ## 🔑 Credenciais de Teste
 
