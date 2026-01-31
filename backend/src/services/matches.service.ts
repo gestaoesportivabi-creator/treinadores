@@ -73,43 +73,62 @@ export const matchesService = {
 
   /**
    * Criar novo jogo
+   * Aceita payload do frontend (MatchRecord) ou formato legado (equipeId, adversario, data)
    */
-  async create(data: {
-    equipeId: string;
-    adversario: string;
-    data: Date;
-    campeonato?: string;
-    competicaoId?: string;
-    local?: string;
-    resultado?: string;
-    golsPro?: number;
-    golsContra?: number;
-    videoUrl?: string;
-  }, tenantInfo: TenantInfo): Promise<MatchRecord> {
-    // Validar que equipe pertence ao tenant
-    if (!tenantInfo.equipe_ids?.includes(data.equipeId)) {
-      throw new NotFoundError('Equipe', data.equipeId);
+  async create(data: any, tenantInfo: TenantInfo): Promise<MatchRecord> {
+    const equipeIds = tenantInfo.equipe_ids || [];
+    if (equipeIds.length === 0) {
+      throw new NotFoundError('Equipe', 'Nenhuma equipe encontrada para o tenant');
     }
 
-    // Criar jogo
-    const jogo = await matchesRepository.create(data);
+    // Adapter: aceitar payload do frontend (opponent, date, goalsFor, goalsAgainst, teamStats, playerStats)
+    const equipeId = data.equipeId || equipeIds[0];
+    const adversario = data.adversario ?? data.opponent ?? '';
+    const dataDate = data.data ?? (typeof data.date === 'string' ? new Date(data.date) : data.date);
+    const golsPro = data.golsPro ?? data.goalsFor ?? 0;
+    const golsContra = data.golsContra ?? data.goalsAgainst ?? 0;
 
-    // Criar estatísticas vazias da equipe
+    if (!equipeIds.includes(equipeId)) {
+      throw new NotFoundError('Equipe', equipeId);
+    }
+
+    const teamStats = data.teamStats || {};
+    const playerStats = data.playerStats || {};
+
+    // Criar jogo com JSON fields
+    const jogo = await matchesRepository.create({
+      equipeId,
+      adversario,
+      data: dataDate,
+      campeonato: data.campeonato ?? data.competition,
+      competicaoId: data.competicaoId,
+      local: data.local,
+      resultado: data.resultado ?? data.result,
+      golsPro,
+      golsContra,
+      videoUrl: data.videoUrl,
+      postMatchEventLog: data.postMatchEventLog,
+      playerRelationships: data.playerRelationships,
+      lineup: data.lineup,
+      substitutionHistory: data.substitutionHistory,
+    });
+
+    // Persistir estatísticas da equipe (teamStats do frontend)
     await matchesRepository.upsertEstatisticasEquipe(jogo.id, {
-      minutosJogados: 0,
-      gols: data.golsPro || 0,
-      golsSofridos: data.golsContra || 0,
-      assistencias: 0,
+      minutosJogados: 40,
+      gols: teamStats.goals ?? golsPro,
+      golsSofridos: teamStats.goalsConceded ?? golsContra,
+      assistencias: teamStats.assists ?? 0,
       cartoesAmarelos: 0,
       cartoesVermelhos: 0,
-      passesCorretos: 0,
-      passesErrados: 0,
-      passesErradosTransicao: 0,
-      desarmesComBola: 0,
-      desarmesContraAtaque: 0,
-      desarmesSemBola: 0,
-      chutesNoGol: 0,
-      chutesFora: 0,
+      passesCorretos: teamStats.passesCorrect ?? 0,
+      passesErrados: teamStats.passesWrong ?? 0,
+      passesErradosTransicao: teamStats.transitionErrors ?? 0,
+      desarmesComBola: teamStats.tacklesWithBall ?? 0,
+      desarmesContraAtaque: teamStats.tacklesCounterAttack ?? 0,
+      desarmesSemBola: teamStats.tacklesWithoutBall ?? 0,
+      chutesNoGol: teamStats.shotsOnTarget ?? 0,
+      chutesFora: teamStats.shotsOffTarget ?? 0,
       rpePartida: null,
       golsMarcadosJogoAberto: 0,
       golsMarcadosBolaParada: 0,
@@ -117,12 +136,37 @@ export const matchesService = {
       golsSofridosBolaParada: 0,
     });
 
-    // Buscar estatísticas criadas
-    const estatisticasEquipe = await matchesRepository.findEstatisticasEquipe(jogo.id);
+    // Persistir estatísticas dos jogadores (playerStats do frontend)
+    for (const [jogadorId, stats] of Object.entries(playerStats)) {
+      const s = stats as any;
+      await matchesRepository.upsertEstatisticasJogador(jogo.id, jogadorId, {
+        minutosJogados: 40,
+        gols: s.goals ?? 0,
+        golsSofridos: 0,
+        assistencias: s.assists ?? 0,
+        cartoesAmarelos: 0,
+        cartoesVermelhos: 0,
+        passesCorretos: s.passesCorrect ?? 0,
+        passesErrados: s.passesWrong ?? 0,
+        passesErradosTransicao: s.transitionErrors ?? 0,
+        desarmesComBola: s.tacklesWithBall ?? 0,
+        desarmesContraAtaque: s.tacklesCounterAttack ?? 0,
+        desarmesSemBola: s.tacklesWithoutBall ?? 0,
+        chutesNoGol: s.shotsOnTarget ?? 0,
+        chutesFora: s.shotsOffTarget ?? 0,
+        rpePartida: null,
+        golsMarcadosJogoAberto: 0,
+        golsMarcadosBolaParada: 0,
+        golsSofridosJogoAberto: 0,
+        golsSofridosBolaParada: 0,
+      });
+    }
 
-    // Buscar estatísticas de jogadores
-    const estatisticasJogadores = await matchesRepository.findEstatisticasJogadores(jogo.id);
-    
+    const [estatisticasEquipe, estatisticasJogadores] = await Promise.all([
+      matchesRepository.findEstatisticasEquipe(jogo.id),
+      matchesRepository.findEstatisticasJogadores(jogo.id),
+    ]);
+
     return transformMatchToFrontend(
       jogo as any,
       estatisticasJogadores as any,
