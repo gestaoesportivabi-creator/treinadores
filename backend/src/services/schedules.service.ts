@@ -5,7 +5,7 @@
 import { TenantInfo } from '../utils/tenant.helper';
 import { schedulesRepository } from '../repositories/schedules.repository';
 import { transformScheduleToFrontend } from '../adapters/schedule.adapter';
-import { WeeklySchedule, ScheduleDay } from '../types/frontend';
+import { WeeklySchedule } from '../types/frontend';
 import { NotFoundError } from '../utils/errors';
 
 /** Converte linha flat (ScheduleDay) ou atividade agrupada para formato do banco */

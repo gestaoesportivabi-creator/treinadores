@@ -26,6 +26,8 @@ interface ProgramacaoDiaDB {
   horario?: string | null;
   localizacao?: string | null;
   observacoes?: string | null;
+  exercicioId?: string | null;
+  cargaPercent?: number | null;
   createdAt: Date | string;
 }
 
