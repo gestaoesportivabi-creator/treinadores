@@ -25,6 +25,8 @@ type ProgramacaoDiaDB = {
   horario: string | null;
   localizacao: string | null;
   observacoes: string | null;
+  exercicioId: string | null;
+  cargaPercent: number | null;
   createdAt: Date;
 };
 
@@ -125,9 +127,16 @@ export const schedulesRepository = {
     horario?: string;
     localizacao?: string;
     observacoes?: string;
+    exercicioId?: string;
+    cargaPercent?: number;
   }): Promise<ProgramacaoDiaDB> {
+    const { exercicioId, cargaPercent, ...rest } = data;
     return prisma.programacoesDias.create({
-      data,
+      data: {
+        ...rest,
+        ...(exercicioId && { exercicioId }),
+        ...(cargaPercent != null && cargaPercent > 0 && { cargaPercent }),
+      },
     }) as Promise<ProgramacaoDiaDB>;
   },
 

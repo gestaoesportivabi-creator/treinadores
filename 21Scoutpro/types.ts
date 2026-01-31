@@ -24,12 +24,20 @@ export interface ChampionshipMatch {
 export interface Championship {
   id: string;
   name: string;
-  phase?: string; // Fase da competição
+  phase?: string; // Fase: "1 Fase classificatória" | "1 PlayOffs"
+  /** Pontuação por resultado */
+  pointsPerWin?: number;
+  pointsPerDraw?: number;
+  pointsPerLoss?: number;
   suspensionRules: {
     yellowCardsForSuspension: number; // Quantidade de amarelos para suspensão
     redCardSuspension: number; // Jogos de suspensão por vermelho
     yellowAccumulationSuspension: number; // Jogos de suspensão por acumulação de amarelos
   };
+  /** Zerar cartões ao avançar de fase */
+  resetCardsOnPhaseAdvance?: boolean;
+  /** IDs das equipes participantes */
+  teamIds?: string[];
   createdAt?: string;
 }
 
@@ -106,6 +114,10 @@ export interface MatchStats {
   fouls?: number;
   /** Defesas – goleiro (planilha pós-jogo) */
   saves?: number;
+  /** Cartões amarelos (contabilizados por campeonato) */
+  yellowCards?: number;
+  /** Cartões vermelhos (contabilizados por campeonato) */
+  redCards?: number;
 }
 
 export type PostMatchAction =
@@ -185,14 +197,32 @@ export interface PhysicalAssessment {
   agility: number;
 }
 
-// Schedule Types
+// Schedule Types - Formato flat: cada linha = um evento (data, horário, atividade)
+export interface ScheduleDay {
+  date: string;       // YYYY-MM-DD
+  weekday: string;    // Nome do dia da semana
+  time: string;       // HH:MM
+  activity: string;   // Treino, Jogo, Academia, etc.
+  location: string;
+  notes?: string;
+  // Campos para Academia: carga e porcentagem
+  carga?: number;     // Carga em kg ou repetições
+  cargaPercent?: number; // Porcentagem da carga máxima do atleta
+  exerciseName?: string; // Nome do exercício (para Academia)
+}
+
+// Compatibilidade: DaySchedule agrupado (usado pelo backend em alguns casos)
 export interface DaySchedule {
   day: string;
+  date?: string;      // YYYY-MM-DD - incluído para não perder a data
   activities: {
     time: string;
     activity: string;
     location: string;
     notes?: string;
+    carga?: number;
+    cargaPercent?: number;
+    exerciseName?: string;
   }[];
 }
 
@@ -201,7 +231,9 @@ export interface WeeklySchedule {
   title: string;
   weekStart: string;
   weekEnd: string;
-  days: DaySchedule[];
+  startDate?: string;  // Alias para weekStart
+  endDate?: string;    // Alias para weekEnd
+  days: ScheduleDay[] | DaySchedule[];  // Aceita formato flat ou agrupado
   isActive?: boolean;
   createdAt?: number;
 }

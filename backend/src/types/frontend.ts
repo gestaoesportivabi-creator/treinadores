@@ -90,12 +90,29 @@ export interface WeeklySchedule {
 
 export interface DaySchedule {
   day: string;
+  date?: string;  // YYYY-MM-DD - data do dia
   activities: {
     time: string;
     activity: string;
     location: string;
     notes?: string;
+    carga?: number;
+    cargaPercent?: number;
+    exerciseName?: string;
   }[];
+}
+
+/** Formato flat: cada linha = um evento (para Schedule component e ScheduleAlerts) */
+export interface ScheduleDay {
+  date: string;
+  weekday: string;
+  time: string;
+  activity: string;
+  location: string;
+  notes?: string;
+  carga?: number;
+  cargaPercent?: number;
+  exerciseName?: string;
 }
 
 export interface StatTargets {

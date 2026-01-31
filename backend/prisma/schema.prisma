@@ -301,6 +301,8 @@ model ProgramacoesDias {
   horario         String?     @db.VarChar(10)
   localizacao     String?     @db.VarChar(255)
   observacoes     String?
+  exercicioId     String?     @map("exercicio_id") @db.VarChar(50)
+  cargaPercent    Int?        @map("carga_percent")
   createdAt       DateTime    @default(now()) @map("created_at")
   programacao     Programacao @relation(fields: [programacaoId], references: [id], onDelete: Cascade)
 

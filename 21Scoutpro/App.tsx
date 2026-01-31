@@ -16,6 +16,7 @@ import { Academia } from './components/Academia';
 import { LoadingMessage } from './components/LoadingMessage';
 import { ChampionshipTable, ChampionshipMatch } from './components/ChampionshipTable';
 import { ScheduleAlerts } from './components/ScheduleAlerts';
+import { SuspensionsAlert } from './components/SuspensionsAlert';
 import { TabBackgroundWrapper } from './components/TabBackgroundWrapper';
 import { ManagementReport } from './components/ManagementReport';
 import { NextMatchAlert } from './components/NextMatchAlert';
@@ -435,6 +436,26 @@ export default function App() {
         console.log('💾 Resposta do salvamento:', saved);
         
         if (saved) {
+          // Atualizar cartões por campeonato (se partida vinculada a campeonato)
+          if (saved.competition && saved.playerStats) {
+            try {
+              const savedChampionships = JSON.parse(localStorage.getItem('championships') || '[]');
+              const championship = savedChampionships.find((c: any) => c.name === saved.competition);
+              if (championship?.id && championship?.suspensionRules) {
+                const { updateCardsFromMatch } = await import('./utils/championshipCards');
+                const playerStatsForCards: Record<string, { yellowCards?: number; redCards?: number }> = {};
+                Object.entries(saved.playerStats || {}).forEach(([playerId, stats]: [string, any]) => {
+                  playerStatsForCards[playerId] = {
+                    yellowCards: stats.yellowCards ?? 0,
+                    redCards: stats.redCards ?? 0,
+                  };
+                });
+                updateCardsFromMatch(championship.id, playerStatsForCards, championship.suspensionRules);
+              }
+            } catch (e) {
+              console.warn('Erro ao atualizar cartões do campeonato:', e);
+            }
+          }
           // Validar match salvo antes de adicionar à lista
           if (saved.teamStats) {
             setMatches(prev => [...prev, saved]);
@@ -963,7 +984,7 @@ export default function App() {
       case 'academia':
         return (
           <TabBackgroundWrapper>
-            <Academia />
+            <Academia schedules={schedules} players={players} />
           </TabBackgroundWrapper>
         );
       case 'management-report':
@@ -1005,6 +1026,13 @@ export default function App() {
                   <NextMatchAlert matches={championshipMatches} />
                   <ScheduleAlerts schedules={schedules} />
                 </div>
+                {overviewStats.nextMatch && (
+                  <SuspensionsAlert
+                    nextMatch={overviewStats.nextMatch}
+                    championships={championships}
+                    players={players}
+                  />
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Calendar, Clock, Users, Trophy, Plus, Save, Trash2, Edit2, RefreshCw, X, Upload, BarChart3 } from 'lucide-react';
+import { Calendar, Clock, Users, Trophy, Plus, Save, Trash2, Edit2, RefreshCw, X, Upload, BarChart3, Award, Flag } from 'lucide-react';
 import { Championship } from '../types';
 
 export interface ChampionshipMatch {
@@ -22,8 +22,13 @@ interface ChampionshipTableProps {
     onRefresh?: () => void; // Callback para recarregar dados da API
     championships?: Championship[]; // Campeonatos cadastrados
     onSaveChampionship?: (championship: Championship) => void; // Callback para salvar campeonato
-    
+    teams?: { id: string; nome: string }[]; // Equipes para cadastrar no campeonato
 }
+
+const PHASE_OPTIONS = [
+    { value: '1 Fase classificatória', label: '1 Fase classificatória' },
+    { value: '1 PlayOffs', label: '1 PlayOffs' },
+];
 
 export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({ 
     matches = [], 
@@ -33,7 +38,8 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
     onUseForInput,
     onRefresh,
     championships = [],
-    onSaveChampionship
+    onSaveChampionship,
+    teams = []
 }) => {
     // Debug: log matches
     useEffect(() => {
@@ -61,12 +67,17 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
     const [championshipForm, setChampionshipForm] = useState<Championship>({
         id: '',
         name: '',
-        phase: '',
+        phase: '1 Fase classificatória',
+        pointsPerWin: 3,
+        pointsPerDraw: 1,
+        pointsPerLoss: 0,
         suspensionRules: {
             yellowCardsForSuspension: 3,
             redCardSuspension: 1,
             yellowAccumulationSuspension: 1
-        }
+        },
+        resetCardsOnPhaseAdvance: false,
+        teamIds: []
     });
     const [showChampionshipMatchesForm, setShowChampionshipMatchesForm] = useState(false);
     const [currentChampionshipId, setCurrentChampionshipId] = useState<string | null>(null);
@@ -416,12 +427,17 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
                                     setChampionshipForm({
                                         id: '',
                                         name: '',
-                                        phase: '',
+                                        phase: '1 Fase classificatória',
+                                        pointsPerWin: 3,
+                                        pointsPerDraw: 1,
+                                        pointsPerLoss: 0,
                                         suspensionRules: {
                                             yellowCardsForSuspension: 3,
                                             redCardSuspension: 1,
                                             yellowAccumulationSuspension: 1
-                                        }
+                                        },
+                                        resetCardsOnPhaseAdvance: false,
+                                        teamIds: []
                                     });
                                     setShowChampionshipModal(true);
                                 }}
@@ -860,7 +876,7 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
                         
                         <div className="space-y-4">
                             <div>
-                                <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Nome da Competição *</label>
+                                <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Nome do Campeonato *</label>
                                 <input
                                     type="text"
                                     value={championshipForm.name}
@@ -871,14 +887,51 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
                             </div>
                             
                             <div>
-                                <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Fase da Competição</label>
-                                <input
-                                    type="text"
-                                    value={championshipForm.phase || ''}
+                                <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Fase</label>
+                                <select
+                                    value={championshipForm.phase || '1 Fase classificatória'}
                                     onChange={(e) => setChampionshipForm({ ...championshipForm, phase: e.target.value })}
-                                    placeholder="Ex: Fase de Grupos, Quartas de Final, etc."
                                     className="w-full bg-black border border-zinc-700 rounded-lg p-3 text-white text-sm outline-none focus:border-purple-500"
-                                />
+                                >
+                                    <option value="1 Fase classificatória">1 Fase classificatória</option>
+                                    <option value="1 PlayOffs">1 PlayOffs</option>
+                                </select>
+                            </div>
+                            
+                            <div className="border-t border-zinc-800 pt-4">
+                                <h4 className="text-white font-bold text-sm mb-4 uppercase">Pontuação por resultado</h4>
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div>
+                                        <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Vitória</label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            value={championshipForm.pointsPerWin ?? 3}
+                                            onChange={(e) => setChampionshipForm({ ...championshipForm, pointsPerWin: parseInt(e.target.value) || 0 })}
+                                            className="w-full bg-black border border-zinc-700 rounded-lg p-3 text-white text-sm outline-none focus:border-purple-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Empate</label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            value={championshipForm.pointsPerDraw ?? 1}
+                                            onChange={(e) => setChampionshipForm({ ...championshipForm, pointsPerDraw: parseInt(e.target.value) || 0 })}
+                                            className="w-full bg-black border border-zinc-700 rounded-lg p-3 text-white text-sm outline-none focus:border-purple-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Derrota</label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            value={championshipForm.pointsPerLoss ?? 0}
+                                            onChange={(e) => setChampionshipForm({ ...championshipForm, pointsPerLoss: parseInt(e.target.value) || 0 })}
+                                            className="w-full bg-black border border-zinc-700 rounded-lg p-3 text-white text-sm outline-none focus:border-purple-500"
+                                        />
+                                    </div>
+                                </div>
                             </div>
                             
                             <div className="border-t border-zinc-800 pt-4">
@@ -941,6 +994,29 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
                                             className="w-full bg-black border border-zinc-700 rounded-lg p-3 text-white text-sm outline-none focus:border-purple-500"
                                         />
                                     </div>
+                                </div>
+                                
+                                <div className="mt-4 flex items-center gap-3 p-3 bg-black rounded-lg border border-zinc-800">
+                                    <input
+                                        type="checkbox"
+                                        id="reset-cards-phase"
+                                        checked={championshipForm.resetCardsOnPhaseAdvance ?? false}
+                                        onChange={(e) => setChampionshipForm({ ...championshipForm, resetCardsOnPhaseAdvance: e.target.checked })}
+                                        className="w-4 h-4 accent-purple-500 cursor-pointer"
+                                    />
+                                    <label htmlFor="reset-cards-phase" className="text-white text-xs font-bold uppercase cursor-pointer">
+                                        Zerar cartões ao avançar de fase
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div className="border-t border-zinc-800 pt-4">
+                                <h4 className="text-white font-bold text-sm mb-4 uppercase">Cadastrar Equipes</h4>
+                                <p className="text-zinc-500 text-xs mb-3">
+                                    As equipes serão vinculadas ao campeonato. Mantenha as configurações existentes da sua equipe.
+                                </p>
+                                <div className="bg-black border border-zinc-800 rounded-lg p-3 text-zinc-400 text-xs">
+                                    As equipes cadastradas em Gestão de Equipe já estão disponíveis. Ao cadastrar partidas, selecione o campeonato para vincular.
                                 </div>
                             </div>
                         </div>

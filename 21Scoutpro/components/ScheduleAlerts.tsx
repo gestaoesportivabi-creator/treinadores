@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { WeeklySchedule, ScheduleDay } from '../types';
-import { CalendarClock, Bell, CheckCircle, Clock } from 'lucide-react';
+import { normalizeScheduleDays } from '../utils/scheduleUtils';
+import { Bell, CheckCircle } from 'lucide-react';
 
 interface ScheduleAlertsProps {
     schedules: WeeklySchedule[];
@@ -13,7 +14,7 @@ interface AlertItem {
     time: string;
     date: string;
     notes?: string;
-    alertTime: Date; // Hora em que o alerta deve aparecer (3 horas antes)
+    alertTime: Date; // Hora em que o alerta deve aparecer (12 horas antes)
     eventTime: Date; // Hora do evento
 }
 
@@ -121,35 +122,7 @@ export const ScheduleAlerts: React.FC<ScheduleAlertsProps> = ({ schedules }) => 
 
             const result = (shouldShow || showToday) && !hasPassed;
             
-            if (result) {
-              console.log('✅ Alerta ativo:', {
-                activity: alert.activity,
-                time: alert.time,
-                alertTime: alert.alertTime.toLocaleString('pt-BR'),
-                eventTime: alert.eventTime.toLocaleString('pt-BR'),
-                currentTime: currentTime.toLocaleString('pt-BR'),
-                shouldShow,
-                showToday,
-                hasPassed
-              });
-            }
-
             return result;
-        });
-        
-        // Debug: Log para verificar alertas
-        console.log('🔔 ScheduleAlerts Debug:', {
-            totalAlerts: alerts.length,
-            activeAlerts: filtered.length,
-            currentTime: currentTime.toLocaleString('pt-BR'),
-            alerts: alerts.map(a => ({
-                activity: a.activity,
-                time: a.time,
-                alertTime: a.alertTime.toLocaleString('pt-BR'),
-                eventTime: a.eventTime.toLocaleString('pt-BR'),
-                shouldShow: currentTime >= a.alertTime,
-                hasPassed: currentTime > a.eventTime
-            }))
         });
         
         return filtered;
@@ -165,9 +138,8 @@ export const ScheduleAlerts: React.FC<ScheduleAlertsProps> = ({ schedules }) => 
         const events: ScheduleDay[] = [];
 
         activeSchedules.forEach(schedule => {
-            if (!schedule.days || !Array.isArray(schedule.days)) return;
-            
-            schedule.days.forEach(day => {
+            const flatDays = normalizeScheduleDays(schedule);
+            flatDays.forEach(day => {
                 if (day.date === todayStr && day.time && day.activity) {
                     events.push(day);
                 }
