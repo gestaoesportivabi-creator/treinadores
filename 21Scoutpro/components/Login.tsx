@@ -160,7 +160,13 @@ export const Login: React.FC<LoginProps> = ({ onLogin, initialMode = 'login', on
         <div className="max-w-7xl mx-auto px-4 md:px-8 lg:px-12 py-4 md:py-5">
           <div className="flex items-center justify-between gap-6">
             <div className="flex items-center shrink-0">
-              <img src={LOGO_IMAGE} alt="SCOUT21PRO Logo" className="h-10 md:h-12 w-auto" />
+              {onBackToHome ? (
+                <button type="button" onClick={onBackToHome} className="hover:opacity-80 transition-opacity cursor-pointer">
+                  <img src={LOGO_IMAGE} alt="SCOUT21PRO Logo" className="h-10 md:h-12 w-auto" />
+                </button>
+              ) : (
+                <img src={LOGO_IMAGE} alt="SCOUT21PRO Logo" className="h-10 md:h-12 w-auto" />
+              )}
             </div>
             <div className="flex items-center gap-3 md:gap-4">
               <a href="https://instagram.com/scout21pro" target="_blank" rel="noopener noreferrer" className="hidden sm:flex items-center gap-2 px-4 py-2 text-[#00f0ff] hover:text-[#00d4e6] text-sm font-semibold transition-all hover:bg-zinc-900/50 rounded-lg border border-transparent hover:border-[#00f0ff]/30">
