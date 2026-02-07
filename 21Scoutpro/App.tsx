@@ -982,13 +982,20 @@ export default function App() {
                     <NextMatchAlert matches={championshipMatches} />
                     <ScheduleAlerts schedules={schedules} />
                 </div>
-                {overviewStats.nextMatch && (
-                  <SuspensionsAlert
-                    nextMatch={overviewStats.nextMatch}
-                    championships={championships}
-                    players={players}
-                  />
-                )}
+                {(() => {
+                  const now = new Date();
+                  const upcoming = championshipMatches
+                    .filter(m => m.dateTime && new Date(m.dateTime) >= now)
+                    .sort((a, b) => new Date(a.dateTime!).getTime() - new Date(b.dateTime!).getTime());
+                  const nextMatch = upcoming[0] || null;
+                  return nextMatch ? (
+                    <SuspensionsAlert
+                      nextMatch={nextMatch}
+                      championships={championships}
+                      players={players}
+                    />
+                  ) : null;
+                })()}
                 
                 {/* Bottom Content */}
                 <div className="flex flex-col justify-end">
