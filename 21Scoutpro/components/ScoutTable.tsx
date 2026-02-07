@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Table, Printer, Trash2, Save, ChevronDown, ChevronUp, X, Minus, Clock, Goal, Shield, Zap, AlertTriangle, ArrowRightLeft, Target, Users, Activity, Gauge, Square, ArrowUpDown, Calendar, ArrowLeft, Play, Pause, RotateCcw } from 'lucide-react';
+import { Table, Printer, Trash2, Save, ChevronDown, ChevronUp, X, Minus, Clock, Goal, Shield, Zap, AlertTriangle, ArrowRightLeft, Target, Users, Activity, Gauge, Square, ArrowUpDown, Calendar, ArrowLeft, Play, Pause, RotateCcw, Ambulance } from 'lucide-react';
 import { MatchRecord, MatchStats, Player, PlayerTimeControl, Team } from '../types';
 import { timeControlsApi } from '../services/api';
 import { TimeSelectionModal } from './TimeSelectionModal';
@@ -167,11 +167,50 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
         }
     ]);
 
+    // Lesão vigente = sem data de retorno REAL (returnDateActual/endDate) salva = em recuperação = indisponível
+    // Retorno Previsto (returnDate) não conta - é apenas projeção; só Retorno Real/Alta (returnDateActual/endDate) indica que voltou
+    const isPlayerUnavailableForMatch = (player: Player, matchDate?: string): boolean => {
+        if (!player.injuryHistory || player.injuryHistory.length === 0) return false;
+        const matchDateObj = matchDate ? new Date(matchDate) : new Date();
+        matchDateObj.setHours(0, 0, 0, 0);
+        return player.injuryHistory.some(injury => {
+            const hasActualReturn = !!(injury.returnDateActual || injury.endDate);
+            if (!hasActualReturn) return true; // Lesão sem Retorno Real/Alta = vigente = indisponível
+            const returnDateStr = injury.returnDateActual || injury.endDate!;
+            const returnDate = new Date(returnDateStr);
+            returnDate.setHours(0, 0, 0, 0);
+            return matchDateObj < returnDate; // Partida antes do retorno = indisponível
+        });
+    };
+
     // Carregar players quando a lista mudar (para incluir novos atletas)
     useEffect(() => {
         console.log('📋 Players atualizados no ScoutTable:', players.length, 'atletas');
         console.log('📋 IDs dos players:', players.map(p => ({ id: String(p.id).trim(), name: p.name })));
     }, [players]);
+
+    // Remover atletas lesionados (sem data de retorno) de playersInField e entries quando detectados
+    useEffect(() => {
+        const matchDate = entries[0]?.date;
+        if (!matchDate || players.length === 0) return;
+        const injuredIds = new Set(
+            players
+                .filter(p => isPlayerUnavailableForMatch(p, matchDate))
+                .map(p => String(p.id).trim())
+        );
+        if (injuredIds.size === 0) return;
+        setPlayersInField(prev => {
+            const next = new Set(prev);
+            let changed = false;
+            injuredIds.forEach(id => { if (next.has(id)) { next.delete(id); changed = true; } });
+            return changed ? next : prev;
+        });
+        setEntries(prev => {
+            const filtered = prev.filter(e => !e.athleteId || !injuredIds.has(String(e.athleteId).trim()));
+            return filtered.length !== prev.length ? filtered : prev;
+        });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- isPlayerUnavailableForMatch is stable
+    }, [players, entries[0]?.date]);
 
     // Auto-preenchimento: Trazer todos os atletas ativos quando não houver entries válidas (quando vem da gestão de equipe ou ao abrir a aba)
     useEffect(() => {
@@ -187,21 +226,17 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
         // Se não tem players, não fazer nada
         if (!players || players.length === 0) return;
         
-        // Obter jogadores ativos (não suspensos, não lesionados)
+        // Obter jogadores ativos (não suspensos, não lesionados - excluir lesão sem data de retorno)
+        const currentDate = entries[0]?.date || new Date().toISOString().split('T')[0];
         const activePlayers = players.filter(p => {
-            // Verificar se tem status e se está ativo
-            if ((p as any).status) {
-                return (p as any).status === 'Ativo';
-            }
-            // Se não tem status definido, considerar ativo
-            return true;
+            if ((p as any).status && (p as any).status !== 'Ativo') return false;
+            return !isPlayerUnavailableForMatch(p, currentDate); // Excluir lesionados sem data de retorno
         });
         
         // Se não há jogadores ativos, não fazer nada
         if (activePlayers.length === 0) return;
         
         // Criar entries para todos os jogadores ativos
-        const currentDate = entries[0]?.date || new Date().toISOString().split('T')[0];
         const newEntries = activePlayers.map((player, index) => ({
             id: `${Date.now()}-${index}`,
             date: currentDate,
@@ -423,12 +458,10 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
             setEntries(newEntries);
         }
         
-        // Preencher atletas ativos
+        // Preencher atletas ativos (excluir lesionados sem data de retorno)
         const activePlayers = players.filter(p => {
-            if ((p as any).status) {
-                return (p as any).status === 'Ativo';
-            }
-            return true;
+            if ((p as any).status && (p as any).status !== 'Ativo') return false;
+            return !isPlayerUnavailableForMatch(p, nextMatch.date);
         });
         
         if (activePlayers.length > 0 && nextMatch.date) {
@@ -492,14 +525,10 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
             // Preencher data
             const formattedDate = initialData.date;
             
-            // Obter jogadores ativos (não suspensos, não lesionados)
+            // Obter jogadores ativos (excluir lesionados sem data de retorno)
             const activePlayers = players.filter(p => {
-                // Verificar se tem status e se está ativo
-                if ((p as any).status) {
-                    return (p as any).status === 'Ativo';
-                }
-                // Se não tem status definido, considerar ativo
-                return true;
+                if ((p as any).status && (p as any).status !== 'Ativo') return false;
+                return !isPlayerUnavailableForMatch(p, formattedDate);
             });
 
             // Criar entries para todos os jogadores ativos
@@ -608,10 +637,13 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                 setScoreTarget(matchingMatch.scoreTarget);
             }
             
-            // Preencher atletas ativos se ainda não houver entries válidas
+            // Preencher atletas ativos se ainda não houver entries válidas (excluir lesionados sem data de retorno)
             const hasValidEntries = entries.some(e => e.athleteId && e.athleteId.trim() !== '');
             if (!hasValidEntries && players.length > 0) {
-                const activePlayers = players.filter(p => (p as any).status === 'Ativo');
+                const activePlayers = players.filter(p => {
+                    if ((p as any).status && (p as any).status !== 'Ativo') return false;
+                    return !isPlayerUnavailableForMatch(p, normalizedCurrentDate);
+                });
                 if (activePlayers.length > 0) {
                     const newEntries = activePlayers.map((player, index) => ({
                         id: `${Date.now()}-auto-${index}`,
@@ -1788,13 +1820,7 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
     
     // Funções auxiliares para verificar status do atleta
     const isPlayerInjured = (player: Player): boolean => {
-        if (!player.injuryHistory || player.injuryHistory.length === 0) return false;
-        const now = new Date();
-        return player.injuryHistory.some(injury => {
-            if (!injury.endDate) return true; // Lesão sem data de fim = ativa
-            const endDate = new Date(injury.endDate);
-            return endDate > now; // Lesão com data futura = ativa
-        });
+        return isPlayerUnavailableForMatch(player);
     };
     
     const isPlayerSuspended = (playerId: string): boolean => {
@@ -2014,15 +2040,22 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                 <div className="max-h-96 overflow-y-auto space-y-2">
                                     {players.map((player) => {
                                         const isSelected = selectedPlayersForMatch.has(String(player.id).trim());
+                                        const isUnavailable = isPlayerUnavailableForMatch(player, selectedScheduledMatch?.date);
                                         return (
                                             <label
                                                 key={player.id}
-                                                className="flex items-center gap-3 p-3 bg-zinc-950 border-2 border-zinc-800 rounded-xl cursor-pointer hover:border-[#00f0ff]/50 transition-colors"
+                                                className={`flex items-center gap-3 p-3 bg-zinc-950 border-2 rounded-xl transition-colors ${
+                                                    isUnavailable
+                                                        ? 'border-zinc-800 opacity-60 cursor-not-allowed'
+                                                        : 'border-zinc-800 cursor-pointer hover:border-[#00f0ff]/50'
+                                                }`}
                                             >
                                                 <input
                                                     type="checkbox"
                                                     checked={isSelected}
+                                                    disabled={isUnavailable}
                                                     onChange={(e) => {
+                                                        if (isUnavailable) return;
                                                         const newSet = new Set(selectedPlayersForMatch);
                                                         if (e.target.checked) {
                                                             newSet.add(String(player.id).trim());
@@ -2031,10 +2064,15 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                                         }
                                                         setSelectedPlayersForMatch(newSet);
                                                     }}
-                                                    className="w-5 h-5 text-[#00f0ff] bg-zinc-900 border-zinc-700 rounded focus:ring-[#00f0ff] focus:ring-2"
+                                                    className="w-5 h-5 text-[#00f0ff] bg-zinc-900 border-zinc-700 rounded focus:ring-[#00f0ff] focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                                 />
+                                                {isUnavailable && (
+                                                    <div className="flex-shrink-0 bg-red-600 p-1 rounded" title="Indisponível - em recuperação (lesão sem data de retorno)">
+                                                        <Ambulance size={16} className="text-white" />
+                                                    </div>
+                                                )}
                                                 <div className="flex-1">
-                                                    <span className="text-white font-bold text-sm">
+                                                    <span className={`font-bold text-sm ${isUnavailable ? 'text-zinc-500' : 'text-white'}`}>
                                                         #{player.jerseyNumber} {player.name}
                                                     </span>
                                                     <span className="text-zinc-500 text-xs ml-2">({player.position})</span>
@@ -2197,15 +2235,22 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                 <div className="max-h-96 overflow-y-auto space-y-2">
                                     {players.map((player) => {
                                         const isSelected = selectedPlayersForMatch.has(String(player.id).trim());
+                                        const isUnavailable = isPlayerUnavailableForMatch(player, selectedScheduledMatch?.date);
                                         return (
                                             <label
                                                 key={player.id}
-                                                className="flex items-center gap-3 p-3 bg-zinc-950 border-2 border-zinc-800 rounded-xl cursor-pointer hover:border-[#00f0ff]/50 transition-colors"
+                                                className={`flex items-center gap-3 p-3 bg-zinc-950 border-2 rounded-xl transition-colors ${
+                                                    isUnavailable
+                                                        ? 'border-zinc-800 opacity-60 cursor-not-allowed'
+                                                        : 'border-zinc-800 cursor-pointer hover:border-[#00f0ff]/50'
+                                                }`}
                                             >
                                                 <input
                                                     type="checkbox"
                                                     checked={isSelected}
+                                                    disabled={isUnavailable}
                                                     onChange={(e) => {
+                                                        if (isUnavailable) return;
                                                         const newSet = new Set(selectedPlayersForMatch);
                                                         if (e.target.checked) {
                                                             newSet.add(String(player.id).trim());
@@ -2214,10 +2259,15 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                                         }
                                                         setSelectedPlayersForMatch(newSet);
                                                     }}
-                                                    className="w-5 h-5 text-[#00f0ff] bg-zinc-900 border-zinc-700 rounded focus:ring-[#00f0ff] focus:ring-2"
+                                                    className="w-5 h-5 text-[#00f0ff] bg-zinc-900 border-zinc-700 rounded focus:ring-[#00f0ff] focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                                 />
+                                                {isUnavailable && (
+                                                    <div className="flex-shrink-0 bg-red-600 p-1 rounded" title="Indisponível - em recuperação (lesão sem data de retorno)">
+                                                        <Ambulance size={16} className="text-white" />
+                                                    </div>
+                                                )}
                                                 <div className="flex-1">
-                                                    <span className="text-white font-bold text-sm">
+                                                    <span className={`font-bold text-sm ${isUnavailable ? 'text-zinc-500' : 'text-white'}`}>
                                                         #{player.jerseyNumber} {player.name}
                                                     </span>
                                                     <span className="text-zinc-500 text-xs ml-2">({player.position})</span>
@@ -2659,27 +2709,43 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                         <div className="space-y-2 max-h-[200px] overflow-y-auto">
                             {players.filter(p => (p as any).status === 'Ativo' || !(p as any).status).map(player => {
                                 const isInField = playersInField.has(String(player.id).trim());
+                                const matchDate = entries[0]?.date;
+                                const isUnavailable = isPlayerUnavailableForMatch(player, matchDate);
                                 return (
-                                    <label key={player.id} className="flex items-center gap-2 cursor-pointer hover:bg-zinc-900 p-2 rounded">
+                                    <label
+                                        key={player.id}
+                                        className={`flex items-center gap-2 p-2 rounded transition-colors ${
+                                            isUnavailable
+                                                ? 'opacity-60 cursor-not-allowed pointer-events-none'
+                                                : 'cursor-pointer hover:bg-zinc-900'
+                                        }`}
+                                    >
                                         <input
                                             type="checkbox"
                                             checked={isInField}
+                                            disabled={isUnavailable}
+                                            readOnly={isUnavailable}
                                             onChange={(e) => {
+                                                if (isUnavailable) return;
                                                 const newSet = new Set(playersInField);
                                                 if (e.target.checked) {
                                                     newSet.add(String(player.id).trim());
                                                 } else {
                                                     newSet.delete(String(player.id).trim());
-                                                    // Se remover da quadra e estava selecionado, limpar seleção
                                                     if (selectedPlayerId === String(player.id).trim()) {
                                                         setSelectedPlayerId(null);
                                                     }
                                                 }
                                                 setPlayersInField(newSet);
                                             }}
-                                            className="w-4 h-4 text-[#00f0ff] bg-zinc-900 border-zinc-700 rounded focus:ring-[#00f0ff]"
+                                            className="w-4 h-4 text-[#00f0ff] bg-zinc-900 border-zinc-700 rounded focus:ring-[#00f0ff] disabled:opacity-50 disabled:cursor-not-allowed"
                                         />
-                                        <span className="text-white text-xs font-bold">#{player.jerseyNumber} {player.name}</span>
+                                        {isUnavailable && (
+                                            <div className="flex-shrink-0 bg-red-600 p-0.5 rounded" title="Indisponível - em recuperação (lesão sem data de retorno)">
+                                                <Ambulance size={14} className="text-white" />
+                                            </div>
+                                        )}
+                                        <span className={`text-xs font-bold ${isUnavailable ? 'text-zinc-500' : 'text-white'}`}>#{player.jerseyNumber} {player.name}</span>
                                     </label>
                                 );
                             })}
@@ -2695,29 +2761,34 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                             </div>
                         ) : (
                             players.filter(p => playersInField.has(String(p.id).trim())).map(player => {
-                                const entry = entries.find(e => String(e.athleteId).trim() === String(player.id).trim());
-                                const isSelected = selectedPlayerId === String(player.id).trim();
-                                const isInjured = isPlayerInjured(player);
-                                const isSuspended = isPlayerSuspended(player.id);
-                                const yellowCards = getYellowCardCount(player.id);
-                                const isDisabled = isSuspended || isInjured;
-                                
-                                return (
-                                    <button
-                                        key={player.id}
-                                        onClick={() => {
-                                            if (isViewMode) return;
-                                            setSelectedPlayerId(String(player.id).trim());
-                                        }}
-                                        disabled={isViewMode}
-                                        className={`w-full p-3 rounded-xl border-2 transition-all text-left ${
-                                            isSelected 
-                                                ? 'border-[#00f0ff] bg-[#00f0ff]/10 shadow-[0_0_20px_rgba(0,240,255,0.5)]' 
-                                                : 'border-zinc-800 bg-zinc-950 hover:border-zinc-700'
-                                        } ${isDisabled ? 'opacity-60' : ''}`}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <div className={`w-12 h-12 rounded-full overflow-hidden border-2 ${isSelected ? 'border-[#00f0ff]' : 'border-zinc-700'} bg-zinc-900 flex-shrink-0`}>
+                                        const entry = entries.find(e => String(e.athleteId).trim() === String(player.id).trim());
+                                        const isSelected = selectedPlayerId === String(player.id).trim();
+                                        const isInjured = isPlayerInjured(player);
+                                        const isSuspended = isPlayerSuspended(player.id);
+                                        const yellowCards = getYellowCardCount(player.id);
+                                        const isDisabled = isSuspended || isInjured;
+                                        
+                                        return (
+                                            <button
+                                                key={player.id}
+                                                onClick={() => {
+                                                    if (isViewMode) return;
+                                                    setSelectedPlayerId(String(player.id).trim());
+                                                }}
+                                                disabled={isViewMode}
+                                                className={`w-full p-3 rounded-xl border-2 transition-all text-left ${
+                                                    isSelected 
+                                                        ? 'border-[#00f0ff] bg-[#00f0ff]/10 shadow-[0_0_20px_rgba(0,240,255,0.5)]' 
+                                                        : 'border-zinc-800 bg-zinc-950 hover:border-zinc-700'
+                                                } ${isDisabled ? 'opacity-60' : ''}`}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    {isInjured && (
+                                                        <div className="flex-shrink-0 bg-red-600 p-1 rounded" title="Indisponível - em recuperação (lesão sem data de retorno)">
+                                                            <Ambulance size={16} className="text-white" />
+                                                        </div>
+                                                    )}
+                                                    <div className={`w-12 h-12 rounded-full overflow-hidden border-2 ${isSelected ? 'border-[#00f0ff]' : 'border-zinc-700'} bg-zinc-900 flex-shrink-0`}>
                                                 {player.photoUrl ? (
                                                     <img src={player.photoUrl} alt={player.name} className="w-full h-full object-cover" />
                                                 ) : (

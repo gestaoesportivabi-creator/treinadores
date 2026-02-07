@@ -1,6 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Player, MatchRecord, PhysicalAssessment, PlayerTimeControl, MatchStats } from '../types';
-import { FileText, Calendar, User, Printer, Download, Activity, Trophy, Clock, AlertTriangle, BarChart3, Users } from 'lucide-react';
+import { FileText, Calendar, User, Printer, Download, Activity, Trophy, Clock, AlertTriangle, BarChart3, Users, HeartPulse, Moon } from 'lucide-react';
+
+const PSE_JOGOS_STORAGE_KEY = 'scout21_pse_jogos';
+const PSE_TREINOS_STORAGE_KEY = 'scout21_pse_treinos';
+const QUALIDADE_SONO_STORAGE_KEY = 'scout21_qualidade_sono';
 
 // Tipo para lesão (mesmo formato usado em TeamManagement)
 interface InjuryRecord {
@@ -33,6 +37,20 @@ export const ManagementReport: React.FC<ManagementReportProps> = ({
     const [selectedPlayerId, setSelectedPlayerId] = useState('');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
+    const [pseJogos, setPseJogos] = useState<Record<string, Record<string, number>>>({});
+    const [pseTreinos, setPseTreinos] = useState<Record<string, Record<string, number>>>({});
+    const [qualidadeSono, setQualidadeSono] = useState<Record<string, Record<string, number>>>({});
+
+    useEffect(() => {
+        try {
+            const j = localStorage.getItem(PSE_JOGOS_STORAGE_KEY);
+            if (j) setPseJogos(JSON.parse(j));
+            const t = localStorage.getItem(PSE_TREINOS_STORAGE_KEY);
+            if (t) setPseTreinos(JSON.parse(t));
+            const q = localStorage.getItem(QUALIDADE_SONO_STORAGE_KEY);
+            if (q) setQualidadeSono(JSON.parse(q));
+        } catch (_) {}
+    }, []);
 
     const selectedPlayer = useMemo(() => {
         return players.find(p => p.id === selectedPlayerId);
@@ -156,6 +174,37 @@ export const ManagementReport: React.FC<ManagementReportProps> = ({
             gamesLost
         };
     }, [selectedPlayer, startDate, endDate, filteredMatches]);
+
+    // Médias de PSE (jogos + treinos) e qualidade de sono do atleta
+    const pseAndSonoAverages = useMemo(() => {
+        if (!selectedPlayerId) return null;
+        const pseValues: number[] = [];
+        Object.values(pseJogos).forEach(byPlayer => {
+            const v = byPlayer[selectedPlayerId];
+            if (typeof v === 'number' && v >= 0 && v <= 10) pseValues.push(v);
+        });
+        Object.values(pseTreinos).forEach(byPlayer => {
+            const v = byPlayer[selectedPlayerId];
+            if (typeof v === 'number' && v >= 0 && v <= 10) pseValues.push(v);
+        });
+        const sonoValues: number[] = [];
+        Object.values(qualidadeSono).forEach(byPlayer => {
+            const v = byPlayer[selectedPlayerId];
+            if (typeof v === 'number' && v >= 1 && v <= 5) sonoValues.push(v);
+        });
+        const avgPse = pseValues.length > 0
+            ? Math.round((pseValues.reduce((a, b) => a + b, 0) / pseValues.length) * 10) / 10
+            : null;
+        const avgSono = sonoValues.length > 0
+            ? Math.round((sonoValues.reduce((a, b) => a + b, 0) / sonoValues.length) * 10) / 10
+            : null;
+        return {
+            avgPse,
+            avgSono,
+            countPse: pseValues.length,
+            countSono: sonoValues.length
+        };
+    }, [selectedPlayerId, pseJogos, pseTreinos, qualidadeSono]);
 
     // Filtrar avaliações físicas
     const filteredAssessments = useMemo(() => {
@@ -337,6 +386,35 @@ export const ManagementReport: React.FC<ManagementReportProps> = ({
                                         <span className="text-zinc-400 font-bold uppercase text-sm">Quantidade de Lesões</span>
                                         <span className="text-white font-black text-lg">{injuryInfo.injuries.length} lesões</span>
                                     </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* PSE e Qualidade de Sono */}
+                        {pseAndSonoAverages && (pseAndSonoAverages.avgPse != null || pseAndSonoAverages.avgSono != null) && (
+                            <div className="bg-black p-6 rounded-3xl border border-zinc-900 shadow-lg">
+                                <h4 className="text-xl font-black text-white uppercase mb-4 flex items-center gap-2">
+                                    <HeartPulse className="text-[#00f0ff]" /> PSE e Qualidade de Sono
+                                </h4>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    {pseAndSonoAverages.avgPse != null && (
+                                        <div className="border border-zinc-900 rounded-xl p-4">
+                                            <p className="text-zinc-500 font-bold uppercase text-xs mb-1 flex items-center gap-2">
+                                                <Activity size={14} /> Média PSE (Jogos e Treinos)
+                                            </p>
+                                            <p className="text-[#00f0ff] font-black text-2xl">{pseAndSonoAverages.avgPse}</p>
+                                            <p className="text-zinc-500 text-xs mt-1">escala 0–10 • {pseAndSonoAverages.countPse} registros</p>
+                                        </div>
+                                    )}
+                                    {pseAndSonoAverages.avgSono != null && (
+                                        <div className="border border-zinc-900 rounded-xl p-4">
+                                            <p className="text-zinc-500 font-bold uppercase text-xs mb-1 flex items-center gap-2">
+                                                <Moon size={14} /> Média Qualidade de Sono
+                                            </p>
+                                            <p className="text-amber-400 font-black text-2xl">{pseAndSonoAverages.avgSono} <span className="text-zinc-500 font-bold text-base">/ 5</span></p>
+                                            <p className="text-zinc-500 text-xs mt-1">escala 1–5 • {pseAndSonoAverages.countSono} noites avaliadas</p>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}

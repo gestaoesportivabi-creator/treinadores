@@ -1,20 +1,89 @@
-import React, { useMemo, useState } from 'react';
-import { TRAINING_SESSIONS } from '../constants';
+import React, { useMemo, useState, useEffect } from 'react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
-import { Activity, HeartPulse, Clock, AlertTriangle, Printer, Rotate3d, Filter, UserMinus } from 'lucide-react';
+import { Activity, HeartPulse, Clock, AlertTriangle, Printer, Rotate3d, Filter, UserMinus, Moon } from 'lucide-react';
 import { ExpandableCard } from './ExpandableCard';
-import { MatchRecord, Player } from '../types';
+import { MatchRecord, Player, WeeklySchedule, InjuryRecord } from '../types';
+import { normalizeScheduleDays } from '../utils/scheduleUtils';
+
+const TRAINING_PSE_STORAGE_KEY = 'scout21_training_pse';
+const PSE_JOGOS_STORAGE_KEY = 'scout21_pse_jogos';
+const PSE_TREINOS_STORAGE_KEY = 'scout21_pse_treinos';
+const QUALIDADE_SONO_STORAGE_KEY = 'scout21_qualidade_sono';
+
+type StoredQualidadeSono = Record<string, Record<string, number>>;
+
+type ChampionshipMatch = { id: string; date: string; time?: string; opponent: string; competition?: string };
+type StoredPseJogos = Record<string, Record<string, number>>;
+type StoredPseTreinos = Record<string, Record<string, number>>;
 
 interface PhysicalScoutProps {
     matches: MatchRecord[];
     players: Player[];
+    schedules?: WeeklySchedule[];
+    championshipMatches?: ChampionshipMatch[];
 }
 
-export const PhysicalScout: React.FC<PhysicalScoutProps> = ({ matches, players }) => {
+export const PhysicalScout: React.FC<PhysicalScoutProps> = ({ matches, players, schedules = [], championshipMatches = [] }) => {
   const [injuryFilter, setInjuryFilter] = useState<string>('Todos');
   const [monthFilter, setMonthFilter] = useState<string>('Todos');
   const [compFilter, setCompFilter] = useState<string>('Todas');
-  
+  const [trainingPse, setTrainingPse] = useState<Record<string, number>>({});
+  const [pseJogosStored, setPseJogosStored] = useState<StoredPseJogos>({});
+  const [pseTreinosStored, setPseTreinosStored] = useState<StoredPseTreinos>({});
+  const [qualidadeSonoStored, setQualidadeSonoStored] = useState<StoredQualidadeSono>({});
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(TRAINING_PSE_STORAGE_KEY);
+      if (raw) setTrainingPse(JSON.parse(raw));
+    } catch (_) {}
+  }, []);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(PSE_JOGOS_STORAGE_KEY);
+      if (raw) setPseJogosStored(JSON.parse(raw));
+    } catch (_) {}
+  }, []);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(PSE_TREINOS_STORAGE_KEY);
+      if (raw) setPseTreinosStored(JSON.parse(raw));
+    } catch (_) {}
+  }, []);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(QUALIDADE_SONO_STORAGE_KEY);
+      if (raw) setQualidadeSonoStored(JSON.parse(raw));
+    } catch (_) {}
+  }, []);
+
+  // Recarregar dados das abas PSE e Qualidade de sono quando a tab for exibida (para atualizar após preencher nas outras abas)
+  useEffect(() => {
+    const onStorage = () => {
+      try {
+        const j = localStorage.getItem(PSE_JOGOS_STORAGE_KEY);
+        if (j) setPseJogosStored(JSON.parse(j));
+        const t = localStorage.getItem(PSE_TREINOS_STORAGE_KEY);
+        if (t) setPseTreinosStored(JSON.parse(t));
+        const q = localStorage.getItem(QUALIDADE_SONO_STORAGE_KEY);
+        if (q) setQualidadeSonoStored(JSON.parse(q));
+      } catch (_) {}
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
+
+  const saveTrainingPse = (updates: Record<string, number>) => {
+    setTrainingPse(prev => {
+      const next = { ...prev, ...updates };
+      try { localStorage.setItem(TRAINING_PSE_STORAGE_KEY, JSON.stringify(next)); } catch (_) {}
+      return next;
+    });
+  };
+
   const MONTHS = [
     { value: 'Todos', label: 'Todos os Meses' },
     { value: '0', label: 'Janeiro' },
@@ -39,6 +108,57 @@ export const PhysicalScout: React.FC<PhysicalScoutProps> = ({ matches, players }
     });
   }, [monthFilter, compFilter, matches]);
 
+  // Datas de treinos a partir da Programação (aba Programação)
+  const trainingDatesFromSchedules = useMemo(() => {
+    const active = schedules.filter(s => s.isActive === true || s.isActive === 'TRUE' || s.isActive === 'true');
+    const datesSet = new Set<string>();
+    active.forEach(s => {
+      const flat = normalizeScheduleDays(s);
+      flat.forEach(day => {
+        if (day.activity === 'Treino' && day.date) datesSet.add(day.date);
+      });
+    });
+    return Array.from(datesSet).sort();
+  }, [schedules]);
+
+  // Sessões de treino/musculação (igual à aba Média PSE Treinos): data + horário + período para média da equipe
+  const trainingSessionsForChart = useMemo(() => {
+    const active = schedules.filter(s => s.isActive === true || s.isActive === 'TRUE' || s.isActive === 'true');
+    const list: { sessionKey: string; date: string; time: string; activity: string }[] = [];
+    const seen = new Set<string>();
+    active.forEach(s => {
+      const flat = normalizeScheduleDays(s);
+      flat.forEach(day => {
+        const act = (day.activity || '').trim();
+        if (act !== 'Treino' && act !== 'Musculação') return;
+        const date = day.date || '';
+        const time = day.time || '00:00';
+        const sessionKey = `${date}_${time}_${act}`;
+        if (!date || seen.has(sessionKey)) return;
+        seen.add(sessionKey);
+        list.push({ sessionKey, date, time, activity: act });
+      });
+    });
+    list.sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
+    return list;
+  }, [schedules]);
+
+  const teamAveragePseJogos = (matchId: string): number | null => {
+    const data = pseJogosStored[matchId];
+    if (!data) return null;
+    const values = Object.values(data).filter(v => typeof v === 'number' && v >= 0 && v <= 10);
+    if (values.length === 0) return null;
+    return Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 10) / 10;
+  };
+
+  const teamAveragePseTreinos = (sessionKey: string): number | null => {
+    const data = pseTreinosStored[sessionKey];
+    if (!data) return null;
+    const values = Object.values(data).filter(v => typeof v === 'number' && v >= 0 && v <= 10);
+    if (values.length === 0) return null;
+    return Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 10) / 10;
+  };
+
   // Usar dados reais de lesões dos jogadores (injuryHistory)
   const filteredInjuries = useMemo(() => {
     const allInjuries: InjuryRecord[] = [];
@@ -60,15 +180,46 @@ export const PhysicalScout: React.FC<PhysicalScoutProps> = ({ matches, players }
   }, [injuryFilter, monthFilter, players]);
 
   const filteredTraining = useMemo(() => {
-    if (monthFilter === 'Todos') return TRAINING_SESSIONS;
-    return TRAINING_SESSIONS.filter(t => new Date(t.date).getMonth().toString() === monthFilter);
-  }, [monthFilter]);
+    const list = trainingDatesFromSchedules
+      .map(date => ({ date, avgRpe: trainingPse[date] ?? undefined }))
+      .filter(t => monthFilter === 'Todos' || new Date(t.date).getMonth().toString() === monthFilter);
+    return list;
+  }, [monthFilter, trainingDatesFromSchedules, trainingPse]);
+
+  // Dados do gráfico Média PSE (Treinos): média da equipe por sessão (aba Média PSE Treinos); fallback por data
+  const rpeTrainingDataFromSessions = useMemo(() => {
+    return trainingSessionsForChart
+      .filter(s => monthFilter === 'Todos' || new Date(s.date).getMonth().toString() === monthFilter)
+      .map(s => {
+        const teamAvg = teamAveragePseTreinos(s.sessionKey);
+        const dateLabel = new Date(s.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+        const hour = s.time ? s.time.slice(0, 5) : '';
+        const label = hour ? `${dateLabel} ${hour}` : dateLabel;
+        return {
+          date: label,
+          dateKey: s.date,
+          rpe: teamAvg ?? 0,
+          type: 'Treino'
+        };
+      });
+  }, [trainingSessionsForChart, monthFilter, pseTreinosStored]);
 
   const stats = useMemo(() => {
-    const totalMatches = filteredMatches.length;
-    
-    const totalRpe = filteredMatches.reduce((acc, curr) => acc + (curr.teamStats.rpeMatch || 0), 0);
-    const avgRpeMatch = totalMatches > 0 ? (totalRpe / totalMatches).toFixed(1) : 0;
+    let avgRpeMatch: string | number = 0;
+    let totalMatches = filteredMatches.length;
+    if (championshipMatches.length > 0) {
+      const filtered = championshipMatches
+        .filter(m => monthFilter === 'Todos' || new Date(m.date).getMonth().toString() === monthFilter)
+        .filter(m => compFilter === 'Todas' || m.competition === compFilter);
+      const values = filtered
+        .map(m => teamAveragePseJogos(m.id) ?? matches.find(s => s.date === m.date)?.teamStats?.rpeMatch)
+        .filter((v): v is number => v != null && typeof v === 'number');
+      totalMatches = filtered.length;
+      avgRpeMatch = values.length > 0 ? (values.reduce((a, b) => a + b, 0) / values.length).toFixed(1) : 0;
+    } else {
+      const totalRpe = filteredMatches.reduce((acc, curr) => acc + (curr.teamStats.rpeMatch || 0), 0);
+      avgRpeMatch = totalMatches > 0 ? (totalRpe / totalMatches).toFixed(1) : 0;
+    }
 
     let matchesWithAbsence = 0;
     filteredMatches.forEach(match => {
@@ -101,20 +252,96 @@ export const PhysicalScout: React.FC<PhysicalScoutProps> = ({ matches, players }
       matchesWithAbsence,
       injuriesByOrigin
     };
-  }, [filteredMatches, filteredInjuries]);
+  }, [filteredMatches, filteredInjuries, championshipMatches, monthFilter, compFilter, matches, pseJogosStored]);
 
-  const rpeMatchData = filteredMatches.map(m => ({
-    date: new Date(m.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-    rpe: m.teamStats.rpeMatch,
-    opponent: m.opponent,
-    result: m.result
-  }));
+  // Evolução PSE (Jogos): média da equipe a partir da aba Evolução PSE (Jogos); fallback para partidas salvas
+  const rpeMatchData = useMemo(() => {
+    if (championshipMatches.length > 0) {
+      const sorted = [...championshipMatches].sort((a, b) => a.date.localeCompare(b.date));
+      return sorted
+        .filter(m => monthFilter === 'Todos' || new Date(m.date).getMonth().toString() === monthFilter)
+        .filter(m => compFilter === 'Todas' || m.competition === compFilter)
+        .map(m => {
+          const teamAvg = teamAveragePseJogos(m.id);
+          const saved = matches.find(s => s.date === m.date);
+          const rpe = teamAvg ?? saved?.teamStats?.rpeMatch ?? 0;
+          return {
+            date: new Date(m.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+            rpe,
+            opponent: m.opponent,
+            result: saved?.result
+          };
+        });
+    }
+    return filteredMatches.map(m => ({
+      date: new Date(m.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+      rpe: m.teamStats.rpeMatch ?? 0,
+      opponent: m.opponent,
+      result: m.result
+    }));
+  }, [championshipMatches, matches, filteredMatches, monthFilter, compFilter, pseJogosStored]);
 
-  const rpeTrainingData = filteredTraining.map(t => ({
-    date: new Date(t.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-    rpe: t.avgRpe,
-    type: t.type
-  }));
+  const rpeTrainingData = trainingSessionsForChart.length > 0
+    ? rpeTrainingDataFromSessions
+    : filteredTraining.map(t => ({
+        date: new Date(t.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+        dateKey: t.date,
+        rpe: t.avgRpe ?? 0,
+        type: 'Treino'
+      }));
+
+  // Qualidade de sono: eventos = noite anterior a treino (manhã) + noite anterior a jogo
+  const sleepChartData = useMemo(() => {
+    const list: { name: string; media: number; type: 'treino' | 'jogo'; eventKey: string }[] = [];
+    const seen = new Set<string>();
+
+    const active = schedules.filter(s => s.isActive === true || s.isActive === 'TRUE' || s.isActive === 'true');
+    active.forEach(s => {
+      const flat = normalizeScheduleDays(s);
+      flat.forEach(day => {
+        const act = (day.activity || '').trim();
+        if (act !== 'Treino' && act !== 'Musculação') return;
+        const date = day.date || '';
+        const time = day.time || '00:00';
+        const [h] = time.split(':').map(Number);
+        if (!date || (h ?? 0) >= 12) return;
+        const eventKey = `treino_${date}`;
+        if (seen.has(eventKey)) return;
+        seen.add(eventKey);
+        const data = qualidadeSonoStored[eventKey];
+        const values = data ? Object.values(data).filter((v): v is number => typeof v === 'number' && v >= 1 && v <= 5) : [];
+        const media = values.length > 0 ? Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 10) / 10 : 0;
+        list.push({
+          name: `${new Date(date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} Treino`,
+          media,
+          type: 'treino',
+          eventKey,
+        });
+      });
+    });
+
+    championshipMatches.forEach(m => {
+      const eventKey = `jogo_${m.date}`;
+      if (seen.has(eventKey)) return;
+      seen.add(eventKey);
+      const data = qualidadeSonoStored[eventKey];
+      const values = data ? Object.values(data).filter((v): v is number => typeof v === 'number' && v >= 1 && v <= 5) : [];
+      const media = values.length > 0 ? Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 10) / 10 : 0;
+      list.push({
+        name: `${new Date(m.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} Jogo`,
+        media,
+        type: 'jogo',
+        eventKey,
+      });
+    });
+
+    list.sort((a, b) => {
+      const dateA = a.eventKey.replace('treino_', '').replace('jogo_', '');
+      const dateB = b.eventKey.replace('treino_', '').replace('jogo_', '');
+      return dateA.localeCompare(dateB);
+    });
+    return list;
+  }, [schedules, championshipMatches, qualidadeSonoStored]);
 
   const injuryTypeData = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -122,19 +349,29 @@ export const PhysicalScout: React.FC<PhysicalScoutProps> = ({ matches, players }
     return Object.entries(counts).map(([name, value]) => ({ name, value }));
   }, [monthFilter]);
 
+  // Contagem por lado do corpo: usa o campo side do cadastro de atleta (Direito | Esquerdo | Bilateral | N/A)
   const injurySideData = useMemo(() => {
     let direito = 0;
     let esquerdo = 0;
-    
-    filteredInjuries.forEach(i => {
-      const location = i.location.toLowerCase();
-      if (location.includes('direito') || location.includes('direita')) {
+
+    filteredInjuries.forEach((i: InjuryRecord) => {
+      const side = i.side ?? (() => {
+        // Fallback para dados antigos sem side: inferir pelo texto de location
+        const loc = (i.location || '').toLowerCase();
+        if (loc.includes('direito') || loc.includes('direita')) return 'Direito';
+        if (loc.includes('esquerdo') || loc.includes('esquerda')) return 'Esquerdo';
+        if (loc.includes('bilateral')) return 'Bilateral';
+        return null;
+      })();
+      if (side === 'Direito') direito++;
+      else if (side === 'Esquerdo') esquerdo++;
+      else if (side === 'Bilateral') {
         direito++;
-      } else if (location.includes('esquerdo') || location.includes('esquerda')) {
         esquerdo++;
       }
+      // N/A ou sem side: não soma em nenhum card
     });
-    
+
     return { direito, esquerdo };
   }, [filteredInjuries]);
 
@@ -266,6 +503,7 @@ export const PhysicalScout: React.FC<PhysicalScoutProps> = ({ matches, players }
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:grid-cols-2 print:break-inside-avoid">
         <ExpandableCard title="Evolução PSE (Jogos)" icon={Activity} headerColor="text-[#ccff00]">
+           <p className="text-xs text-zinc-500 mb-2 font-medium">Média geral da equipe por jogo. Preencha na aba <strong>PSE (Treinos e Jogos)</strong>.</p>
            <div className="h-64">
              <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={rpeMatchData} margin={{ top: 20, right: 30, left: 10, bottom: 5 }}>
@@ -283,7 +521,7 @@ export const PhysicalScout: React.FC<PhysicalScoutProps> = ({ matches, players }
                         strokeWidth={4} 
                         dot={{fill: '#ccff00', r: 5}} 
                         activeDot={{r: 8}} 
-                        name="PSE Média"
+                        name="PSE Média equipe"
                     >
                         <LabelList dataKey="rpe" position="top" fill="#fff" fontSize={14} fontFamily="Poppins" />
                     </Line>
@@ -293,6 +531,7 @@ export const PhysicalScout: React.FC<PhysicalScoutProps> = ({ matches, players }
         </ExpandableCard>
 
         <ExpandableCard title="Média PSE (Treinos)" icon={Activity} headerColor="text-[#10b981]">
+           <p className="text-xs text-zinc-500 mb-2 font-medium">Média geral da equipe por sessão (Treino ou Musculação). Preencha na aba <strong>PSE (Treinos e Jogos)</strong>.</p>
            <div className="h-64">
              <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={rpeTrainingData} margin={{ top: 20, right: 30, left: 10, bottom: 5 }}>
@@ -308,7 +547,7 @@ export const PhysicalScout: React.FC<PhysicalScoutProps> = ({ matches, players }
                         stroke="#10b981"
                         strokeWidth={4}
                         dot={{fill: '#10b981', r: 5}}
-                        name="PSE Treino"
+                        name="PSE Média equipe"
                     >
                          <LabelList dataKey="rpe" position="top" fill="#fff" fontSize={14} fontFamily="Poppins" />
                     </Line>
@@ -317,6 +556,32 @@ export const PhysicalScout: React.FC<PhysicalScoutProps> = ({ matches, players }
            </div>
         </ExpandableCard>
       </div>
+
+      {sleepChartData.length > 0 && (
+        <ExpandableCard title="Média qualidade de sono da equipe" icon={Moon} headerColor="text-indigo-400">
+          <p className="text-xs text-zinc-500 mb-2 font-medium">Noites anteriores a treino (manhã) e a jogos. Preencha na aba <strong>Qualidade de sono</strong>. Escala 1-5.</p>
+          <div className="h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={sleepChartData} margin={{ top: 20, right: 20, left: 10, bottom: 60 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                <XAxis dataKey="name" stroke="#71717a" tick={{ fontSize: 11, fontFamily: 'Poppins' }} angle={-35} textAnchor="end" interval={0} />
+                <YAxis domain={[0, 5]} stroke="#666" tick={{ fontSize: 12, fontFamily: 'Poppins' }} allowDecimals={false} />
+                <Tooltip contentStyle={{ backgroundColor: '#000', borderColor: '#27272a', color: '#fff', fontFamily: 'Poppins', borderRadius: '8px' }} formatter={(value: number) => [value, 'Média']} />
+                <Bar dataKey="media" radius={[4, 4, 0, 0]} barSize={32} name="Média sono">
+                  {sleepChartData.map((entry, index) => (
+                    <Cell key={`sono-${index}`} fill={entry.type === 'treino' ? '#10b981' : '#eab308'} />
+                  ))}
+                  <LabelList dataKey="media" position="top" fill="#fff" fontSize={14} fontFamily="Poppins" fontWeight="bold" />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="flex gap-6 mt-3 text-xs">
+            <span className="flex items-center gap-2 text-zinc-400"><span className="w-3 h-3 rounded bg-emerald-500" /> Treino (manhã)</span>
+            <span className="flex items-center gap-2 text-zinc-400"><span className="w-3 h-3 rounded bg-amber-500" /> Jogo</span>
+          </div>
+        </ExpandableCard>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:grid-cols-2 print:break-inside-avoid">
         <ExpandableCard title="Distribuição por Tipo" icon={AlertTriangle} headerColor="text-[#ff0055]">

@@ -35,7 +35,7 @@ export const Academia: React.FC<AcademiaProps> = ({ schedules = [], players = []
         activeSchedules.forEach(schedule => {
             const flatDays = normalizeScheduleDays(schedule);
             flatDays.forEach(day => {
-                if (day.activity === 'Academia' && day.exerciseName && day.cargaPercent && day.cargaPercent > 0) {
+                if ((day.activity === 'Academia' || day.activity === 'Musculação') && day.exerciseName && day.cargaPercent && day.cargaPercent > 0) {
                     const ex = EXERCISES.find(e => e.id === day.exerciseName);
                     events.push({
                         scheduleId: schedule.id,
@@ -122,10 +122,10 @@ export const Academia: React.FC<AcademiaProps> = ({ schedules = [], players = []
                     <div className="flex items-center justify-center flex-col py-16">
                         <Dumbbell size={64} className="text-[#00f0ff] mb-6 opacity-50" />
                         <h2 className="text-2xl font-black text-white flex items-center gap-2 uppercase tracking-wide mb-4">
-                            Academia
+                            Musculação
                         </h2>
                         <p className="text-zinc-500 text-sm font-bold text-center max-w-md">
-                            Não há eventos de Academia na programação ativa. Crie uma programação, marque atividades como &quot;Academia&quot;, defina o exercício e a % de carga.
+                            Não há eventos de Musculação na programação ativa. Crie uma programação, marque atividades como &quot;Musculação&quot;, defina o exercício e a % de carga.
                         </p>
                     </div>
                 </div>
@@ -212,7 +212,7 @@ export const Academia: React.FC<AcademiaProps> = ({ schedules = [], players = []
                 {/* Lista de eventos de Academia (referência) */}
                 <div className="mt-8 pt-6 border-t border-zinc-800">
                     <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-wider mb-3">
-                        Eventos de Academia na programação
+                        Eventos de Musculação na programação
                     </h3>
                     <div className="space-y-2">
                         {academiaEvents.map((ev, idx) => (
