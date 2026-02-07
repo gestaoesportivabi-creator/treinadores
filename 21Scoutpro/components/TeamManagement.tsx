@@ -1053,7 +1053,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
                             <span className="font-black text-white uppercase tracking-tighter flex items-center gap-2">
                                 <Shirt size={20} />
                                 {pos}
-                                <span className="text-sm text-zinc-400 font-bold normal-case">({list.length})</span>
+                                <span className="text-sm text-white font-bold normal-case">({list.length})</span>
                             </span>
                             {isExpanded ? <ChevronDown size={20} className="text-white" /> : <ChevronRight size={20} className="text-zinc-400" />}
                         </button>
