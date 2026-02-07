@@ -26,6 +26,8 @@ interface ProgramacaoDiaDB {
   horario?: string | null;
   localizacao?: string | null;
   observacoes?: string | null;
+  exercicioId?: string | null;
+  cargaPercent?: number | null;
   createdAt: Date | string;
 }
 
@@ -56,6 +58,7 @@ export function transformScheduleToFrontend(
     if (!daysMap.has(dateKey)) {
       daysMap.set(dateKey, {
         day: dayName,
+        date: dateKey,  // Incluir data para não perder
         activities: [],
       });
     }
@@ -66,13 +69,17 @@ export function transformScheduleToFrontend(
       activity: dia.atividade || '',
       location: dia.localizacao || '',
       notes: dia.observacoes || undefined,
+      carga: dia.cargaPercent ?? undefined,
+      cargaPercent: dia.cargaPercent ?? undefined,
+      exerciseName: dia.exercicioId || undefined,
     });
   });
 
   // Converter Map para array e ordenar por data
-  const daysArray: DaySchedule[] = Array.from(daysMap.values()).sort(() => {
-    // Ordenar por ordem dos dias da semana se disponível
-    return 0; // Simplificado - pode melhorar com ordenação por data
+  const daysArray: DaySchedule[] = Array.from(daysMap.values()).sort((a, b) => {
+    const dateA = a.date || '';
+    const dateB = b.date || '';
+    return dateA.localeCompare(dateB);
   });
 
   // Converter createdAt para timestamp

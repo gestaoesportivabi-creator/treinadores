@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { WeeklySchedule, ScheduleDay } from '../types';
+import { normalizeScheduleDays, normalizeWeeklySchedule } from '../utils/scheduleUtils';
+import { EXERCISES } from '../constants';
 import { CalendarClock, Plus, Save, Printer, Share2, Trash2, Calendar, CheckCircle, ChevronDown, ChevronUp, Flag } from 'lucide-react';
 
 interface ScheduleProps {
@@ -14,6 +16,9 @@ export const Schedule: React.FC<ScheduleProps> = ({ schedules, onSaveSchedule, o
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [currentSchedule, setCurrentSchedule] = useState<WeeklySchedule | null>(null);
+
+    // Normalizar schedules carregados da API (formato agrupado -> flat)
+    const normalizedSchedules = useMemo(() => schedules.map(normalizeWeeklySchedule), [schedules]);
 
     const generateDays = (start: string, end: string) => {
         const days: ScheduleDay[] = [];
@@ -64,6 +69,8 @@ export const Schedule: React.FC<ScheduleProps> = ({ schedules, onSaveSchedule, o
             id: Date.now().toString(),
             startDate,
             endDate,
+            weekStart: startDate,
+            weekEnd: endDate,
             title: `Programação ${formatDateForTitle(startDate)} a ${formatDateForTitle(endDate)}`,
             days
         };
@@ -88,7 +95,9 @@ export const Schedule: React.FC<ScheduleProps> = ({ schedules, onSaveSchedule, o
             time: '',
             activity: 'Academia',
             location: '',
-            notes: ''
+            notes: '',
+            exerciseName: '',
+            cargaPercent: 0,
         };
 
         const updatedDays = [...currentSchedule.days];
@@ -224,7 +233,9 @@ export const Schedule: React.FC<ScheduleProps> = ({ schedules, onSaveSchedule, o
             )}
 
             {/* Editing / Viewing Current Schedule */}
-            {currentSchedule && currentSchedule.days && Array.isArray(currentSchedule.days) && (
+            {currentSchedule && (() => {
+                const days = normalizeScheduleDays(currentSchedule);
+                return days.length > 0 && (
                 <div className="bg-white text-black p-0 md:p-8 rounded-3xl shadow-xl overflow-hidden print:shadow-none print:p-0">
                     <div className="bg-black text-white p-6 md:rounded-t-2xl print:bg-black print:text-white mb-4 md:mb-0">
                         <h2 className="text-2xl font-black uppercase italic tracking-tighter text-center">{currentSchedule.title}</h2>
@@ -237,6 +248,8 @@ export const Schedule: React.FC<ScheduleProps> = ({ schedules, onSaveSchedule, o
                                     <th className="p-4 w-40 border-r border-zinc-200">Dia</th>
                                     <th className="p-4 w-32 border-r border-zinc-200 text-black">Horário</th>
                                     <th className="p-4 w-40 border-r border-zinc-200">Atividade</th>
+                                    <th className="p-4 w-36 border-r border-zinc-200 text-black print:hidden">Exercício (Academia)</th>
+                                    <th className="p-4 w-20 border-r border-zinc-200 text-black print:hidden">% Carga</th>
                                     <th className="p-4 w-48 border-r border-zinc-200 text-black">Local</th>
                                     <th className="p-4">Observações</th>
                                     <th className="p-4 w-10 text-center print:hidden">Ações</th>
@@ -281,7 +294,7 @@ export const Schedule: React.FC<ScheduleProps> = ({ schedules, onSaveSchedule, o
                                                     day.activity === 'Folga' ? 'text-orange-500' : 
                                                     day.activity === 'Treino' ? 'text-blue-600' :
                                                     day.activity === 'Viagem' ? 'text-zinc-700' : 
-                                                    'text-black'
+                                                    day.activity === 'Academia' ? 'text-amber-600' : 'text-black'
                                                 }`}
                                             >
                                                 <option value="Treino">Treino</option>
@@ -291,6 +304,39 @@ export const Schedule: React.FC<ScheduleProps> = ({ schedules, onSaveSchedule, o
                                                 <option value="Academia">Academia</option>
                                                 <option value="Outros">Outros</option>
                                             </select>
+                                        </td>
+                                        <td className="p-4 border-r border-zinc-200 print:hidden">
+                                            {day.activity === 'Academia' ? (
+                                                <select 
+                                                    value={day.exerciseName || ''} 
+                                                    onChange={e => updateDay(idx, 'exerciseName', e.target.value)}
+                                                    className="w-full bg-transparent outline-none font-bold cursor-pointer text-amber-600"
+                                                >
+                                                    <option value="">Selecione...</option>
+                                                    {EXERCISES.map(ex => (
+                                                        <option key={ex.id} value={ex.id}>{ex.name}</option>
+                                                    ))}
+                                                </select>
+                                            ) : (
+                                                <span className="text-zinc-300 text-xs">—</span>
+                                            )}
+                                        </td>
+                                        <td className="p-4 border-r border-zinc-200 print:hidden">
+                                            {day.activity === 'Academia' ? (
+                                                <input 
+                                                    type="number" 
+                                                    min="1" max="100"
+                                                    value={day.cargaPercent ?? ''} 
+                                                    onChange={e => {
+                                                        const v = e.target.value;
+                                                        updateDay(idx, 'cargaPercent', v === '' ? 0 : parseInt(v, 10) || 0);
+                                                    }}
+                                                    className="w-full bg-transparent outline-none font-bold text-center text-amber-600 placeholder-zinc-300"
+                                                    placeholder="%"
+                                                />
+                                            ) : (
+                                                <span className="text-zinc-300 text-xs">—</span>
+                                            )}
                                         </td>
                                         <td className="p-4 border-r border-zinc-200">
                                             <input 
@@ -325,13 +371,14 @@ export const Schedule: React.FC<ScheduleProps> = ({ schedules, onSaveSchedule, o
                         </table>
                     </div>
                 </div>
-            )}
+                );
+            })()}
 
             {/* Saved Schedules List - Expandable Cards */}
-            {!currentSchedule && !isCreating && schedules.length > 0 && (
+            {!currentSchedule && !isCreating && normalizedSchedules.length > 0 && (
                 <div className="space-y-4">
                     <h3 className="text-white font-bold uppercase tracking-wider text-sm mb-4 border-l-4 border-[#10b981] pl-2">Programações Salvas</h3>
-                    {schedules
+                    {normalizedSchedules
                         .filter(sch => sch && sch.id) // Remover schedules inválidos
                         .sort((a, b) => {
                             // Ordenar: ativos primeiro, depois por data de criação (mais recente primeiro)

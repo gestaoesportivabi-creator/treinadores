@@ -46,7 +46,6 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
     const [newInjurySeverity, setNewInjurySeverity] = useState('Leve');
     const [newInjuryOrigin, setNewInjuryOrigin] = useState<'Treino' | 'Jogo' | 'Outros'>('Treino');
     const [newInjuryStart, setNewInjuryStart] = useState('');
-    const [newInjuryEnd, setNewInjuryEnd] = useState('');
     const [newInjuryReturnDate, setNewInjuryReturnDate] = useState(''); // Data retorno prevista
     const [newInjuryReturnDateActual, setNewInjuryReturnDateActual] = useState(''); // Data retorno real
 
@@ -118,7 +117,6 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
         setNewInjurySeverity('Leve');
         setNewInjuryOrigin('Treino');
         setNewInjuryStart('');
-        setNewInjuryEnd('');
         setNewInjuryReturnDate('');
         setNewInjuryReturnDateActual('');
         setBirthDate('');
@@ -163,7 +161,11 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
     const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            // Check file type (JPEG, PNG, TIFF, BMP) - Browsers generally support JPEG/PNG/BMP well. TIFF support is limited in browsers but we allow upload.
+            const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/tiff', 'image/svg+xml', 'image/x-icon'];
+            if (!validTypes.includes(file.type) && !file.type.startsWith('image/')) {
+                alert('Formato de imagem não suportado. Use: JPEG, PNG, GIF, WebP, BMP, TIFF ou SVG.');
+                return;
+            }
             const reader = new FileReader();
             reader.onloadend = () => {
                 setPhotoUrl(reader.result as string);
@@ -191,8 +193,8 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         
-        // Calcular dias baseado na data de retorno real (se houver) ou prevista (se houver) ou fim
-        const endDate = newInjuryReturnDateActual || newInjuryReturnDate || newInjuryEnd;
+        // Calcular dias baseado na data de retorno real (se houver) ou prevista (se houver)
+        const endDate = newInjuryReturnDateActual || newInjuryReturnDate;
         if (endDate) {
             const end = new Date(endDate);
             end.setHours(0, 0, 0, 0);
@@ -209,7 +211,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
             id: Date.now().toString(),
             playerId: editPlayerId,
             date: newInjuryStart,
-            endDate: newInjuryEnd || undefined,
+            endDate: newInjuryReturnDateActual || undefined,
             returnDate: newInjuryReturnDate || undefined,
             returnDateActual: newInjuryReturnDateActual || undefined,
             type: newInjuryType as any,
@@ -295,11 +297,11 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
     };
 
     const POSITION_COLORS: Record<string, { bg: string; border: string; hover: string }> = {
-        'Goleiro': { bg: 'bg-amber-500/20', border: 'border-amber-500/60', hover: 'hover:border-amber-400' },
-        'Fixo': { bg: 'bg-blue-500/20', border: 'border-blue-500/60', hover: 'hover:border-blue-400' },
-        'Ala': { bg: 'bg-emerald-500/20', border: 'border-emerald-500/60', hover: 'hover:border-emerald-400' },
-        'Pivô': { bg: 'bg-violet-500/20', border: 'border-violet-500/60', hover: 'hover:border-violet-400' },
-        'Outros': { bg: 'bg-zinc-500/20', border: 'border-zinc-500/60', hover: 'hover:border-zinc-400' },
+        'Goleiro': { bg: 'bg-amber-500', border: 'border-amber-600', hover: 'hover:bg-amber-400' },
+        'Fixo': { bg: 'bg-blue-500', border: 'border-blue-600', hover: 'hover:bg-blue-400' },
+        'Ala': { bg: 'bg-emerald-500', border: 'border-emerald-600', hover: 'hover:bg-emerald-400' },
+        'Pivô': { bg: 'bg-violet-500', border: 'border-violet-600', hover: 'hover:bg-violet-400' },
+        'Outros': { bg: 'bg-zinc-500', border: 'border-zinc-600', hover: 'hover:bg-zinc-400' },
     };
     const getPositionStyle = (pos: string) => POSITION_COLORS[pos] || POSITION_COLORS['Outros'];
 
@@ -621,7 +623,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
                                     <div className="relative">
                                         <input 
                                             type="file" 
-                                            accept=".jpg, .jpeg, .png, .tiff, .bmp"
+                                            accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,image/bmp,image/tiff,image/svg+xml,image/x-icon"
                                             onChange={handlePhotoUpload}
                                             className="w-full bg-black border border-zinc-800 rounded-xl p-3 text-white outline-none focus:border-[#10b981] file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-zinc-800 file:text-white hover:file:bg-zinc-700"
                                         />
@@ -729,12 +731,8 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
                                         <input type="date" value={newInjuryReturnDate} onChange={e => setNewInjuryReturnDate(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg p-2 text-white text-xs" />
                                     </div>
                                     <div>
-                                        <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Data Retorno Real</label>
+                                        <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Data Retorno Real / Alta</label>
                                         <input type="date" value={newInjuryReturnDateActual} onChange={e => setNewInjuryReturnDateActual(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg p-2 text-white text-xs" />
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Fim (Alta)</label>
-                                        <input type="date" value={newInjuryEnd} onChange={e => setNewInjuryEnd(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg p-2 text-white text-xs" />
                                     </div>
                                     <div className="md:col-span-2 lg:col-span-4">
                                         <button 
@@ -1050,7 +1048,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
                             key={pos}
                             type="button"
                             onClick={() => togglePositionExpanded(pos)}
-                            className={`rounded-3xl border-2 ${style.bg} ${style.border} ${style.hover} ${isExpanded ? 'ring-2 ring-white/50' : ''} transition-all p-4 flex items-center justify-between`}
+                            className={`rounded-2xl border-2 ${style.bg} ${style.border} ${style.hover} ${isExpanded ? 'ring-2 ring-white/50' : ''} transition-all px-5 py-3 flex items-center justify-between shadow-lg`}
                         >
                             <span className="font-black text-white uppercase tracking-tighter flex items-center gap-2">
                                 <Shirt size={20} />

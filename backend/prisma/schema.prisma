@@ -7,8 +7,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 model Role {
   id          String   @id @default(uuid())
@@ -97,7 +98,8 @@ model Jogador {
   altura              Decimal?                   @db.Decimal(5, 2)
   peso                Decimal?                   @db.Decimal(5, 2)
   ultimoClube         String?                    @map("ultimo_clube") @db.VarChar(255)
-  fotoUrl             String?                    @map("foto_url")
+  fotoUrl             String?                    @map("foto_url") @db.Text
+  maxLoadsJson        Json?                      @map("max_loads_json")
   isTransferido       Boolean                    @default(false) @map("is_transferido")
   dataTransferencia   DateTime?                  @map("data_transferencia") @db.Date
   isAtivo             Boolean                    @default(true) @map("is_ativo")
@@ -299,6 +301,8 @@ model ProgramacoesDias {
   horario         String?     @db.VarChar(10)
   localizacao     String?     @db.VarChar(255)
   observacoes     String?
+  exercicioId     String?     @map("exercicio_id") @db.VarChar(50)
+  cargaPercent    Int?        @map("carga_percent")
   createdAt       DateTime    @default(now()) @map("created_at")
   programacao     Programacao @relation(fields: [programacaoId], references: [id], onDelete: Cascade)
 
