@@ -358,7 +358,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
         'Goleiro': { bg: 'bg-amber-500', border: 'border-amber-600', hover: 'hover:bg-amber-400' },
         'Fixo': { bg: 'bg-blue-500', border: 'border-blue-600', hover: 'hover:bg-blue-400' },
         'Ala': { bg: 'bg-emerald-500', border: 'border-emerald-600', hover: 'hover:bg-emerald-400' },
-        'Pivô': { bg: 'bg-violet-500', border: 'border-violet-600', hover: 'hover:bg-violet-400' },
+        'Pivô': { bg: 'bg-zinc-500', border: 'border-zinc-600', hover: 'hover:bg-zinc-400' },
         'Outros': { bg: 'bg-zinc-500', border: 'border-zinc-600', hover: 'hover:bg-zinc-400' },
     };
     const getPositionStyle = (pos: string) => POSITION_COLORS[pos] || POSITION_COLORS['Outros'];
