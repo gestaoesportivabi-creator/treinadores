@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Login } from './components/Login';
 import { LandingPage } from './components/LandingPage';
@@ -106,6 +106,124 @@ export default function App() {
   });
   
   const config = SPORT_CONFIGS['futsal'];
+
+  const normalizeResult = (result: MatchRecord['result'] | string | undefined) => {
+    if (result === 'Vitória' || result === 'V') return 'V';
+    if (result === 'Derrota' || result === 'D') return 'D';
+    if (result === 'Empate' || result === 'E') return 'E';
+    return undefined;
+  };
+
+  const overviewStats = useMemo(() => {
+    const totals = matches.reduce(
+      (acc, match) => {
+        const normalizedResult = normalizeResult(match.result);
+        acc.totalGames += 1;
+        if (normalizedResult === 'V') acc.wins += 1;
+        if (normalizedResult === 'D') acc.losses += 1;
+        if (normalizedResult === 'E') acc.draws += 1;
+
+        if (match.playerStats) {
+          Object.entries(match.playerStats).forEach(([playerId, stats]) => {
+            if (!stats) return;
+            const goals = stats.goals || 0;
+            if (goals <= 0) return;
+            acc.goalsByPlayer.set(playerId, (acc.goalsByPlayer.get(playerId) || 0) + goals);
+          });
+        }
+
+        return acc;
+      },
+      {
+        totalGames: 0,
+        wins: 0,
+        losses: 0,
+        draws: 0,
+        goalsByPlayer: new Map<string, number>()
+      }
+    );
+
+    let topScorerId: string | null = null;
+    let topScorerGoals = 0;
+    totals.goalsByPlayer.forEach((goals, playerId) => {
+      if (goals > topScorerGoals) {
+        topScorerGoals = goals;
+        topScorerId = playerId;
+      }
+    });
+
+    const topScorerName =
+      topScorerId ? players.find(player => player.id === topScorerId)?.name || 'Atleta' : '—';
+
+    const now = new Date();
+    const year = now.getFullYear();
+    const injuriesThisYear = players.reduce((acc, player) => {
+      const injuries = player.injuryHistory || [];
+      injuries.forEach(injury => {
+        const dateValue =
+          injury.startDate || injury.date || injury.endDate || injury.returnDate || injury.returnDateActual;
+        if (!dateValue) return;
+        const injuryDate = new Date(dateValue);
+        if (!Number.isNaN(injuryDate.getTime()) && injuryDate.getFullYear() === year) {
+          acc += 1;
+        }
+      });
+      return acc;
+    }, 0);
+
+    const upcomingMatches = championshipMatches
+      .map(match => ({
+        ...match,
+        dateTime: new Date(`${match.date}T${match.time || '00:00'}`)
+      }))
+      .filter(match => !Number.isNaN(match.dateTime.getTime()) && match.dateTime >= now)
+      .sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime());
+
+    const nextMatch = upcomingMatches[0];
+
+    return {
+      totalAthletes: players.length,
+      totalGames: totals.totalGames,
+      wins: totals.wins,
+      losses: totals.losses,
+      draws: totals.draws,
+      topScorerName,
+      topScorerGoals,
+      injuriesThisYear,
+      currentYear: year,
+      nextMatch
+    };
+  }, [matches, players, championshipMatches]);
+
+  type StatCardProps = {
+    label: string;
+    value: React.ReactNode;
+    helper?: string;
+    highlight?: boolean;
+  };
+
+  const StatCard = ({ label, value, helper, highlight = false }: StatCardProps) => (
+    <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
+      <p className="text-[10px] uppercase tracking-[0.35em] text-zinc-500">{label}</p>
+      <p className={`mt-2 text-2xl font-semibold ${highlight ? 'text-[#00f0ff]' : 'text-white'}`}>
+        {value}
+      </p>
+      {helper && <p className="mt-1 text-xs text-zinc-500">{helper}</p>}
+    </div>
+  );
+
+  const formatMatchDate = (dateTime?: Date) => {
+    if (!dateTime || Number.isNaN(dateTime.getTime())) return 'Sem data definida';
+    const dateLabel = dateTime.toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: 'short'
+    });
+    const timeLabel = dateTime.toLocaleTimeString('pt-BR', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    return `${dateLabel} • ${timeLabel}`;
+  };
 
   // Carregar dados da API quando o componente monta E quando o usuário faz login
   useEffect(() => {
@@ -956,130 +1074,82 @@ export default function App() {
       case 'dashboard':
       default:
         return (
-          <div className="h-full w-full relative rounded-3xl overflow-hidden flex flex-col p-8 md:p-16 group shadow-2xl border border-zinc-900 bg-black animate-fade-in">
-            {/* Background Carousel */}
-            {SLIDES.map((slide, index) => (
-                <div 
-                    key={index}
-                    className={`absolute inset-0 z-0 transition-opacity duration-1000 ease-in-out ${index === currentSlide ? 'opacity-50' : 'opacity-0'}`}
+          <div className="h-full w-full rounded-3xl border border-zinc-900 bg-black p-6 md:p-10 shadow-2xl animate-fade-in">
+            <div className="flex flex-col gap-8">
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-3">
+                  <span className="text-[10px] uppercase tracking-[0.4em] text-zinc-500">Visão Geral</span>
+                  <h1 className="text-3xl md:text-4xl font-semibold text-white">Primeira impressão</h1>
+                  <p className="text-sm text-zinc-400 max-w-2xl">
+                    Insights essenciais do scout coletivo, resultados e participações recentes.
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <NextMatchAlert matches={championshipMatches} />
+                  <ScheduleAlerts schedules={schedules} />
+                </div>
+                {overviewStats.nextMatch && (
+                  <SuspensionsAlert
+                    nextMatch={overviewStats.nextMatch}
+                    championships={championships}
+                    players={players}
+                  />
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+                <StatCard
+                  label="Quantidade de atletas"
+                  value={overviewStats.totalAthletes}
+                  helper={overviewStats.totalAthletes > 0 ? 'Cadastros ativos' : 'Sem atletas cadastrados'}
+                />
+                <StatCard
+                  label="Próximo jogo"
+                  value={overviewStats.nextMatch ? `${overviewStats.nextMatch.team} x ${overviewStats.nextMatch.opponent}` : '—'}
+                  helper={
+                    overviewStats.nextMatch
+                      ? `${formatMatchDate(overviewStats.nextMatch.dateTime)} • ${overviewStats.nextMatch.competition}`
+                      : 'Sem partidas agendadas'
+                  }
+                />
+                <StatCard
+                  label="Quantidade de jogos"
+                  value={overviewStats.totalGames}
+                  helper={`Vitórias ${overviewStats.wins} • Derrotas ${overviewStats.losses}`}
+                  highlight={overviewStats.totalGames > 0}
+                />
+                <StatCard
+                  label="Artilheiro do time"
+                  value={overviewStats.topScorerName}
+                  helper={
+                    overviewStats.topScorerGoals > 0
+                      ? `${overviewStats.topScorerGoals} gols`
+                      : 'Sem gols registrados'
+                  }
+                />
+                <StatCard
+                  label="Lesões no ano"
+                  value={overviewStats.injuriesThisYear}
+                  helper={`Ano ${overviewStats.currentYear}`}
+                />
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={() => handleTabChange('general')}
+                  className="flex items-center gap-2 rounded-full border border-zinc-800 bg-black px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-zinc-200 transition-colors hover:border-[#00f0ff]/60 hover:text-white"
                 >
-                    <img 
-                        src={slide.img}
-                        alt="Background" 
-                        className="w-full h-full object-cover"
-                    />
-                     {/* Gradient Overlays */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent mix-blend-multiply" />
-                    <div className="absolute inset-0 bg-gradient-to-r from-black via-black/60 to-transparent" />
-                </div>
-            ))}
-
-            {/* Content Content */}
-            <div className="relative z-10 max-w-5xl h-full flex flex-col justify-between">
-                
-                {/* Schedule Alerts - Top Section */}
-                <div className="flex-1 overflow-y-auto">
-                    <NextMatchAlert matches={championshipMatches} />
-                    <ScheduleAlerts schedules={schedules} />
-                </div>
-                {(() => {
-                  const now = new Date();
-                  const upcoming = championshipMatches
-                    .filter(m => m.dateTime && new Date(m.dateTime) >= now)
-                    .sort((a, b) => new Date(a.dateTime!).getTime() - new Date(b.dateTime!).getTime());
-                  const nextMatch = upcoming[0] || null;
-                  return nextMatch ? (
-                    <SuspensionsAlert
-                      nextMatch={nextMatch}
-                      championships={championships}
-                      players={players}
-                    />
-                  ) : null;
-                })()}
-                
-                {/* Bottom Content */}
-                <div className="flex flex-col justify-end">
-                
-                {/* User Greeting */}
-                <div className="flex items-center gap-3 mb-8">
-                    <div className="h-[2px] w-16 bg-[#00f0ff] shadow-[0_0_10px_#00f0ff]"></div>
-                    <span className="text-[#00f0ff] font-bold tracking-[0.3em] uppercase text-xs">
-                        Bem-vindo, {currentUser.name}
-                    </span>
-                </div>
-
-                {/* Quote Carousel Text */}
-                <div className="mb-8 min-h-[200px] flex flex-col justify-end">
-                     <h1 className="text-4xl md:text-5xl lg:text-7xl font-black text-white leading-[1.1] tracking-tighter drop-shadow-2xl italic uppercase mb-6 animate-fade-in-up transition-all duration-700">
-                        "{SLIDES[currentSlide].quote}"
-                    </h1>
-                    <p className="text-zinc-400 font-bold text-lg uppercase tracking-widest flex items-center gap-2 animate-fade-in">
-                        — {SLIDES[currentSlide].author}
-                    </p>
-                </div>
-                
-                {/* Carousel Indicators */}
-                <div className="flex gap-2 mb-12">
-                    {SLIDES.map((_, idx) => (
-                        <div 
-                            key={idx} 
-                            className={`h-1 rounded-full transition-all duration-500 ${idx === currentSlide ? 'w-12 bg-[#00f0ff]' : 'w-4 bg-zinc-800'}`}
-                        ></div>
-                    ))}
-                </div>
-
-                {/* Quick Navigation - Modern Design with New Palette (65% opacity) */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {/* Performance → Scout Coletivo */}
-                    <button 
-                        onClick={() => handleTabChange('general')}
-                        className="relative bg-[#00f0ff]/65 border border-[#00f0ff]/40 p-6 rounded-2xl text-left hover:bg-[#00f0ff]/75 hover:border-[#00f0ff]/60 transition-all group/btn overflow-hidden shadow-lg hover:shadow-xl hover:shadow-[#00f0ff]/40 backdrop-blur-sm"
-                    >
-                        <div className="absolute inset-0 bg-gradient-to-br from-[#00f0ff]/65 via-[#00f0ff]/50 to-[#00f0ff]/80 opacity-0 group-hover/btn:opacity-100 transition-opacity duration-300"></div>
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl opacity-0 group-hover/btn:opacity-100 transition-opacity duration-500"></div>
-                        <div className="relative z-10">
-                            <BarChart3 className="text-black mb-4 group-hover/btn:scale-110 group-hover/btn:rotate-3 transition-all duration-300 drop-shadow-lg" size={32} />
-                            <h3 className="text-black font-black uppercase text-sm tracking-wider drop-shadow-md">Scout Coletivo</h3>
-                            <div className="flex items-center gap-2 text-[10px] text-black/80 font-bold uppercase mt-2">
-                                Performance <ArrowRight size={12} className="group-hover/btn:translate-x-2 transition-transform duration-300" />
-                            </div>
-                        </div>
-                    </button>
-
-                    {/* Fisiologia → Bem-Estar */}
-                    <button 
-                        onClick={() => handleTabChange('assessment')}
-                        className="relative bg-[#10b981]/65 border border-[#10b981]/40 p-6 rounded-2xl text-left hover:bg-[#10b981]/75 hover:border-[#10b981]/60 transition-all group/btn overflow-hidden shadow-lg hover:shadow-xl hover:shadow-[#10b981]/40 backdrop-blur-sm"
-                    >
-                        <div className="absolute inset-0 bg-gradient-to-br from-[#10b981]/65 via-[#10b981]/50 to-[#10b981]/80 opacity-0 group-hover/btn:opacity-100 transition-opacity duration-300"></div>
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl opacity-0 group-hover/btn:opacity-100 transition-opacity duration-500"></div>
-                        <div className="relative z-10">
-                            <HeartPulse className="text-white mb-4 group-hover/btn:scale-110 group-hover/btn:rotate-3 transition-all duration-300 drop-shadow-lg" size={32} />
-                            <h3 className="text-white font-black uppercase text-sm tracking-wider drop-shadow-md">Bem-Estar</h3>
-                            <div className="flex items-center gap-2 text-[10px] text-white/90 font-bold uppercase mt-2">
-                                Fisiologia <ArrowRight size={12} className="group-hover/btn:translate-x-2 transition-transform duration-300" />
-                            </div>
-                        </div>
-                    </button>
-
-                    {/* Gestão → Relatório Gerencial */}
-                    <button 
-                         onClick={() => handleTabChange('management-report')}
-                        className="relative bg-[#8b5cf6]/65 border border-[#8b5cf6]/40 p-6 rounded-2xl text-left hover:bg-[#8b5cf6]/75 hover:border-[#8b5cf6]/60 transition-all group/btn overflow-hidden shadow-lg hover:shadow-xl hover:shadow-[#8b5cf6]/40 backdrop-blur-sm"
-                    >
-                        <div className="absolute inset-0 bg-gradient-to-br from-[#8b5cf6]/65 via-[#8b5cf6]/50 to-[#8b5cf6]/80 opacity-0 group-hover/btn:opacity-100 transition-opacity duration-300"></div>
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl opacity-0 group-hover/btn:opacity-100 transition-opacity duration-500"></div>
-                        <div className="relative z-10">
-                            <FileText className="text-white mb-4 group-hover/btn:scale-110 group-hover/btn:rotate-3 transition-all duration-300 drop-shadow-lg" size={32} />
-                            <h3 className="text-white font-black uppercase text-sm tracking-wider drop-shadow-md">Relatório Gerencial</h3>
-                            <div className="flex items-center gap-2 text-[10px] text-white/90 font-bold uppercase mt-2">
-                                Gestão <ArrowRight size={12} className="group-hover/btn:translate-x-2 transition-transform duration-300" />
-                            </div>
-                        </div>
-                    </button>
-                </div>
-                
-                </div>
+                  <BarChart3 size={14} />
+                  Scout Coletivo
+                </button>
+                <button
+                  onClick={() => handleTabChange('management-report')}
+                  className="flex items-center gap-2 rounded-full border border-zinc-800 bg-black px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-zinc-200 transition-colors hover:border-[#00f0ff]/60 hover:text-white"
+                >
+                  <FileText size={14} />
+                  Relatório Gerencial
+                </button>
+              </div>
             </div>
           </div>
         );
