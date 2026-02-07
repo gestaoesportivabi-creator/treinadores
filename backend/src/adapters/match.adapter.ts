@@ -18,6 +18,10 @@ interface JogoDB {
   golsPro: number;
   golsContra: number;
   videoUrl?: string | null;
+  postMatchEventLog?: unknown;
+  playerRelationships?: unknown;
+  lineup?: unknown;
+  substitutionHistory?: unknown;
   createdAt: Date | string;
 }
 
@@ -123,17 +127,22 @@ export function transformMatchToFrontend(
     ? jogo.data 
     : jogo.data.toISOString().split('T')[0];
 
-  return {
+  const result: MatchRecord = {
     id: jogo.id,
     opponent: jogo.adversario,
     date: dateStr,
     result: (jogo.resultado as 'V' | 'D' | 'E') || 'E',
     goalsFor: jogo.golsPro,
     goalsAgainst: jogo.golsContra,
-    competition: jogo.campeonato || undefined, // Usar campeonato legado ou buscar por competicaoId
+    competition: jogo.campeonato || undefined,
     playerStats,
     teamStats,
   };
+  if (jogo.postMatchEventLog) result.postMatchEventLog = jogo.postMatchEventLog as MatchRecord['postMatchEventLog'];
+  if (jogo.playerRelationships) result.playerRelationships = jogo.playerRelationships as MatchRecord['playerRelationships'];
+  if (jogo.lineup) result.lineup = jogo.lineup as MatchRecord['lineup'];
+  if (jogo.substitutionHistory) result.substitutionHistory = jogo.substitutionHistory as MatchRecord['substitutionHistory'];
+  return result;
 }
 
 /**

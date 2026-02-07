@@ -143,6 +143,10 @@ export const matchesRepository = {
     golsPro?: number;
     golsContra?: number;
     videoUrl?: string;
+    postMatchEventLog?: object;
+    playerRelationships?: object;
+    lineup?: object;
+    substitutionHistory?: object;
   }): Promise<JogoDB> {
     return prisma.jogo.create({
       data: {
@@ -156,6 +160,10 @@ export const matchesRepository = {
         golsPro: data.golsPro || 0,
         golsContra: data.golsContra || 0,
         videoUrl: data.videoUrl,
+        postMatchEventLog: data.postMatchEventLog as any,
+        playerRelationships: data.playerRelationships as any,
+        lineup: data.lineup as any,
+        substitutionHistory: data.substitutionHistory as any,
       },
     }) as Promise<JogoDB>;
   },

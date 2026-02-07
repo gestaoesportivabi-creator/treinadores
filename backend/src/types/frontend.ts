@@ -54,7 +54,7 @@ export interface PhysicalAssessment {
 }
 
 export interface MatchRecord {
-  id: string;
+  id?: string;
   opponent: string;
   date: string;
   result: 'V' | 'D' | 'E';
@@ -63,6 +63,10 @@ export interface MatchRecord {
   competition?: string;
   playerStats: { [playerId: string]: MatchStats };
   teamStats: MatchStats;
+  playerRelationships?: { [p1: string]: { [p2: string]: { passes: number; assists: number } } };
+  postMatchEventLog?: Array<{ id: string; time: string; period: string; playerId: string; action: string; tipo: string; subtipo: string; passToPlayerId?: string }>;
+  lineup?: { players: string[]; bench: string[]; ballPossessionStart: string };
+  substitutionHistory?: Array<{ playerOutId: string; playerInId: string; time: number; period: string }>;
 }
 
 export interface MatchStats {

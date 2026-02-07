@@ -148,6 +148,8 @@ export interface PostMatchEvent {
   tipo: string;
   /** Subtipo para exibição e dashboard (ex.: A favor, Certo, No gol) */
   subtipo: string;
+  /** ID do jogador que recebeu o passe (apenas para ações passCorrect/passWrong) */
+  passToPlayerId?: string;
 }
 
 export interface MatchRecord {

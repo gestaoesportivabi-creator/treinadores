@@ -131,18 +131,22 @@ model EquipesJogadores {
 }
 
 model Jogo {
-  id                  String                     @id @default(uuid())
-  equipeId            String                     @map("equipe_id")
-  adversario          String                     @db.VarChar(255)
-  data                DateTime                   @db.Date
-  campeonato          String?                    @db.VarChar(255)
-  competicaoId        String?                    @map("competicao_id")
-  local               String?                    @db.VarChar(255)
-  resultado           String?                    @db.Char(1)
-  golsPro             Int                        @default(0) @map("gols_pro")
-  golsContra          Int                        @default(0) @map("gols_contra")
-  videoUrl            String?                    @map("video_url")
-  createdAt           DateTime                   @default(now()) @map("created_at")
+  id                     String                     @id @default(uuid())
+  equipeId               String                     @map("equipe_id")
+  adversario             String                     @db.VarChar(255)
+  data                   DateTime                   @db.Date
+  campeonato             String?                    @db.VarChar(255)
+  competicaoId          String?                    @map("competicao_id")
+  local                  String?                    @db.VarChar(255)
+  resultado             String?                    @db.Char(1)
+  golsPro               Int                        @default(0) @map("gols_pro")
+  golsContra            Int                        @default(0) @map("gols_contra")
+  videoUrl              String?                    @map("video_url")
+  postMatchEventLog     Json?                      @map("post_match_event_log")
+  playerRelationships   Json?                      @map("player_relationships")
+  lineup                Json?                      @map("lineup")
+  substitutionHistory   Json?                      @map("substitution_history")
+  createdAt             DateTime                   @default(now()) @map("created_at")
   campeonatosJogos    CampeonatosJogos[]
   competicao          Competicao?                @relation(fields: [competicaoId], references: [id])
   equipe              Equipe                     @relation(fields: [equipeId], references: [id])

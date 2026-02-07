@@ -7,6 +7,7 @@ import { MatchTypeModal, MatchType } from './MatchTypeModal';
 import { MatchScoutingWindow } from './MatchScoutingWindow';
 import { CollectionTypeSelector, CollectionType } from './CollectionTypeSelector';
 import { PostMatchCollectionSheet } from './PostMatchCollectionSheet';
+import { AthleteSelector } from './AthleteSelector';
 
 interface GoalTime {
     id: string;
@@ -1981,10 +1982,11 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                 competition: selectedMatch.competition,
                             }}
                             onSelect={(type: CollectionType) => {
+                                setCollectionType(type);
                                 if (type === 'realtime') {
                                     setShowMatchTypeModal(true);
                                 } else {
-                                    setShowPostMatchSheet(true);
+                                    setShowScoutingWindow(true);
                                 }
                             }}
                             onBack={handleBackToCalendar}
@@ -2033,58 +2035,11 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                 </div>
                             </div>
 
-                            <div className="bg-black rounded-3xl border border-zinc-900 p-6 shadow-lg">
-                                <h3 className="text-white font-bold uppercase text-sm mb-4 flex items-center gap-2">
-                                    <Users className="text-[#00f0ff]" size={16} /> Selecionar Atletas
-                                </h3>
-                                <div className="max-h-96 overflow-y-auto space-y-2">
-                                    {players.map((player) => {
-                                        const isSelected = selectedPlayersForMatch.has(String(player.id).trim());
-                                        const isUnavailable = isPlayerUnavailableForMatch(player, selectedScheduledMatch?.date);
-                                        return (
-                                            <label
-                                                key={player.id}
-                                                className={`flex items-center gap-3 p-3 bg-zinc-950 border-2 rounded-xl transition-colors ${
-                                                    isUnavailable
-                                                        ? 'border-zinc-800 opacity-60 cursor-not-allowed'
-                                                        : 'border-zinc-800 cursor-pointer hover:border-[#00f0ff]/50'
-                                                }`}
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    checked={isSelected}
-                                                    disabled={isUnavailable}
-                                                    onChange={(e) => {
-                                                        if (isUnavailable) return;
-                                                        const newSet = new Set(selectedPlayersForMatch);
-                                                        if (e.target.checked) {
-                                                            newSet.add(String(player.id).trim());
-                                                        } else {
-                                                            newSet.delete(String(player.id).trim());
-                                                        }
-                                                        setSelectedPlayersForMatch(newSet);
-                                                    }}
-                                                    className="w-5 h-5 text-[#00f0ff] bg-zinc-900 border-zinc-700 rounded focus:ring-[#00f0ff] focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                />
-                                                {isUnavailable && (
-                                                    <div className="flex-shrink-0 bg-red-600 p-1 rounded" title="Indisponível - em recuperação (lesão sem data de retorno)">
-                                                        <Ambulance size={16} className="text-white" />
-                                                    </div>
-                                                )}
-                                                <div className="flex-1">
-                                                    <span className={`font-bold text-sm ${isUnavailable ? 'text-zinc-500' : 'text-white'}`}>
-                                                        #{player.jerseyNumber} {player.name}
-                                                    </span>
-                                                    <span className="text-zinc-500 text-xs ml-2">({player.position})</span>
-                                                </div>
-                                            </label>
-                                        );
-                                    })}
-                                    {players.length === 0 && (
-                                        <p className="text-zinc-500 text-sm text-center py-4">Nenhum jogador cadastrado</p>
-                                    )}
-                                </div>
-                            </div>
+                            <AthleteSelector
+                                players={players}
+                                selectedIds={selectedPlayersForMatch}
+                                onSelectionChange={setSelectedPlayersForMatch}
+                            />
 
                             <div className="bg-black rounded-3xl border border-zinc-900 p-6 shadow-lg">
                                 <h3 className="text-white font-bold uppercase text-sm mb-4 flex items-center gap-2">
@@ -2228,63 +2183,16 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                 </div>
                             </div>
 
-                            <div className="bg-black rounded-3xl border border-zinc-900 p-6 shadow-lg">
-                                <h3 className="text-white font-bold uppercase text-sm mb-4 flex items-center gap-2">
-                                    <Users className="text-[#00f0ff]" size={16} /> Selecionar Atletas
-                                </h3>
-                                <div className="max-h-96 overflow-y-auto space-y-2">
-                                    {players.map((player) => {
-                                        const isSelected = selectedPlayersForMatch.has(String(player.id).trim());
-                                        const isUnavailable = isPlayerUnavailableForMatch(player, selectedScheduledMatch?.date);
-                                        return (
-                                            <label
-                                                key={player.id}
-                                                className={`flex items-center gap-3 p-3 bg-zinc-950 border-2 rounded-xl transition-colors ${
-                                                    isUnavailable
-                                                        ? 'border-zinc-800 opacity-60 cursor-not-allowed'
-                                                        : 'border-zinc-800 cursor-pointer hover:border-[#00f0ff]/50'
-                                                }`}
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    checked={isSelected}
-                                                    disabled={isUnavailable}
-                                                    onChange={(e) => {
-                                                        if (isUnavailable) return;
-                                                        const newSet = new Set(selectedPlayersForMatch);
-                                                        if (e.target.checked) {
-                                                            newSet.add(String(player.id).trim());
-                                                        } else {
-                                                            newSet.delete(String(player.id).trim());
-                                                        }
-                                                        setSelectedPlayersForMatch(newSet);
-                                                    }}
-                                                    className="w-5 h-5 text-[#00f0ff] bg-zinc-900 border-zinc-700 rounded focus:ring-[#00f0ff] focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                />
-                                                {isUnavailable && (
-                                                    <div className="flex-shrink-0 bg-red-600 p-1 rounded" title="Indisponível - em recuperação (lesão sem data de retorno)">
-                                                        <Ambulance size={16} className="text-white" />
-                                                    </div>
-                                                )}
-                                                <div className="flex-1">
-                                                    <span className={`font-bold text-sm ${isUnavailable ? 'text-zinc-500' : 'text-white'}`}>
-                                                        #{player.jerseyNumber} {player.name}
-                                                    </span>
-                                                    <span className="text-zinc-500 text-xs ml-2">({player.position})</span>
-                                                </div>
-                                            </label>
-                                        );
-                                    })}
-                                    {players.length === 0 && (
-                                        <p className="text-zinc-500 text-sm text-center py-4">Nenhum jogador cadastrado</p>
-                                    )}
-                                </div>
-                            </div>
+                            <AthleteSelector
+                                players={players}
+                                selectedIds={selectedPlayersForMatch}
+                                onSelectionChange={setSelectedPlayersForMatch}
+                            />
 
                             <div className="flex justify-center">
                                 <button
                                     type="button"
-                                    onClick={() => setShowPostMatchSheet(true)}
+                                    onClick={() => setShowScoutingWindow(true)}
                                     disabled={selectedPlayersForMatch.size === 0}
                                     className={`flex items-center gap-2 font-black uppercase text-sm px-6 py-3 rounded-xl transition-colors ${
                                         selectedPlayersForMatch.size === 0
@@ -2292,7 +2200,7 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                             : 'bg-[#00f0ff] hover:bg-[#00d9e6] text-black shadow-[0_0_15px_rgba(0,240,255,0.3)]'
                                     }`}
                                 >
-                                    Continuar para planilha
+                                    Iniciar Scout (tempo manual)
                                 </button>
                             </div>
                         </div>
@@ -3227,8 +3135,8 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                 }}
             />
 
-            {/* Janela de Coleta da Partida */}
-            {selectedMatch && (
+            {/* Janela de Coleta da Partida (realtime ou postmatch) */}
+            {(selectedMatch || (collectionType === 'postmatch' && selectedScheduledMatch)) && (
                 <MatchScoutingWindow
                     isOpen={showScoutingWindow}
                     onClose={() => {
@@ -3236,13 +3144,43 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                         setSelectedMatchType('normal');
                         setSelectedExtraTimeMinutes(5);
                         setSelectedPlayersForMatch(new Set());
+                        setShowPostMatchSheet(false);
                     }}
-                    match={selectedMatch}
+                    match={
+                        selectedMatch ??
+                        ({
+                            id: `sched-${selectedScheduledMatch!.id}`,
+                            opponent: selectedScheduledMatch!.opponent || '',
+                            date: selectedScheduledMatch!.date,
+                            result: 'E',
+                            goalsFor: 0,
+                            goalsAgainst: 0,
+                            competition: selectedScheduledMatch!.competition,
+                            playerStats: {},
+                            teamStats: {
+                                goals: 0,
+                                assists: 0,
+                                passesCorrect: 0,
+                                passesWrong: 0,
+                                shotsOnTarget: 0,
+                                shotsOffTarget: 0,
+                                tacklesWithBall: 0,
+                                tacklesWithoutBall: 0,
+                                tacklesCounterAttack: 0,
+                                transitionErrors: 0,
+                            },
+                        } as MatchRecord)
+                    }
                     players={players || []}
                     teams={teams || []}
                     matchType={selectedMatchType}
                     extraTimeMinutes={selectedExtraTimeMinutes}
-                    selectedPlayerIds={isScheduledMatch() && selectedPlayersForMatch ? Array.from(selectedPlayersForMatch) : undefined}
+                    selectedPlayerIds={selectedPlayersForMatch.size > 0 ? Array.from(selectedPlayersForMatch) : undefined}
+                    mode={collectionType === 'postmatch' ? 'postmatch' : 'realtime'}
+                    onSave={(saved) => {
+                        onSave?.(saved);
+                        handleBackToCalendar();
+                    }}
                 />
             )}
         </div>
