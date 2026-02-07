@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { WeeklySchedule, ScheduleDay } from '../types';
 import { normalizeScheduleDays, normalizeWeeklySchedule } from '../utils/scheduleUtils';
-import { EXERCISES } from '../constants';
 import { CalendarClock, Plus, Save, Printer, Share2, Trash2, Calendar, CheckCircle, ChevronDown, ChevronUp, Flag } from 'lucide-react';
 
 interface ScheduleProps {
@@ -93,11 +92,9 @@ export const Schedule: React.FC<ScheduleProps> = ({ schedules, onSaveSchedule, o
         const newPeriod: ScheduleDay = {
             ...dayToClone,
             time: '',
-            activity: 'Academia',
+            activity: 'Musculação',
             location: '',
             notes: '',
-            exerciseName: '',
-            cargaPercent: 0,
         };
 
         const updatedDays = [...currentSchedule.days];
@@ -119,7 +116,6 @@ export const Schedule: React.FC<ScheduleProps> = ({ schedules, onSaveSchedule, o
     const saveCurrent = () => {
         if (currentSchedule) {
             onSaveSchedule(currentSchedule);
-            alert('Programação salva com sucesso! Ela ficará disponível por 30 dias.');
             setCurrentSchedule(null); // Return to list view after save
         }
     };
@@ -248,10 +244,8 @@ export const Schedule: React.FC<ScheduleProps> = ({ schedules, onSaveSchedule, o
                                     <th className="p-4 w-40 border-r border-zinc-200">Dia</th>
                                     <th className="p-4 w-32 border-r border-zinc-200 text-black">Horário</th>
                                     <th className="p-4 w-40 border-r border-zinc-200">Atividade</th>
-                                    <th className="p-4 w-36 border-r border-zinc-200 text-black print:hidden">Exercício (Academia)</th>
-                                    <th className="p-4 w-20 border-r border-zinc-200 text-black print:hidden">% Carga</th>
                                     <th className="p-4 w-48 border-r border-zinc-200 text-black">Local</th>
-                                    <th className="p-4">Observações</th>
+                                    <th className="p-4">Observações (ex: exercício, % de carga máxima)</th>
                                     <th className="p-4 w-10 text-center print:hidden">Ações</th>
                                 </tr>
                             </thead>
@@ -301,42 +295,9 @@ export const Schedule: React.FC<ScheduleProps> = ({ schedules, onSaveSchedule, o
                                                 <option value="Jogo">Jogo</option>
                                                 <option value="Folga">Folga</option>
                                                 <option value="Viagem">Viagem</option>
-                                                <option value="Academia">Academia</option>
+                                                <option value="Musculação">Musculação</option>
                                                 <option value="Outros">Outros</option>
                                             </select>
-                                        </td>
-                                        <td className="p-4 border-r border-zinc-200 print:hidden">
-                                            {day.activity === 'Academia' ? (
-                                                <select 
-                                                    value={day.exerciseName || ''} 
-                                                    onChange={e => updateDay(idx, 'exerciseName', e.target.value)}
-                                                    className="w-full bg-transparent outline-none font-bold cursor-pointer text-amber-600"
-                                                >
-                                                    <option value="">Selecione...</option>
-                                                    {EXERCISES.map(ex => (
-                                                        <option key={ex.id} value={ex.id}>{ex.name}</option>
-                                                    ))}
-                                                </select>
-                                            ) : (
-                                                <span className="text-zinc-300 text-xs">—</span>
-                                            )}
-                                        </td>
-                                        <td className="p-4 border-r border-zinc-200 print:hidden">
-                                            {day.activity === 'Academia' ? (
-                                                <input 
-                                                    type="number" 
-                                                    min="1" max="100"
-                                                    value={day.cargaPercent ?? ''} 
-                                                    onChange={e => {
-                                                        const v = e.target.value;
-                                                        updateDay(idx, 'cargaPercent', v === '' ? 0 : parseInt(v, 10) || 0);
-                                                    }}
-                                                    className="w-full bg-transparent outline-none font-bold text-center text-amber-600 placeholder-zinc-300"
-                                                    placeholder="%"
-                                                />
-                                            ) : (
-                                                <span className="text-zinc-300 text-xs">—</span>
-                                            )}
                                         </td>
                                         <td className="p-4 border-r border-zinc-200">
                                             <input 

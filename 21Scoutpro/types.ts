@@ -118,6 +118,8 @@ export interface MatchStats {
   yellowCards?: number;
   /** Cartões vermelhos (contabilizados por campeonato) */
   redCards?: number;
+  /** PSE média da partida (0-10) – Evolução PSE (Jogos) */
+  rpeMatch?: number;
 }
 
 export type PostMatchAction =
@@ -202,13 +204,13 @@ export interface ScheduleDay {
   date: string;       // YYYY-MM-DD
   weekday: string;    // Nome do dia da semana
   time: string;       // HH:MM
-  activity: string;   // Treino, Jogo, Academia, etc.
+  activity: string;   // Treino, Jogo, Musculação, etc.
   location: string;
   notes?: string;
-  // Campos para Academia: carga e porcentagem
+  // Campos para Musculação: carga e porcentagem
   carga?: number;     // Carga em kg ou repetições
   cargaPercent?: number; // Porcentagem da carga máxima do atleta
-  exerciseName?: string; // Nome do exercício (para Academia)
+  exerciseName?: string; // Nome do exercício (para Musculação)
 }
 
 // Compatibilidade: DaySchedule agrupado (usado pelo backend em alguns casos)

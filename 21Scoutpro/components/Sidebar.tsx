@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, Users, User as UserIcon, LogOut, HeartPulse, MonitorPlay, Settings, Table2, Shirt, Trophy, Ruler, CalendarClock, ChevronDown, ChevronRight, Dumbbell } from 'lucide-react';
+import { LayoutDashboard, Users, User as UserIcon, LogOut, HeartPulse, MonitorPlay, Settings, Table2, Shirt, Trophy, Ruler, CalendarClock, ChevronDown, ChevronRight, Dumbbell, Activity, Moon } from 'lucide-react';
 import { User } from '../types';
 
 // Importação explícita da logo oficial
@@ -37,7 +37,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLog
       label: 'Gestão de Equipe',
       icon: Shirt,
       items: [
-        { id: 'team', label: 'Cadastro e Histórico de Equipe', icon: Shirt, restricted: isAthlete },
+        { id: 'team', label: 'Elenco', icon: Shirt, restricted: isAthlete },
         { id: 'schedule', label: 'Programação', icon: CalendarClock, restricted: isAthlete },
         { id: 'championship', label: 'Tabela de Campeonato', icon: Trophy, restricted: isAthlete },
       ]
@@ -59,8 +59,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLog
       icon: HeartPulse,
       items: [
         { id: 'physical', label: 'Monitoramento Fisiológico', icon: HeartPulse, restricted: isAthlete },
+        { id: 'pse', label: 'PSE (Treinos e Jogos)', icon: Activity, restricted: isAthlete },
+        { id: 'qualidade-sono', label: 'Qualidade de sono', icon: Moon, restricted: isAthlete },
         { id: 'assessment', label: 'Avaliação Física', icon: Ruler, restricted: isAthlete },
-        { id: 'academia', label: 'Academia', icon: Dumbbell, restricted: isAthlete },
+        { id: 'academia', label: 'Musculação', icon: Dumbbell, restricted: isAthlete },
       ]
     }
   ];
