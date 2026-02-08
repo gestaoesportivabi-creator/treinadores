@@ -117,10 +117,7 @@ export const playersController = {
           error: error.message,
         });
       }
-      // Retornar mensagem de erro mais detalhada em desenvolvimento
-      const errorMessage = process.env.NODE_ENV === 'development' 
-        ? error?.message || 'Erro ao criar jogador'
-        : 'Erro ao criar jogador';
+      const errorMessage = error?.message || 'Erro ao criar jogador';
       return res.status(500).json({
         success: false,
         error: errorMessage,

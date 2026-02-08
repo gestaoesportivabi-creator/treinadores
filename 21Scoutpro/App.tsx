@@ -670,7 +670,23 @@ export default function App() {
           setPlayers(prev => [...prev, saved]);
           alert("Atleta cadastrado com sucesso!");
         } else {
-          // Fallback: salvar localmente quando backend falhar
+          if (import.meta.env.PROD) {
+            alert("Não foi possível salvar o atleta no servidor. Verifique sua conexão e as variáveis de ambiente (DATABASE_URL) em produção. Os dados não foram gravados.");
+          } else {
+            const localPlayers = JSON.parse(localStorage.getItem(PLAYERS_LOCAL_KEY) || '[]');
+            const playerWithId = { ...newPlayer, id: newPlayer.id || `p${Date.now()}` };
+            localPlayers.push(playerWithId);
+            localStorage.setItem(PLAYERS_LOCAL_KEY, JSON.stringify(localPlayers));
+            setPlayers(prev => [...prev, playerWithId]);
+            alert("Atleta cadastrado localmente (backend indisponível).");
+          }
+        }
+      } catch (error) {
+        if (import.meta.env.PROD) {
+          console.error('Erro ao criar atleta:', error);
+          alert("Erro ao salvar atleta no servidor. Os dados não foram gravados. Verifique o console (F12) e as variáveis de ambiente em produção.");
+        } else {
+          console.warn('Backend indisponível, salvando localmente:', error);
           const localPlayers = JSON.parse(localStorage.getItem(PLAYERS_LOCAL_KEY) || '[]');
           const playerWithId = { ...newPlayer, id: newPlayer.id || `p${Date.now()}` };
           localPlayers.push(playerWithId);
@@ -678,15 +694,6 @@ export default function App() {
           setPlayers(prev => [...prev, playerWithId]);
           alert("Atleta cadastrado localmente (backend indisponível).");
         }
-      } catch (error) {
-        // Fallback: salvar localmente quando backend falhar
-        console.warn('Backend indisponível, salvando localmente:', error);
-        const localPlayers = JSON.parse(localStorage.getItem(PLAYERS_LOCAL_KEY) || '[]');
-        const playerWithId = { ...newPlayer, id: newPlayer.id || `p${Date.now()}` };
-        localPlayers.push(playerWithId);
-        localStorage.setItem(PLAYERS_LOCAL_KEY, JSON.stringify(localPlayers));
-        setPlayers(prev => [...prev, playerWithId]);
-        alert("Atleta cadastrado localmente (backend indisponível).");
       }
   };
 
@@ -698,7 +705,27 @@ export default function App() {
           setPlayers(prev => prev.map(p => p.id === updatedPlayer.id ? saved : p));
           alert("Dados do atleta atualizados com sucesso!");
         } else {
-          // Fallback: atualizar localmente quando backend falhar
+          if (import.meta.env.PROD) {
+            alert("Não foi possível atualizar o atleta no servidor. Os dados não foram gravados.");
+          } else {
+            const localPlayers = JSON.parse(localStorage.getItem(PLAYERS_LOCAL_KEY) || '[]');
+            const idx = localPlayers.findIndex((p: Player) => p.id === updatedPlayer.id);
+            if (idx >= 0) {
+              localPlayers[idx] = updatedPlayer;
+            } else {
+              localPlayers.push(updatedPlayer);
+            }
+            localStorage.setItem(PLAYERS_LOCAL_KEY, JSON.stringify(localPlayers));
+            setPlayers(prev => prev.map(p => p.id === updatedPlayer.id ? updatedPlayer : p));
+            alert("Dados do atleta atualizados localmente (backend indisponível).");
+          }
+        }
+      } catch (error) {
+        if (import.meta.env.PROD) {
+          console.error('Erro ao atualizar atleta:', error);
+          alert("Erro ao atualizar atleta no servidor. Os dados não foram gravados.");
+        } else {
+          console.warn('Backend indisponível, atualizando localmente:', error);
           const localPlayers = JSON.parse(localStorage.getItem(PLAYERS_LOCAL_KEY) || '[]');
           const idx = localPlayers.findIndex((p: Player) => p.id === updatedPlayer.id);
           if (idx >= 0) {
@@ -710,19 +737,6 @@ export default function App() {
           setPlayers(prev => prev.map(p => p.id === updatedPlayer.id ? updatedPlayer : p));
           alert("Dados do atleta atualizados localmente (backend indisponível).");
         }
-      } catch (error) {
-        // Fallback: atualizar localmente quando backend falhar
-        console.warn('Backend indisponível, atualizando localmente:', error);
-        const localPlayers = JSON.parse(localStorage.getItem(PLAYERS_LOCAL_KEY) || '[]');
-        const idx = localPlayers.findIndex((p: Player) => p.id === updatedPlayer.id);
-        if (idx >= 0) {
-          localPlayers[idx] = updatedPlayer;
-        } else {
-          localPlayers.push(updatedPlayer);
-        }
-        localStorage.setItem(PLAYERS_LOCAL_KEY, JSON.stringify(localPlayers));
-        setPlayers(prev => prev.map(p => p.id === updatedPlayer.id ? updatedPlayer : p));
-        alert("Dados do atleta atualizados localmente (backend indisponível).");
       }
   };
 
