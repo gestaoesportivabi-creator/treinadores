@@ -79,9 +79,11 @@ interface ScoutTableProps {
     onInitialDataUsed?: () => void; // Callback quando dados iniciais forem usados
     championshipMatches?: ChampionshipMatch[]; // Partidas da tabela de campeonato
     teams?: Team[]; // Equipes cadastradas
+    currentUser?: { id?: string; name: string } | null; // Usuário logado (para auditoria: quem registrou as ações)
+    onScoutWindowOpenChange?: (open: boolean) => void; // Notifica quando a janela Scout da Partida abre/fecha (ex.: para esconder a sidebar)
 }
 
-export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competitions, matches = [], initialData, onInitialDataUsed, championshipMatches = [], teams = [] }) => {
+export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competitions, matches = [], initialData, onInitialDataUsed, championshipMatches = [], teams = [], currentUser, onScoutWindowOpenChange }) => {
     // Debug: log initialData quando recebido
     useEffect(() => {
         if (initialData) {
@@ -97,6 +99,9 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
     const [isViewMode, setIsViewMode] = useState(false); // Modo visualização (após salvar)
     const [showMatchTypeModal, setShowMatchTypeModal] = useState(false); // Modal de tipo de partida
     const [showScoutingWindow, setShowScoutingWindow] = useState(false); // Janela de coleta
+    useEffect(() => {
+        onScoutWindowOpenChange?.(showScoutingWindow);
+    }, [showScoutingWindow, onScoutWindowOpenChange]);
     const [selectedMatchType, setSelectedMatchType] = useState<MatchType>('normal');
     const [selectedExtraTimeMinutes, setSelectedExtraTimeMinutes] = useState<number>(5);
     const [selectedScheduledMatch, setSelectedScheduledMatch] = useState<ChampionshipMatch | null>(null); // Partida programada selecionada
@@ -1711,10 +1716,11 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
         
         if (item.type === 'saved') {
             const match = item as MatchRecord;
+            if (match.status === 'encerrado') return 'finalizado';
             const hasData = 
                 match.teamStats &&
                 (match.teamStats.goals > 0 ||
-                 match.teamStats.goalsConceded > 0 ||
+                 (match.teamStats as { goalsConceded?: number }).goalsConceded > 0 ||
                  Object.keys(match.playerStats || {}).length > 0);
             
             return hasData ? 'finalizado' : 'incompleto';
@@ -1774,6 +1780,7 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
     };
 
     const handleBackToCalendar = () => {
+        setShowScoutingWindow(false);
         setViewMode('calendar');
         setSelectedMatch(null);
         setSelectedScheduledMatch(null);
@@ -2236,6 +2243,7 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                 handleBackToCalendar();
                             }}
                             onBack={handleBackToCalendar}
+                            recordedByUser={currentUser ? { id: currentUser.id, name: currentUser.name } : undefined}
                         />
                     )}
 
@@ -3181,6 +3189,8 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                         onSave?.(saved);
                         handleBackToCalendar();
                     }}
+                    recordedByUser={currentUser ? { id: currentUser.id, name: currentUser.name } : undefined}
+                    takeFullWidth={showScoutingWindow}
                 />
             )}
         </div>

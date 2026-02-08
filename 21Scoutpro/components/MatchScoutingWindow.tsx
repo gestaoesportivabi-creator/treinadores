@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { X, Play, Pause, Square, Users, ArrowRightLeft, Goal, AlertTriangle, Clock } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { X, Play, Pause, Square, Users, ArrowRightLeft, Goal, AlertTriangle, Clock, List, ArrowLeft } from 'lucide-react';
 import { MatchRecord, MatchStats, Player, Team, PostMatchEvent, PostMatchAction } from '../types';
 import { MatchType } from './MatchTypeModal';
 
@@ -46,6 +46,10 @@ interface MatchScoutingWindowProps {
   selectedPlayerIds?: string[]; // IDs dos jogadores selecionados
   mode?: 'realtime' | 'postmatch'; // postmatch = tempo manual, sem cronômetro
   onSave?: (match: MatchRecord) => void; // Chamado em postmatch ao encerrar coleta
+  /** Usuário que está registrando as ações (para auditoria: quem fez/registrou cada ação) */
+  recordedByUser?: { id?: string; name: string };
+  /** Quando true, ocupa todo o viewport (ex.: sidebar foi escondida pelo app) */
+  takeFullWidth?: boolean;
 }
 
 type LateralResult = 'defesaDireita' | 'defesaEsquerda' | 'ataqueDireita' | 'ataqueEsquerda';
@@ -84,6 +88,8 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
   selectedPlayerIds,
   mode = 'realtime',
   onSave,
+  recordedByUser,
+  takeFullWidth,
 }) => {
   const isPostmatch = mode === 'postmatch';
   const [matchTime, setMatchTime] = useState<number>(0); // tempo em segundos
@@ -127,6 +133,10 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
   // Estados para período e posse
   const [currentPeriod, setCurrentPeriod] = useState<'1T' | '2T'>('1T');
   const [ballPossessionNow, setBallPossessionNow] = useState<'com' | 'sem'>('com');
+  const ballPossessionNowRef = useRef<'com' | 'sem'>(ballPossessionNow);
+  useEffect(() => { ballPossessionNowRef.current = ballPossessionNow; }, [ballPossessionNow]);
+  const [possessionSecondsWith, setPossessionSecondsWith] = useState<number>(0);
+  const [possessionSecondsWithout, setPossessionSecondsWithout] = useState<number>(0);
   const [showIntervalAnalysis, setShowIntervalAnalysis] = useState<boolean>(false);
   
   // Estado para goleiro atual (fixo ou goleiro linha)
@@ -147,6 +157,12 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
 
   // Estado para setor da bola (Ataque/Defesa - Esquerda/Direita) - usado por Falta, Lateral, Escanteio
   const [ballSector, setBallSector] = useState<LateralResult | null>(null);
+
+  // Tela de logs (eventos em tabela editável)
+  const [showLogsView, setShowLogsView] = useState<boolean>(false);
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<{ time: number; period: '1T' | '2T'; type: MatchEvent['type']; result?: MatchEvent['result']; cardType?: MatchEvent['cardType'] } | null>(null);
+  const [editTimeInput, setEditTimeInput] = useState<string>('');
   
   // Estados para tiro livre e pênalti (fluxo inline)
   const [showFreeKickTeamSelection, setShowFreeKickTeamSelection] = useState<boolean>(false);
@@ -253,6 +269,52 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
     }
   };
 
+  // Opções de tipo de ação para a tela de logs (value = MatchEvent['type'])
+  const EVENT_TYPE_OPTIONS: { value: MatchEvent['type']; label: string }[] = [
+    { value: 'pass', label: 'Passe' },
+    { value: 'shot', label: 'Finalização' },
+    { value: 'foul', label: 'Falta' },
+    { value: 'goal', label: 'Gol' },
+    { value: 'card', label: 'Cartão' },
+    { value: 'tackle', label: 'Desarme' },
+    { value: 'save', label: 'Defesa' },
+    { value: 'block', label: 'Bloqueio' },
+    { value: 'corner', label: 'Escanteio' },
+    { value: 'freeKick', label: 'Tiro Livre' },
+    { value: 'penalty', label: 'Pênalti' },
+    { value: 'lateral', label: 'Lateral' },
+  ];
+
+  // Opções de subtipo por tipo (para selects na edição de logs)
+  const getSubtypeOptions = (type: MatchEvent['type']): { value: string; result?: MatchEvent['result']; cardType?: MatchEvent['cardType'] }[] => {
+    switch (type) {
+      case 'pass':
+        return [{ value: 'Certo', result: 'correct' }, { value: 'Errado', result: 'wrong' }];
+      case 'shot':
+        return [{ value: 'No gol', result: 'inside' }, { value: 'Pra fora', result: 'outside' }, { value: 'Trave', result: 'post' }, { value: 'Bloqueado', result: 'blocked' }];
+      case 'foul':
+      case 'corner':
+      case 'lateral':
+        return [
+          { value: 'Defesa - Direita', result: 'defesaDireita' },
+          { value: 'Defesa - Esquerda', result: 'defesaEsquerda' },
+          { value: 'Ataque - Direita', result: 'ataqueDireita' },
+          { value: 'Ataque - Esquerda', result: 'ataqueEsquerda' },
+        ];
+      case 'goal':
+        return [{ value: 'A favor', result: 'normal' }, { value: 'Contra', result: 'contra' }];
+      case 'card':
+        return [{ value: 'Amarelo', cardType: 'yellow' }, { value: 'Segundo Amarelo', cardType: 'secondYellow' }, { value: 'Vermelho', cardType: 'red' }];
+      case 'tackle':
+        return [{ value: 'Com posse', result: 'withBall' }, { value: 'Sem posse', result: 'withoutBall' }, { value: 'Contra-ataque', result: 'counter' }];
+      case 'freeKick':
+      case 'penalty':
+        return [{ value: 'Gol', result: 'goal' }, { value: 'Defendido', result: 'saved' }, { value: 'Pra fora', result: 'outside' }, { value: 'Trave', result: 'post' }, { value: 'Não gol', result: 'noGoal' }];
+      default:
+        return [];
+    }
+  };
+
   // Tempo a usar ao registrar evento (cronômetro ou manual)
   const getTimeForEvent = (): number | null => {
     if (isPostmatch) {
@@ -301,12 +363,17 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
     }
   }, [isOpen, isPostmatch, players, lineupPlayers]);
 
-  // Cronômetro
+  // Cronômetro e acúmulo de tempo com/sem posse
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
     if (isRunning && !isMatchEnded) {
       interval = setInterval(() => {
         setMatchTime(prev => prev + 1);
+        if (ballPossessionNowRef.current === 'com') {
+          setPossessionSecondsWith(prev => prev + 1);
+        } else {
+          setPossessionSecondsWithout(prev => prev + 1);
+        }
       }, 1000);
     }
     return () => {
@@ -319,6 +386,24 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  };
+
+  // Recalcular placar e faltas a partir de matchEvents (usado após edição na tela de logs)
+  const recalcGoalsAndFoulsFromEvents = (events: MatchEvent[]) => {
+    let goalsForCalc = 0;
+    let goalsAgainstCalc = 0;
+    let foulsCalc = 0;
+    for (const e of events) {
+      if (e.type === 'goal') {
+        if (e.isOpponentGoal) goalsAgainstCalc += 1;
+        else goalsForCalc += 1;
+      } else if (e.type === 'foul') {
+        foulsCalc += 1;
+      }
+    }
+    setGoalsFor(goalsForCalc);
+    setGoalsAgainst(goalsAgainstCalc);
+    setFoulsCount(foulsCalc);
   };
 
   // Toggle cronômetro
@@ -350,11 +435,12 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
     setBallPossessionNow(ballPossessionStart === 'us' ? 'sem' : 'com');
   };
 
-  // Processar dualidades dos eventos
-  const processPlayerRelationships = () => {
+  // Processar dualidades dos eventos (opcional: filtrar por período, ex. só 1T)
+  const processPlayerRelationships = (events?: MatchEvent[]) => {
+    const list = events ?? matchEvents;
     const relationships: { [playerId1: string]: { [playerId2: string]: { passes: number; assists: number } } } = {};
     
-    matchEvents.forEach(event => {
+    list.forEach(event => {
       if (event.type === 'pass' && event.passToPlayerId && event.playerId && event.result === 'correct') {
         const player1Id = String(event.playerId).trim();
         const player2Id = String(event.passToPlayerId).trim();
@@ -488,19 +574,33 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
         tipo: e.tipo,
         subtipo: e.subtipo,
       };
+      if (e.playerName) postEvent.playerName = e.playerName;
       if ((action === 'passCorrect' || action === 'passWrong') && e.passToPlayerId) {
         postEvent.passToPlayerId = String(e.passToPlayerId).trim();
+        if (e.passToPlayerName) postEvent.passToPlayerName = e.passToPlayerName;
+      }
+      const lateralToZone: Record<string, 'AT_ESQ' | 'AT_DIR' | 'DF_ESQ' | 'DF_DIR'> = {
+        ataqueEsquerda: 'AT_ESQ',
+        ataqueDireita: 'AT_DIR',
+        defesaEsquerda: 'DF_ESQ',
+        defesaDireita: 'DF_DIR',
+      };
+      if (e.result && lateralToZone[e.result]) postEvent.zone = lateralToZone[e.result];
+      if (recordedByUser) {
+        postEvent.recordedByUserId = recordedByUser.id;
+        postEvent.recordedByName = recordedByUser.name;
       }
       postMatchEventLog.push(postEvent);
     }
 
     const playerRelationships = processPlayerRelationships();
 
+    const result: 'V' | 'D' | 'E' = goalsFor > goalsAgainst ? 'V' : goalsAgainst > goalsFor ? 'D' : 'E';
     return {
       id: match.id,
       opponent: match.opponent,
       date: match.date,
-      result: 'E',
+      result,
       goalsFor,
       goalsAgainst,
       competition: match.competition,
@@ -517,23 +617,26 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
     if (!canEnd) return;
 
     if (isPostmatch && onSave) {
-      // Converter matchEvents para MatchRecord e chamar onSave
       const savedMatch = convertMatchEventsToMatchRecord(matchEvents);
+      savedMatch.status = 'encerrado';
       onSave(savedMatch);
       onClose();
       return;
     }
 
-    // Realtime: montar MatchRecord completo e salvar se onSave existir
+    // Realtime: montar MatchRecord completo e salvar sempre ao encerrar (mesmo com zero eventos)
     if (substitutionHistory.length > 0) {
       updateSubstitutionFrequency(substitutionHistory);
     }
-    if (onSave && matchEvents.length >= 1) {
+    if (onSave) {
       const savedMatch = convertMatchEventsToMatchRecord(matchEvents);
+      savedMatch.status = 'encerrado';
       savedMatch.lineup = lineupPlayers.length > 0 && ballPossessionStart
         ? { players: lineupPlayers, bench: benchPlayers, ballPossessionStart }
         : undefined;
       savedMatch.substitutionHistory = substitutionHistory.length > 0 ? substitutionHistory : undefined;
+      savedMatch.possessionSecondsWith = possessionSecondsWith;
+      savedMatch.possessionSecondsWithout = possessionSecondsWithout;
       onSave(savedMatch);
     }
     onClose();
@@ -1154,11 +1257,53 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
     setSelectedPlayerId(null); // Limpar seleção após registrar cartão
   };
 
+  // Mapeamento LateralResult -> rótulo zona (AT ESQ, AT DIR, DF ESQ, DF DIR)
+  const lateralToZoneLabel: Record<string, string> = {
+    ataqueEsquerda: 'AT ESQ',
+    ataqueDireita: 'AT DIR',
+    defesaEsquerda: 'DF ESQ',
+    defesaDireita: 'DF DIR',
+  };
+
   // Últimos 3 comandos para log
   const lastThreeEvents = useMemo(() => {
     return [...matchEvents].reverse().slice(0, 3).reverse();
   }, [matchEvents]);
-  
+
+  // Linhas de exibição para "Últimos comandos": passes viram duas linhas (quem deu / quem recebeu)
+  const lastCommandDisplayLines = useMemo(() => {
+    const lines: Array<{ key: string; time: number; playerName: string; actionText: string; zone?: string }> = [];
+    for (const event of lastThreeEvents) {
+      const zone = event.result && lateralToZoneLabel[event.result] ? lateralToZoneLabel[event.result] : undefined;
+      const isPassWithReceiver = event.type === 'pass' && event.passToPlayerId && event.passToPlayerName;
+      if (isPassWithReceiver) {
+        lines.push({
+          key: `${event.id}-passer`,
+          time: event.time,
+          playerName: event.playerName || 'N/A',
+          actionText: event.tipo + (event.subtipo ? ` ${event.subtipo}` : ''),
+          zone,
+        });
+        lines.push({
+          key: `${event.id}-receiver`,
+          time: event.time,
+          playerName: event.passToPlayerName || 'N/A',
+          actionText: 'Recebeu passe',
+          zone,
+        });
+      } else {
+        lines.push({
+          key: event.id,
+          time: event.time,
+          playerName: event.playerName || 'N/A',
+          actionText: event.tipo + (event.subtipo ? ` ${event.subtipo}` : ''),
+          zone,
+        });
+      }
+    }
+    return lines;
+  }, [lastThreeEvents]);
+
   // Jogadores do banco ordenados por frequência de substituições
   const isBlockedByPenalty = !!penaltyStep;
 
@@ -1171,17 +1316,90 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
     });
   }, [benchPlayers]);
 
+  // Estatísticas do 1º tempo (apenas eventos com period === '1T')
+  const firstHalfStats = useMemo(() => {
+    const e1t = matchEvents.filter(e => e.period === '1T');
+    return {
+      shots: e1t.filter(e => e.type === 'shot').length,
+      corners: e1t.filter(e => e.type === 'corner').length,
+      saves: e1t.filter(e => e.type === 'save').length,
+      fouls: e1t.filter(e => e.type === 'foul').length,
+      cards: e1t.filter(e => e.type === 'card').length,
+    };
+  }, [matchEvents]);
+
+  // Relação entre jogadores e passes no 1º tempo (duplas, jogadores, certo/errado)
+  const firstHalfPassData = useMemo(() => {
+    const e1t = matchEvents.filter(e => e.period === '1T');
+    const passesCorrect = e1t.filter(e => e.type === 'pass' && e.result === 'correct').length;
+    const passesWrong = e1t.filter(e => e.type === 'pass' && e.result === 'wrong').length;
+    const relationships = processPlayerRelationships(e1t);
+    const getPlayerName = (id: string) => players.find(p => String(p.id).trim() === id)?.name ?? id;
+
+    const duplasList: { id1: string; id2: string; passes: number; name1: string; name2: string }[] = [];
+    Object.keys(relationships).forEach(id1 => {
+      Object.keys(relationships[id1]).forEach(id2 => {
+        duplasList.push({
+          id1,
+          id2,
+          passes: relationships[id1][id2].passes,
+          name1: getPlayerName(id1),
+          name2: getPlayerName(id2),
+        });
+      });
+    });
+    duplasList.sort((a, b) => b.passes - a.passes);
+    const duplasTop = duplasList.slice(0, 10);
+
+    const playerTotals: Record<string, { given: number; received: number }> = {};
+    e1t.forEach(event => {
+      if (event.type !== 'pass' || !event.playerId) return;
+      const fromId = String(event.playerId).trim();
+      const toId = event.passToPlayerId ? String(event.passToPlayerId).trim() : null;
+      if (!playerTotals[fromId]) playerTotals[fromId] = { given: 0, received: 0 };
+      playerTotals[fromId].given += 1;
+      if (toId) {
+        if (!playerTotals[toId]) playerTotals[toId] = { given: 0, received: 0 };
+        playerTotals[toId].received += 1;
+      }
+    });
+    const playersList = Object.entries(playerTotals).map(([playerId, v]) => ({
+      playerId,
+      name: getPlayerName(playerId),
+      totalPasses: v.given + v.received,
+      given: v.given,
+      received: v.received,
+    }));
+    playersList.sort((a, b) => b.totalPasses - a.totalPasses);
+    const playersTop = playersList.slice(0, 10);
+
+    const mostCorrectPassesPlayer = (() => {
+      const byPlayer: Record<string, number> = {};
+      e1t.forEach(e => {
+        if (e.type === 'pass' && e.result === 'correct' && e.playerId) {
+          const id = String(e.playerId).trim();
+          byPlayer[id] = (byPlayer[id] ?? 0) + 1;
+        }
+      });
+      const entries = Object.entries(byPlayer).sort((a, b) => b[1] - a[1]);
+      if (entries.length === 0) return null;
+      return { playerId: entries[0][0], name: getPlayerName(entries[0][0]), count: entries[0][1] };
+    })();
+
+    return { passesCorrect, passesWrong, duplasTop, playersTop, mostCorrectPassesPlayer };
+  }, [matchEvents, players]);
+
   if (!isOpen) return null;
 
   const canEndTime = matchTime >= 20 * 60;
 
+  const isRealtimePage = window.location.pathname === '/scout-realtime';
+  const useFullViewport = isRealtimePage || takeFullWidth;
   return (
-    <div className={`fixed inset-0 z-[100] bg-black/95 backdrop-blur-md flex items-center justify-center animate-fade-in overflow-hidden ${
-      window.location.pathname === '/scout-realtime' ? 'p-0' : 'p-4'
+    <div className={`fixed z-[100] bg-black/95 backdrop-blur-md flex items-center justify-center animate-fade-in overflow-hidden p-0 ${
+      useFullViewport ? 'inset-0' : 'left-[16rem] top-0 right-0 bottom-0'
     }`}>
-      <div className={`w-full h-full bg-black flex flex-col relative overflow-hidden ${
-        window.location.pathname === '/scout-realtime' ? '' : 'max-w-7xl rounded-3xl border border-zinc-800 shadow-[0_0_50px_rgba(0,0,0,1)]'
-      }`}>
+      <div className="w-full h-full bg-black flex flex-col relative overflow-hidden">
         
         {/* Header com fechar */}
         <div className="p-4 border-b border-zinc-800 flex items-center justify-between bg-black">
@@ -1224,27 +1442,37 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
               </div>
             </div>
 
-            {/* Contador de Faltas e Botão Encerrar */}
+            {/* Contador de Faltas, Botão Logs e Botão Encerrar */}
             <div className="flex-1 flex flex-col items-center justify-center gap-1">
-              {/* Contador de Faltas com alertas visuais */}
-              <div className={`rounded-lg px-3 py-1 border-2 transition-all ${
-                foulsCount >= 5
-                  ? 'bg-red-500/20 border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.5)] animate-pulse'
-                  : foulsCount >= 4
-                  ? 'bg-orange-500/20 border-orange-300 shadow-[0_0_15px_rgba(251,146,60,0.4)]'
-                  : foulsCount >= 3
-                  ? 'bg-yellow-500/20 border-yellow-500'
-                  : 'bg-orange-500/10 border-orange-500'
-              }`}>
-                <p className={`text-[10px] font-bold uppercase mb-0.5 ${
-                  foulsCount >= 5 ? 'text-red-400' : foulsCount >= 4 ? 'text-orange-300' : foulsCount >= 3 ? 'text-yellow-400' : 'text-orange-400'
-                }`}>Faltas</p>
-                <p className={`text-lg font-black text-center ${
-                  foulsCount >= 5 ? 'text-red-400' : foulsCount >= 4 ? 'text-orange-300' : foulsCount >= 3 ? 'text-yellow-400' : 'text-orange-400'
-                }`}>{Math.min(foulsCount, 5)}</p>
-                {foulsCount >= 5 && (
-                  <p className="text-red-400 text-[9px] font-bold uppercase mt-0.5">Tiro Livre</p>
-                )}
+              <div className="flex items-center gap-2">
+                {/* Contador de Faltas com alertas visuais */}
+                <div className={`rounded-lg px-3 py-1 border-2 transition-all ${
+                  foulsCount >= 5
+                    ? 'bg-red-500/20 border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.5)] animate-pulse'
+                    : foulsCount >= 4
+                    ? 'bg-orange-500/20 border-orange-300 shadow-[0_0_15px_rgba(251,146,60,0.4)]'
+                    : foulsCount >= 3
+                    ? 'bg-yellow-500/20 border-yellow-500'
+                    : 'bg-orange-500/10 border-orange-500'
+                }`}>
+                  <p className={`text-[10px] font-bold uppercase mb-0.5 ${
+                    foulsCount >= 5 ? 'text-red-400' : foulsCount >= 4 ? 'text-orange-300' : foulsCount >= 3 ? 'text-yellow-400' : 'text-orange-400'
+                  }`}>Faltas</p>
+                  <p className={`text-lg font-black text-center ${
+                    foulsCount >= 5 ? 'text-red-400' : foulsCount >= 4 ? 'text-orange-300' : foulsCount >= 3 ? 'text-yellow-400' : 'text-orange-400'
+                  }`}>{Math.min(foulsCount, 5)}</p>
+                  {foulsCount >= 5 && (
+                    <p className="text-red-400 text-[9px] font-bold uppercase mt-0.5">Tiro Livre</p>
+                  )}
+                </div>
+                {/* Botão Logs */}
+                <button
+                  type="button"
+                  onClick={() => setShowLogsView(true)}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg border-2 border-[#00f0ff]/50 bg-[#00f0ff]/10 text-[#00f0ff] hover:bg-[#00f0ff]/20 text-[10px] font-bold uppercase transition-colors"
+                >
+                  <List size={14} /> Logs
+                </button>
               </div>
               
               {/* Botão Encerrar Coleta */}
@@ -1261,12 +1489,227 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
               </button>
             </div>
           </div>
+          {/* Tempo com posse e porcentagem (apenas tempo real com cronômetro) */}
+          {!isPostmatch && (
+            <div className="mt-2 pt-2 border-t border-zinc-800 flex flex-wrap items-center justify-center gap-4 text-[10px]">
+              <div className="flex items-center gap-1.5">
+                <span className="text-zinc-500 font-bold uppercase">Com posse:</span>
+                <span className="text-green-400 font-mono font-bold">{formatTime(possessionSecondsWith)}</span>
+                <span className="text-zinc-400">
+                  ({possessionSecondsWith + possessionSecondsWithout > 0
+                    ? ((possessionSecondsWith / (possessionSecondsWith + possessionSecondsWithout)) * 100).toFixed(1)
+                    : '0'}%)
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-zinc-500 font-bold uppercase">Sem posse:</span>
+                <span className="text-red-400 font-mono font-bold">{formatTime(possessionSecondsWithout)}</span>
+                <span className="text-zinc-400">
+                  ({possessionSecondsWith + possessionSecondsWithout > 0
+                    ? ((possessionSecondsWithout / (possessionSecondsWith + possessionSecondsWithout)) * 100).toFixed(1)
+                    : '0'}%)
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
+        {showLogsView ? (
+          /* Tela de Logs do jogo */
+          <div className="flex-1 flex flex-col p-4 overflow-hidden min-h-0">
+            <div className="flex items-center justify-between mb-4 shrink-0">
+              <h2 className="text-white font-bold uppercase text-lg">Logs do jogo</h2>
+              <button
+                type="button"
+                onClick={() => { setShowLogsView(false); setEditingEventId(null); setEditDraft(null); }}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-zinc-600 bg-zinc-800 text-white hover:bg-zinc-700 text-sm font-bold uppercase transition-colors"
+              >
+                <ArrowLeft size={18} /> Voltar
+              </button>
+            </div>
+            <div className="flex-1 min-h-0 overflow-auto rounded-xl border-2 border-zinc-800 bg-zinc-950">
+              <table className="w-full text-left border-collapse">
+                <thead className="sticky top-0 bg-zinc-900 border-b-2 border-zinc-700 z-10">
+                  <tr>
+                    <th className="p-2 text-zinc-400 text-xs font-bold uppercase">Tempo</th>
+                    <th className="p-2 text-zinc-400 text-xs font-bold uppercase">Período</th>
+                    <th className="p-2 text-zinc-400 text-xs font-bold uppercase">Jogador</th>
+                    <th className="p-2 text-zinc-400 text-xs font-bold uppercase">Ação</th>
+                    <th className="p-2 text-zinc-400 text-xs font-bold uppercase">Subtipo / Resultado</th>
+                    <th className="p-2 text-zinc-400 text-xs font-bold uppercase">Receptor</th>
+                    <th className="p-2 text-zinc-400 text-xs font-bold uppercase">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...matchEvents]
+                    .sort((a, b) => (a.period !== b.period ? (a.period === '1T' ? -1 : 1) : a.time - b.time))
+                    .map((event) => {
+                      const isEditing = editingEventId === event.id;
+                      const draft = isEditing ? editDraft : null;
+                      const subtypeOpts = draft ? getSubtypeOptions(draft.type) : [];
+                      return (
+                        <tr key={event.id} className="border-b border-zinc-800 hover:bg-zinc-900/50">
+                          <td className="p-2">
+                            {isEditing && draft ? (
+                              <input
+                                type="text"
+                                value={editTimeInput}
+                                onChange={(e) => setEditTimeInput(e.target.value)}
+                                placeholder="MM:SS"
+                                className="w-16 px-2 py-1 rounded bg-zinc-800 border border-zinc-600 text-white text-sm font-mono"
+                              />
+                            ) : (
+                              <span className="text-zinc-300 font-mono text-sm">{formatTime(event.time)}</span>
+                            )}
+                          </td>
+                          <td className="p-2">
+                            {isEditing && draft ? (
+                              <select
+                                value={draft.period}
+                                onChange={(e) => setEditDraft(prev => prev ? { ...prev, period: e.target.value as '1T' | '2T' } : null)}
+                                className="px-2 py-1 rounded bg-zinc-800 border border-zinc-600 text-white text-sm"
+                              >
+                                <option value="1T">1T</option>
+                                <option value="2T">2T</option>
+                              </select>
+                            ) : (
+                              <span className="text-zinc-300 text-sm">{event.period}</span>
+                            )}
+                          </td>
+                          <td className="p-2">
+                            <span className="text-white text-sm">{event.playerName ?? '—'}</span>
+                          </td>
+                          <td className="p-2">
+                            {isEditing && draft ? (
+                              <select
+                                value={draft.type}
+                                onChange={(e) => {
+                                  const t = e.target.value as MatchEvent['type'];
+                                  setEditDraft(prev => prev ? { ...prev, type: t, result: undefined, cardType: undefined } : null);
+                                }}
+                                className="px-2 py-1 rounded bg-zinc-800 border border-zinc-600 text-white text-sm min-w-[120px]"
+                              >
+                                {EVENT_TYPE_OPTIONS.map((opt) => (
+                                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                ))}
+                              </select>
+                            ) : (
+                              <span className="text-[#00f0ff] text-sm">{event.tipo}</span>
+                            )}
+                          </td>
+                          <td className="p-2">
+                            {isEditing && draft ? (
+                              subtypeOpts.length > 0 ? (
+                                <select
+                                  value={draft.type === 'card'
+                                    ? (draft.cardType ?? '')
+                                    : (draft.result ?? '')}
+                                  onChange={(e) => {
+                                    const opt = subtypeOpts.find(o =>
+                                      (draft.type === 'card' ? o.cardType === e.target.value : o.result === e.target.value)
+                                    );
+                                    if (!opt) return;
+                                    setEditDraft(prev => prev ? {
+                                      ...prev,
+                                      result: opt.result,
+                                      cardType: opt.cardType,
+                                    } : null);
+                                  }}
+                                  className="px-2 py-1 rounded bg-zinc-800 border border-zinc-600 text-white text-sm min-w-[140px]"
+                                >
+                                  {subtypeOpts.map((opt) => (
+                                    <option key={opt.value} value={(draft.type === 'card' ? opt.cardType : opt.result) ?? ''}>
+                                      {opt.value}
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <span className="text-zinc-500 text-sm">—</span>
+                              )
+                            ) : (
+                              <span className="text-zinc-400 text-sm">{event.subtipo || '—'}</span>
+                            )}
+                          </td>
+                          <td className="p-2">
+                            <span className="text-zinc-400 text-sm">{event.type === 'pass' ? (event.passToPlayerName ?? '—') : '—'}</span>
+                          </td>
+                          <td className="p-2">
+                            {isEditing ? (
+                              <div className="flex gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const sec = parseManualTimeToSeconds(editTimeInput);
+                                    if (sec === null || !editDraft) return;
+                                    const { tipo, subtipo } = getTipoSubtipo(editDraft.type, editDraft.result, editDraft.cardType);
+                                    const updatedEvents = matchEvents.map(e => e.id === editingEventId ? {
+                                      ...e,
+                                      time: sec,
+                                      period: editDraft.period,
+                                      type: editDraft.type,
+                                      result: editDraft.result,
+                                      cardType: editDraft.cardType,
+                                      tipo,
+                                      subtipo,
+                                      isOpponentGoal: editDraft.type === 'goal' && editDraft.result === 'contra',
+                                    } : e);
+                                    setMatchEvents(updatedEvents);
+                                    recalcGoalsAndFoulsFromEvents(updatedEvents);
+                                    setEditingEventId(null);
+                                    setEditDraft(null);
+                                  }}
+                                  className="px-2 py-1 rounded bg-green-600 hover:bg-green-500 text-white text-xs font-bold"
+                                >
+                                  Confirmar
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => { setEditingEventId(null); setEditDraft(null); }}
+                                  className="px-2 py-1 rounded bg-zinc-600 hover:bg-zinc-500 text-white text-xs font-bold"
+                                >
+                                  Cancelar
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingEventId(event.id);
+                                  setEditDraft({
+                                    time: event.time,
+                                    period: event.period,
+                                    type: event.type,
+                                    result: event.result,
+                                    cardType: event.cardType,
+                                  });
+                                  setEditTimeInput(formatTime(event.time));
+                                }}
+                                className="px-2 py-1 rounded bg-[#00f0ff]/20 border border-[#00f0ff]/50 text-[#00f0ff] hover:bg-[#00f0ff]/30 text-xs font-bold"
+                              >
+                                Editar
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+              {matchEvents.length === 0 && (
+                <p className="p-6 text-zinc-500 text-center text-sm">Nenhum evento registrado.</p>
+              )}
+            </div>
+          </div>
+        ) : (
+        <>
         {/* Corpo Principal - Painéis Esquerdo e Direito */}
         <div className="flex-1 flex gap-4 p-4 overflow-hidden">
           {/* Painel Esquerdo - Seleção de Jogador */}
-          <div className="w-80 bg-black border-2 border-zinc-800 rounded-3xl p-4 flex flex-col">
+          <div className={`w-56 rounded-2xl p-3 flex flex-col border-2 shrink-0 ${
+            goalStep === 'author' && !pendingGoalIsOpponent
+              ? 'bg-green-500/10 border-green-500'
+              : 'bg-black border-zinc-800'
+          }`}>
             <h3 className="text-white font-bold uppercase text-sm mb-4 text-center">
               {goalStep === 'author' && !pendingGoalIsOpponent ? 'SELECIONAR AUTOR DO GOL' : 'SELECIONAR JOGADOR'}
             </h3>
@@ -1413,12 +1856,10 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
                         if (!isMatchStarted) return;
                         const clickedPlayerId = String(player.id).trim();
 
-                        // Se aguardando autor do gol nosso, selecionar jogador como autor
+                        // Se aguardando autor do gol nosso, registrar gol imediatamente ao clicar no jogador
                         if (goalStep === 'author' && !pendingGoalIsOpponent) {
-                          setPendingGoalPlayerId(clickedPlayerId);
-                          setPendingGoalType('normal');
-                          setGoalStep('confirm');
-                          setSelectedPlayerId(clickedPlayerId);
+                          handleRegisterGoal('normal', false, clickedPlayerId);
+                          setSelectedAction(null);
                           return;
                         }
 
@@ -1697,14 +2138,13 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
               {/* Fluxo inline do Gol (equipe → autor → confirmar) */}
               {goalStep === 'team' && (
                 <div className="mb-4 p-4 bg-zinc-950 rounded-lg border border-zinc-800">
-                  <p className="text-zinc-400 text-xs mb-3 font-bold uppercase">Qual equipe marcou?</p>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-wrap gap-2">
                     <button
                       onClick={() => {
                         setPendingGoalIsOpponent(false);
                         setGoalStep('author');
                       }}
-                      className="px-4 py-3 bg-green-500/20 border-2 border-green-500 text-green-400 font-bold uppercase text-xs rounded-lg hover:bg-green-500/30 transition-colors"
+                      className="flex-1 min-w-0 px-4 py-3 bg-green-500/20 border-2 border-green-500 text-green-400 font-bold uppercase text-xs rounded-lg hover:bg-green-500/30 transition-colors"
                     >
                       Gol Nosso
                     </button>
@@ -1714,66 +2154,51 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
                         setPendingGoalType('normal');
                         setGoalStep('confirm');
                       }}
-                      className="px-4 py-3 bg-red-500/20 border-2 border-red-500 text-red-400 font-bold uppercase text-xs rounded-lg hover:bg-red-500/30 transition-colors"
+                      className="flex-1 min-w-0 px-4 py-3 bg-red-500/20 border-2 border-red-500 text-red-400 font-bold uppercase text-xs rounded-lg hover:bg-red-500/30 transition-colors"
                     >
                       Gol Adversário
                     </button>
+                    <button
+                      onClick={() => {
+                        setGoalStep(null);
+                        setPendingGoalTime(null);
+                      }}
+                      className="flex-1 min-w-0 px-4 py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 font-bold uppercase text-xs rounded-lg transition-colors"
+                    >
+                      Cancelar
+                    </button>
                   </div>
-                  <button
-                    onClick={() => {
-                      setGoalStep(null);
-                      setPendingGoalTime(null);
-                    }}
-                    className="mt-3 w-full px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 font-bold uppercase text-xs rounded-lg transition-colors"
-                  >
-                    Cancelar
-                  </button>
                 </div>
               )}
               {goalStep === 'author' && (
                 <div className="mb-4 p-4 bg-zinc-950 rounded-lg border border-zinc-800">
-                  <button
-                    onClick={() => {
-                      setPendingGoalPlayerId(null);
-                      setPendingGoalType('contra');
-                      setGoalStep('confirm');
-                    }}
-                    className="w-full mb-2 px-4 py-3 bg-red-500/20 border-2 border-red-500 text-red-400 font-bold uppercase text-xs rounded-lg hover:bg-red-500/30 transition-colors"
-                  >
-                    Gol Contra
-                  </button>
-                  <button
-                    onClick={() => {
-                      setGoalStep('team');
-                      setPendingGoalPlayerId(null);
-                      setPendingGoalType(null);
-                    }}
-                    className="w-full px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 font-bold uppercase text-xs rounded-lg transition-colors"
-                  >
-                    Voltar
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        setPendingGoalPlayerId(null);
+                        setPendingGoalType('contra');
+                        setGoalStep('confirm');
+                      }}
+                      className="flex-1 min-w-0 px-4 py-3 bg-red-500/20 border-2 border-red-500 text-red-400 font-bold uppercase text-xs rounded-lg hover:bg-red-500/30 transition-colors"
+                    >
+                      Gol Contra
+                    </button>
+                    <button
+                      onClick={() => {
+                        setGoalStep('team');
+                        setPendingGoalPlayerId(null);
+                        setPendingGoalType(null);
+                      }}
+                      className="flex-1 min-w-0 px-4 py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 font-bold uppercase text-xs rounded-lg transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
                 </div>
               )}
               {goalStep === 'confirm' && (
                 <div className="mb-4 p-4 bg-zinc-950 rounded-lg border border-zinc-800">
-                  <p className="text-white text-sm mb-3 whitespace-nowrap">
-                    {pendingGoalType === 'contra'
-                      ? `Gol contra - ${pendingGoalTime != null ? formatTime(pendingGoalTime) : '-'}`
-                      : `${activePlayers.find(p => String(p.id).trim() === pendingGoalPlayerId)?.name || '-'} - Gol aos ${pendingGoalTime != null ? formatTime(pendingGoalTime) : '-'}`}
-                  </p>
                   <div className="flex gap-3">
-                    <button
-                      onClick={() => {
-                        setGoalStep(null);
-                        setPendingGoalType(null);
-                        setPendingGoalIsOpponent(false);
-                        setPendingGoalPlayerId(null);
-                        setPendingGoalTime(null);
-                      }}
-                      className="flex-1 px-4 py-3 bg-zinc-800 hover:bg-zinc-700 text-white font-bold uppercase text-xs rounded-lg transition-colors"
-                    >
-                      Cancelar
-                    </button>
                     <button
                       onClick={() =>
                         handleRegisterGoal(
@@ -1785,6 +2210,18 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
                       className="flex-1 px-4 py-3 bg-green-500 hover:bg-green-600 text-white font-black uppercase text-xs rounded-lg transition-colors whitespace-nowrap"
                     >
                       Confirmar Gol
+                    </button>
+                    <button
+                      onClick={() => {
+                        setGoalStep(null);
+                        setPendingGoalType(null);
+                        setPendingGoalIsOpponent(false);
+                        setPendingGoalPlayerId(null);
+                        setPendingGoalTime(null);
+                      }}
+                      className="flex-1 px-4 py-3 bg-zinc-800 hover:bg-zinc-700 text-white font-bold uppercase text-xs rounded-lg transition-colors"
+                    >
+                      Cancelar
                     </button>
                   </div>
                 </div>
@@ -2354,20 +2791,24 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
             </div>
           </div>
         </div>
+        </>
+        )}
 
         {/* Log dos últimos comandos - Parte inferior da tela - tamanho fixo */}
         <div className="h-[48px] min-h-[48px] max-h-[48px] bg-zinc-950 border-t border-zinc-800 px-3 py-2 flex-shrink-0 overflow-hidden">
           <div className="flex items-center gap-3 text-xs w-full h-full">
             <p className="text-zinc-500 font-bold uppercase shrink-0">Últimos comandos:</p>
             <div className="flex-1 flex gap-2 overflow-hidden min-w-0">
-              {lastThreeEvents.length > 0 ? (
-                lastThreeEvents.map((event) => (
+              {lastCommandDisplayLines.length > 0 ? (
+                lastCommandDisplayLines.slice(-5).map((line) => (
                   <div
-                    key={event.id}
+                    key={line.key}
                     className="flex items-center gap-1.5 px-2 py-1 bg-zinc-900 border border-zinc-800 rounded shrink-0 min-w-0 overflow-hidden"
                   >
-                    <span className="text-zinc-400 font-mono shrink-0">{formatTime(event.time)}</span>
-                    <span className="text-[#00f0ff] truncate">{event.tipo}{event.subtipo ? ` ${event.subtipo}` : ''}</span>
+                    <span className="text-zinc-400 font-mono shrink-0">{formatTime(line.time)}</span>
+                    <span className="text-white font-bold truncate">{line.playerName}</span>
+                    <span className="text-[#00f0ff] truncate">{line.actionText}</span>
+                    {line.zone && <span className="text-zinc-500 shrink-0">{line.zone}</span>}
                   </div>
                 ))
               ) : (
@@ -2579,15 +3020,75 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
                     </div>
                   </div>
 
-                  {/* Estatísticas */}
-                  <div className="grid grid-cols-2 gap-4">
+                  {/* Estatísticas do 1º tempo */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
+                      <p className="text-zinc-400 text-xs font-bold uppercase mb-2">Chutes</p>
+                      <p className="text-[#00f0ff] text-2xl font-black">{firstHalfStats.shots}</p>
+                    </div>
+                    <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
+                      <p className="text-zinc-400 text-xs font-bold uppercase mb-2">Escanteios</p>
+                      <p className="text-amber-400 text-2xl font-black">{firstHalfStats.corners}</p>
+                    </div>
+                    <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
+                      <p className="text-zinc-400 text-xs font-bold uppercase mb-2">Defesas</p>
+                      <p className="text-purple-400 text-2xl font-black">{firstHalfStats.saves}</p>
+                    </div>
                     <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
                       <p className="text-zinc-400 text-xs font-bold uppercase mb-2">Faltas</p>
-                      <p className="text-orange-400 text-2xl font-black">{foulsCount}</p>
+                      <p className="text-orange-400 text-2xl font-black">{firstHalfStats.fouls}</p>
+                    </div>
+                    <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
+                      <p className="text-zinc-400 text-xs font-bold uppercase mb-2">Cartões</p>
+                      <p className="text-yellow-400 text-2xl font-black">{firstHalfStats.cards}</p>
                     </div>
                     <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
                       <p className="text-zinc-400 text-xs font-bold uppercase mb-2">Tempo</p>
                       <p className="text-red-400 text-2xl font-black font-mono">{formatTime(matchTime)}</p>
+                    </div>
+                  </div>
+
+                  {/* Relação entre jogadores - Passes no 1º tempo */}
+                  <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-4">
+                    <p className="text-zinc-400 text-xs font-bold uppercase">Relação entre jogadores (passes no 1º tempo)</p>
+                    <div className="flex flex-wrap gap-4 text-sm">
+                      <span className="text-zinc-300">Passes certos: <strong className="text-green-400">{firstHalfPassData.passesCorrect}</strong></span>
+                      <span className="text-zinc-300">Passes errados: <strong className="text-red-400">{firstHalfPassData.passesWrong}</strong></span>
+                      {firstHalfPassData.mostCorrectPassesPlayer && (
+                        <span className="text-zinc-300">Maior volume de passes certos: <strong className="text-[#00f0ff]">{firstHalfPassData.mostCorrectPassesPlayer.name}</strong> ({firstHalfPassData.mostCorrectPassesPlayer.count})</span>
+                      )}
+                    </div>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-zinc-500 text-xs font-bold uppercase mb-2">Duplas com mais troca de passes</p>
+                        <div className="space-y-1 max-h-40 overflow-y-auto">
+                          {firstHalfPassData.duplasTop.length === 0 ? (
+                            <p className="text-zinc-600 text-xs">Nenhuma dupla com passes no 1º tempo</p>
+                          ) : (
+                            firstHalfPassData.duplasTop.map((d, i) => (
+                              <div key={`${d.id1}-${d.id2}`} className="flex justify-between items-center py-1 px-2 bg-zinc-900 rounded text-xs">
+                                <span className="text-white truncate">{d.name1} – {d.name2}</span>
+                                <span className="text-[#00f0ff] font-bold shrink-0 ml-2">{d.passes}</span>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-zinc-500 text-xs font-bold uppercase mb-2">Jogadores que mais trocaram passes</p>
+                        <div className="space-y-1 max-h-40 overflow-y-auto">
+                          {firstHalfPassData.playersTop.length === 0 ? (
+                            <p className="text-zinc-600 text-xs">Nenhum passe no 1º tempo</p>
+                          ) : (
+                            firstHalfPassData.playersTop.map((p) => (
+                              <div key={p.playerId} className="flex justify-between items-center py-1 px-2 bg-zinc-900 rounded text-xs">
+                                <span className="text-white truncate">{p.name}</span>
+                                <span className="text-[#00f0ff] font-bold shrink-0 ml-2">{p.totalPasses} <span className="text-zinc-500 font-normal">(dados: {p.given} / rec.: {p.received})</span></span>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
 
@@ -2599,22 +3100,55 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
                         .filter(e => e.period === '1T')
                         .slice(-10)
                         .reverse()
-                        .map((event) => (
-                          <div
-                            key={event.id}
-                            className="flex items-center gap-3 px-3 py-2 bg-zinc-900 rounded-lg text-xs"
-                          >
-                            <span className="text-zinc-400 font-mono min-w-[50px]">{formatTime(event.time)}</span>
-                            <span className="text-white font-bold">{event.playerName || 'N/A'}</span>
-                            <span className="text-[#00f0ff]">{event.tipo}</span>
-                            {event.subtipo && (
-                              <>
-                                <span className="text-zinc-500">-</span>
-                                <span className="text-zinc-400">{event.subtipo}</span>
-                              </>
-                            )}
-                          </div>
-                        ))}
+                        .flatMap((event) => {
+                          const zone = event.result && lateralToZoneLabel[event.result] ? lateralToZoneLabel[event.result] : undefined;
+                          const isPassWithReceiver = event.type === 'pass' && event.passToPlayerId && event.passToPlayerName;
+                          if (isPassWithReceiver) {
+                            return [
+                              <div
+                                key={`${event.id}-passer`}
+                                className="flex items-center gap-3 px-3 py-2 bg-zinc-900 rounded-lg text-xs"
+                              >
+                                <span className="text-zinc-400 font-mono min-w-[50px]">{formatTime(event.time)}</span>
+                                <span className="text-white font-bold">{event.playerName || 'N/A'}</span>
+                                <span className="text-[#00f0ff]">{event.tipo}</span>
+                                {event.subtipo && (
+                                  <>
+                                    <span className="text-zinc-500">-</span>
+                                    <span className="text-zinc-400">{event.subtipo}</span>
+                                  </>
+                                )}
+                                {zone && <span className="text-zinc-500 ml-1">{zone}</span>}
+                              </div>,
+                              <div
+                                key={`${event.id}-receiver`}
+                                className="flex items-center gap-3 px-3 py-2 bg-zinc-900 rounded-lg text-xs"
+                              >
+                                <span className="text-zinc-400 font-mono min-w-[50px]">{formatTime(event.time)}</span>
+                                <span className="text-white font-bold">{event.passToPlayerName || 'N/A'}</span>
+                                <span className="text-[#00f0ff]">Recebeu passe</span>
+                                {zone && <span className="text-zinc-500 ml-1">{zone}</span>}
+                              </div>,
+                            ];
+                          }
+                          return [
+                            <div
+                              key={event.id}
+                              className="flex items-center gap-3 px-3 py-2 bg-zinc-900 rounded-lg text-xs"
+                            >
+                              <span className="text-zinc-400 font-mono min-w-[50px]">{formatTime(event.time)}</span>
+                              <span className="text-white font-bold">{event.playerName || 'N/A'}</span>
+                              <span className="text-[#00f0ff]">{event.tipo}</span>
+                              {event.subtipo && (
+                                <>
+                                  <span className="text-zinc-500">-</span>
+                                  <span className="text-zinc-400">{event.subtipo}</span>
+                                </>
+                              )}
+                              {zone && <span className="text-zinc-500 ml-1">{zone}</span>}
+                            </div>,
+                          ];
+                        })}
                       {matchEvents.filter(e => e.period === '1T').length === 0 && (
                         <p className="text-zinc-600 text-xs text-center py-4">Nenhum evento registrado</p>
                       )}

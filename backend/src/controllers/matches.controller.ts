@@ -54,9 +54,11 @@ export const matchesController = {
           error: error.message,
         });
       }
+      const message = error instanceof Error ? error.message : 'Erro ao criar jogo';
+      console.error('[matches.controller] create error:', error);
       return res.status(500).json({
         success: false,
-        error: 'Erro ao criar jogo',
+        error: message,
       });
     }
   },

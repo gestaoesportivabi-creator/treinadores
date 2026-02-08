@@ -2,6 +2,7 @@
 export type UserRole = 'Treinador' | 'Preparador Físico' | 'Supervisor' | 'Diretor' | 'Atleta';
 
 export interface User {
+  id?: string;
   name: string;
   email: string;
   role: UserRole;
@@ -150,6 +151,16 @@ export interface PostMatchEvent {
   subtipo: string;
   /** ID do jogador que recebeu o passe (apenas para ações passCorrect/passWrong) */
   passToPlayerId?: string;
+  /** Nome do atleta que fez a ação */
+  playerName?: string;
+  /** Nome do atleta que recebeu o passe (para passes) */
+  passToPlayerName?: string;
+  /** Zona da quadra (AT ESQ, AT DIR, DF ESQ, DF DIR) */
+  zone?: 'AT_ESQ' | 'AT_DIR' | 'DF_ESQ' | 'DF_DIR';
+  /** ID do usuário que registrou a ação (auditoria) */
+  recordedByUserId?: string;
+  /** Nome do usuário que registrou a ação (auditoria) */
+  recordedByName?: string;
 }
 
 export interface MatchRecord {
@@ -183,6 +194,12 @@ export interface MatchRecord {
     time: number; // segundos
     period: '1T' | '2T';
   }>;
+  /** Segundos com posse de bola (nossa equipe) – evolução campeonato */
+  possessionSecondsWith?: number;
+  /** Segundos sem posse de bola – evolução campeonato */
+  possessionSecondsWithout?: number;
+  /** Status da partida para exibição e filtros */
+  status?: 'encerrado' | 'em_andamento' | 'nao_executado';
 }
 
 // Physical Assessment Types

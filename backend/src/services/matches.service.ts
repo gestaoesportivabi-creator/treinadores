@@ -84,7 +84,10 @@ export const matchesService = {
     // Adapter: aceitar payload do frontend (opponent, date, goalsFor, goalsAgainst, teamStats, playerStats)
     const equipeId = data.equipeId || equipeIds[0];
     const adversario = data.adversario ?? data.opponent ?? '';
-    const dataDate = data.data ?? (typeof data.date === 'string' ? new Date(data.date) : data.date);
+    let dataDate: Date = data.data ?? (typeof data.date === 'string' ? new Date(data.date) : data.date);
+    if (!dataDate || !(dataDate instanceof Date) || isNaN(dataDate.getTime())) {
+      dataDate = new Date();
+    }
     const golsPro = data.golsPro ?? data.goalsFor ?? 0;
     const golsContra = data.golsContra ?? data.goalsAgainst ?? 0;
 

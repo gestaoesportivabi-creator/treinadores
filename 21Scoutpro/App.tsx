@@ -88,6 +88,7 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [scoutWindowOpen, setScoutWindowOpen] = useState(false); // true quando a janela Scout da Partida está aberta (para esconder a sidebar)
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
@@ -641,14 +642,22 @@ export default function App() {
           }
         } else {
           console.error('❌ Erro: Resposta do salvamento foi null/undefined');
-          alert("Erro ao salvar partida. Verifique o console (F12) para mais detalhes.");
+          // Fallback: adicionar partida à lista local como encerrada para o status aparecer na tela
+          const matchToAdd = { ...newMatch, status: 'encerrado' as const };
+          setMatches(prev => [...prev, matchToAdd]);
+          setActiveTab('general');
+          alert("O servidor não conseguiu salvar a partida (erro 500), mas ela foi marcada como encerrada localmente. Ao reabrir Dados do jogo você verá o status atualizado. Verifique sua conexão e tente encerrar outra partida para testar o servidor.");
         }
       } catch (error) {
         console.error('❌ Erro ao salvar partida:', error);
         if (error instanceof Error) {
           console.error('Detalhes do erro:', error.message, error.stack);
         }
-        alert("Erro ao salvar partida. Verifique o console (F12) para mais detalhes.");
+        // Fallback: adicionar partida à lista local como encerrada
+        const matchToAdd = { ...newMatch, status: 'encerrado' as const };
+        setMatches(prev => [...prev, matchToAdd]);
+        setActiveTab('general');
+        alert("Erro ao salvar partida no servidor. A partida foi marcada como encerrada localmente. Verifique o console (F12) para mais detalhes.");
       }
   };
 
@@ -902,6 +911,7 @@ export default function App() {
         if (result.success && result.data) {
           const u = result.data;
           setCurrentUser({
+            id: u.id,
             name: u.name,
             email: u.email,
             role: u.role === 'TECNICO' ? 'Treinador' : u.role,
@@ -1167,6 +1177,8 @@ export default function App() {
           }}
           championshipMatches={championshipMatches}
           teams={teams}
+          currentUser={currentUser}
+          onScoutWindowOpenChange={setScoutWindowOpen}
             />
           </TabBackgroundWrapper>
         );
@@ -1339,20 +1351,22 @@ export default function App() {
     return null; // Os returns acima já cobrem esses casos
   }
 
-  // Rota 'app' - renderizar com Sidebar
+  // Rota 'app' - renderizar com Sidebar (escondida quando a janela Scout da Partida está aberta)
   return (
     <div className="flex min-h-screen bg-black text-zinc-100 font-sans">
-      <Sidebar 
-        activeTab={activeTab} 
-        setActiveTab={handleTabChange} 
-        onLogout={() => {
-          console.log('👋 Logout - Voltando para home');
-          setCurrentUser(null);
-          setCurrentRoute('landing');
-        }}
-        currentUser={currentUser}
-      />
-      <main className="flex-1 ml-64 p-6 overflow-y-auto h-screen scroll-smooth print:ml-0 print:p-0">
+      {!scoutWindowOpen && (
+        <Sidebar 
+          activeTab={activeTab} 
+          setActiveTab={handleTabChange} 
+          onLogout={() => {
+            console.log('👋 Logout - Voltando para home');
+            setCurrentUser(null);
+            setCurrentRoute('landing');
+          }}
+          currentUser={currentUser}
+        />
+      )}
+      <main className={`flex-1 p-6 overflow-y-auto h-screen scroll-smooth print:ml-0 print:p-0 ${scoutWindowOpen ? 'ml-0' : 'ml-64'}`}>
         {isLoading ? <LoadingMessage activeTab={activeTab} /> : renderContent()}
       </main>
     </div>
