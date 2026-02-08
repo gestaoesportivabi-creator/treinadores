@@ -18,9 +18,13 @@ export const matchesController = {
           error: error.message,
         });
       }
+      console.error('[MATCHES_CONTROLLER] getAll error', error);
+      if (error instanceof Error && error.stack) {
+        console.error('[MATCHES_CONTROLLER] getAll stack', error.stack);
+      }
       return res.status(500).json({
         success: false,
-        error: 'Erro ao buscar jogos',
+        error: error instanceof Error ? error.message : 'Erro ao buscar jogos',
       });
     }
   },

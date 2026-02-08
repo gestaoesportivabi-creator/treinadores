@@ -40,9 +40,13 @@ export const playersController = {
           error: error.message,
         });
       }
+      console.error('[PLAYERS_CONTROLLER] getAll error', error);
+      if (error instanceof Error && error.stack) {
+        console.error('[PLAYERS_CONTROLLER] getAll stack', error.stack);
+      }
       return res.status(500).json({
         success: false,
-        error: 'Erro ao buscar jogadores',
+        error: error instanceof Error ? error.message : 'Erro ao buscar jogadores',
       });
     }
   },
