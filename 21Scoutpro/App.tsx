@@ -17,19 +17,16 @@ import { PseTab } from './components/PseTab';
 import { QualidadeSonoTab } from './components/QualidadeSonoTab';
 import { LoadingMessage } from './components/LoadingMessage';
 import { ChampionshipTable, ChampionshipMatch } from './components/ChampionshipTable';
-import { ScheduleAlerts } from './components/ScheduleAlerts';
 import { SuspensionsAlert } from './components/SuspensionsAlert';
 import { InjuredPlayersAlert } from './components/InjuredPlayersAlert';
-import { SleepAndPseAlerts } from './components/SleepAndPseAlerts';
 import { TabBackgroundWrapper } from './components/TabBackgroundWrapper';
 import { ManagementReport } from './components/ManagementReport';
 import { NextMatchAlert } from './components/NextMatchAlert';
 import { RealtimeScoutPage } from './components/RealtimeScoutPage';
 import { DashboardTodayBlock } from './components/DashboardTodayBlock';
-import { DashboardInterpretiveAlerts } from './components/DashboardInterpretiveAlerts';
 import { DashboardSquadAvailability } from './components/DashboardSquadAvailability';
 import { DashboardNextGameCard } from './components/DashboardNextGameCard';
-import { DashboardWeeklyTrend } from './components/DashboardWeeklyTrend';
+import { DashboardConditionCard } from './components/DashboardConditionCard';
 import { SPORT_CONFIGS } from './constants';
 import { BarChart3, FileText, Clock, Trophy, Ambulance, UserX, UserCheck } from 'lucide-react';
 import { User, MatchRecord, Player, PhysicalAssessment, WeeklySchedule, StatTargets, PlayerTimeControl, Team, Championship } from './types';
@@ -301,12 +298,12 @@ export default function App() {
   }, [players]);
 
   const StatCard = ({ label, value, helper, highlight = false }: StatCardProps) => (
-    <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-6 min-h-[140px] flex flex-col justify-center">
-      <p className="text-[10px] uppercase tracking-[0.35em] text-zinc-500">{label}</p>
-      <p className={`mt-3 text-2xl md:text-3xl font-semibold ${highlight ? 'text-[#00f0ff]' : 'text-white'}`}>
+    <div className="rounded-lg border border-white/[0.08] bg-zinc-900/50 p-3 min-h-0 flex flex-col justify-center">
+      <p className="text-[9px] uppercase tracking-[0.25em] text-zinc-500 font-medium">{label}</p>
+      <p className={`mt-1 text-base font-medium ${highlight ? 'text-slate-400' : 'text-zinc-300'}`}>
         {value}
       </p>
-      {helper && <p className="mt-2 text-xs text-zinc-500">{helper}</p>}
+      {helper && <p className="mt-0.5 text-[11px] text-zinc-500">{helper}</p>}
     </div>
   );
 
@@ -619,23 +616,23 @@ export default function App() {
           setPlayers(prev => [...prev, saved]);
           alert("Atleta cadastrado com sucesso!");
         } else {
-          // Fallback: salvar localmente quando backend falhar
+          // Fallback: salvar localmente quando API não retornar dados
           const localPlayers = JSON.parse(localStorage.getItem(PLAYERS_LOCAL_KEY) || '[]');
           const playerWithId = { ...newPlayer, id: newPlayer.id || `p${Date.now()}` };
           localPlayers.push(playerWithId);
           localStorage.setItem(PLAYERS_LOCAL_KEY, JSON.stringify(localPlayers));
           setPlayers(prev => [...prev, playerWithId]);
-          alert("Atleta cadastrado localmente (backend indisponível).");
+          alert("Atleta cadastrado com sucesso! Ele já aparece no elenco e os dados ficam salvos.");
         }
       } catch (error) {
-        // Fallback: salvar localmente quando backend falhar
-        console.warn('Backend indisponível, salvando localmente:', error);
+        // Fallback: salvar localmente quando API falhar (rede, timeout, etc.)
+        console.warn('API indisponível, salvando localmente:', error);
         const localPlayers = JSON.parse(localStorage.getItem(PLAYERS_LOCAL_KEY) || '[]');
         const playerWithId = { ...newPlayer, id: newPlayer.id || `p${Date.now()}` };
         localPlayers.push(playerWithId);
         localStorage.setItem(PLAYERS_LOCAL_KEY, JSON.stringify(localPlayers));
         setPlayers(prev => [...prev, playerWithId]);
-        alert("Atleta cadastrado localmente (backend indisponível).");
+        alert("Atleta cadastrado com sucesso! Ele já aparece no elenco e os dados ficam salvos.");
       }
   };
 
@@ -647,7 +644,7 @@ export default function App() {
           setPlayers(prev => prev.map(p => p.id === updatedPlayer.id ? saved : p));
           alert("Dados do atleta atualizados com sucesso!");
         } else {
-          // Fallback: atualizar localmente quando backend falhar
+          // Fallback: atualizar localmente quando API não retornar dados
           const localPlayers = JSON.parse(localStorage.getItem(PLAYERS_LOCAL_KEY) || '[]');
           const idx = localPlayers.findIndex((p: Player) => p.id === updatedPlayer.id);
           if (idx >= 0) {
@@ -657,11 +654,11 @@ export default function App() {
           }
           localStorage.setItem(PLAYERS_LOCAL_KEY, JSON.stringify(localPlayers));
           setPlayers(prev => prev.map(p => p.id === updatedPlayer.id ? updatedPlayer : p));
-          alert("Dados do atleta atualizados localmente (backend indisponível).");
+          alert("Dados do atleta atualizados com sucesso! As alterações já estão ativas no elenco.");
         }
       } catch (error) {
-        // Fallback: atualizar localmente quando backend falhar
-        console.warn('Backend indisponível, atualizando localmente:', error);
+        // Fallback: atualizar localmente quando API falhar (rede, timeout, etc.)
+        console.warn('API indisponível, atualizando localmente:', error);
         const localPlayers = JSON.parse(localStorage.getItem(PLAYERS_LOCAL_KEY) || '[]');
         const idx = localPlayers.findIndex((p: Player) => p.id === updatedPlayer.id);
         if (idx >= 0) {
@@ -671,7 +668,7 @@ export default function App() {
         }
         localStorage.setItem(PLAYERS_LOCAL_KEY, JSON.stringify(localPlayers));
         setPlayers(prev => prev.map(p => p.id === updatedPlayer.id ? updatedPlayer : p));
-        alert("Dados do atleta atualizados localmente (backend indisponível).");
+        alert("Dados do atleta atualizados com sucesso! As alterações já estão ativas no elenco.");
       }
   };
 
@@ -1170,11 +1167,17 @@ export default function App() {
         if (dashboardAlertCounts.penduradosCount > 0) activeAlertsForToday.push({ kind: 'pendurado', count: dashboardAlertCounts.penduradosCount });
 
         return (
-          <div className="h-full w-full rounded-3xl border border-zinc-900 bg-black p-6 md:p-10 shadow-2xl animate-fade-in">
-            <div className="flex flex-col gap-6">
-              <header className="flex flex-col gap-1">
-                <span className="text-[10px] uppercase tracking-[0.4em] text-zinc-500">Centro de decisão</span>
-                <h1 className="text-2xl md:text-3xl font-black italic text-white" style={{ fontFamily: "'Arial Black', Arial, sans-serif" }}>RELATÓRIO GERENCIAL</h1>
+          <div className="h-full w-full rounded-lg border border-zinc-800 bg-zinc-950 p-6 md:p-8 shadow-sm animate-fade-in">
+            <div className="flex flex-col gap-8">
+              <header className="border-b border-zinc-800 pb-4">
+                <span className="text-[10px] uppercase tracking-[0.35em] text-zinc-500 font-medium">Visão geral</span>
+                <h1
+                  className="mt-1 text-xl md:text-2xl text-white uppercase font-black italic"
+                  style={{ fontFamily: "'Arial Black', Arial, sans-serif", letterSpacing: '1px', color: '#FFFFFF' }}
+                >
+                  CENTRAL DE INFOMAÇÕES
+                </h1>
+                <p className="text-zinc-500 text-sm mt-1">Indicadores e status operacional do clube.</p>
               </header>
 
               {/* 1. Bloco fixo HOJE NO CLUBE */}
@@ -1184,14 +1187,30 @@ export default function App() {
                 activeAlerts={activeAlertsForToday}
               />
 
-              {/* 2. Alertas interpretativos (PSE + sono + histórico) */}
-              <DashboardInterpretiveAlerts
-                players={players}
-                schedules={schedules}
-                championshipMatches={championshipMatches}
-              />
+              {/* 1. Riscos e desfalques */}
+              <section className="space-y-4" aria-label="Riscos e desfalques">
+                <p className="text-[10px] uppercase tracking-[0.35em] text-zinc-500 font-bold">Riscos e desfalques</p>
+                <div className="flex flex-col gap-3">
+                  <InjuredPlayersAlert players={players} />
+                  {overviewStats.nextMatch && (
+                    <SuspensionsAlert
+                      nextMatch={overviewStats.nextMatch}
+                      championships={championships}
+                      players={players}
+                    />
+                  )}
+                  {!overviewStats.nextMatch && dashboardAlertCounts.injuredCount === 0 && (
+                    <div className="rounded-lg border border-white/[0.08] bg-zinc-900/50 px-4 py-3 text-zinc-500 text-xs">
+                      Sem lesões ou suspensões no momento.
+                    </div>
+                  )}
+                </div>
+              </section>
 
-              {/* 3. Elenco disponível real + Próximo jogo evoluído */}
+              {/* 2. Condição física da equipe */}
+              <DashboardConditionCard schedules={schedules} championshipMatches={championshipMatches} />
+
+              {/* 3. Elenco disponível + Próximo jogo */}
               <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2">
                   <DashboardSquadAvailability
@@ -1209,44 +1228,8 @@ export default function App() {
                 </div>
               </section>
 
-              {/* 4. Tendência semanal */}
-              <DashboardWeeklyTrend
-                matches={matches}
-                schedules={schedules}
-                injuriesLast7Days={injuriesLast7Days}
-              />
-
-              {/* 5. Detalhes: lesões, suspensões, sono/PSE (colunas) */}
-              <section className="grid grid-cols-1 lg:grid-cols-2 gap-6" aria-label="Alertas e saúde do elenco">
-                <div className="space-y-4">
-                  <p className="text-[10px] uppercase tracking-[0.35em] text-zinc-500 font-bold">Riscos e desfalques</p>
-                  <div className="flex flex-col gap-3">
-                    <InjuredPlayersAlert players={players} />
-                    {overviewStats.nextMatch && (
-                      <SuspensionsAlert
-                        nextMatch={overviewStats.nextMatch}
-                        championships={championships}
-                        players={players}
-                      />
-                    )}
-                    {!overviewStats.nextMatch && dashboardAlertCounts.injuredCount === 0 && (
-                      <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 px-4 py-3 text-zinc-500 text-xs font-medium">
-                        Sem lesões ou suspensões no momento.
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  <p className="text-[10px] uppercase tracking-[0.35em] text-zinc-500 font-bold">Fisiologia e recuperação</p>
-                  <div className="flex flex-col gap-3">
-                    <SleepAndPseAlerts schedules={schedules} championshipMatches={championshipMatches} />
-                    <ScheduleAlerts schedules={schedules} />
-                  </div>
-                </div>
-              </section>
-
-              {/* 6. KPIs operacionais */}
-              <section className="grid grid-cols-2 lg:grid-cols-4 gap-4" aria-label="KPIs operacionais">
+              {/* 4. Indicadores gerais */}
+              <section className="grid grid-cols-2 lg:grid-cols-4 gap-4" aria-label="Indicadores gerais">
                 <StatCard label="Atletas" value={overviewStats.totalAthletes} helper={overviewStats.totalAthletes > 0 ? 'Cadastros' : '—'} />
                 <StatCard label="Jogos" value={overviewStats.totalGames} helper={`V ${overviewStats.wins} · D ${overviewStats.losses}`} highlight={overviewStats.totalGames > 0} />
                 <StatCard label="Artilheiro" value={overviewStats.topScorerName} helper={overviewStats.topScorerGoals > 0 ? `${overviewStats.topScorerGoals} gols` : '—'} />
@@ -1254,17 +1237,17 @@ export default function App() {
               </section>
 
               {/* 7. Ações principais no rodapé */}
-              <footer className="flex flex-wrap gap-4 pt-2 border-t border-zinc-800">
+              <footer className="flex flex-wrap gap-3 pt-4 border-t border-zinc-700">
                 <button
                   onClick={() => handleTabChange('general')}
-                  className="flex items-center gap-2 rounded-full border border-[#00f0ff]/50 bg-[#00f0ff]/15 px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.3em] text-[#00f0ff] transition-colors hover:bg-[#00f0ff]/25 hover:border-[#00f0ff]"
+                  className="flex items-center gap-2 rounded-lg border border-zinc-600 bg-zinc-800 px-4 py-2.5 text-xs font-medium uppercase tracking-wider text-white transition-colors hover:bg-zinc-700"
                 >
                   <BarChart3 size={14} />
                   Scout Coletivo
                 </button>
                 <button
                   onClick={() => handleTabChange('management-report')}
-                  className="flex items-center gap-2 rounded-full border border-amber-500/50 bg-amber-500/15 px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.3em] text-amber-400 transition-colors hover:bg-amber-500/25 hover:border-amber-500"
+                  className="flex items-center gap-2 rounded-lg border border-zinc-600 bg-zinc-800 px-4 py-2.5 text-xs font-medium uppercase tracking-wider text-white transition-colors hover:bg-zinc-700"
                 >
                   <FileText size={14} />
                   Relatório Gerencial

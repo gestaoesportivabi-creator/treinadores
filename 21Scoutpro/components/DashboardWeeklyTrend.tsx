@@ -108,9 +108,9 @@ export const DashboardWeeklyTrend: React.FC<DashboardWeeklyTrendProps> = ({
   }, [last7Days, matches, schedules, pseTreinos]);
 
   return (
-    <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-5">
-      <h3 className="text-[10px] uppercase tracking-[0.35em] text-zinc-500 font-bold mb-4 flex items-center gap-2">
-        <TrendingUp size={14} />
+    <div className="rounded-lg border border-zinc-700 bg-zinc-900/50 p-5">
+      <h3 className="text-[10px] uppercase tracking-[0.3em] text-zinc-500 font-semibold mb-4 flex items-center gap-2">
+        <TrendingUp size={14} className="text-zinc-400" />
         Tendência semanal
       </h3>
       <div className="flex items-end justify-between gap-1">
@@ -132,7 +132,7 @@ export const DashboardWeeklyTrend: React.FC<DashboardWeeklyTrendProps> = ({
                 />
               )}
               {day.treinos > 0 && (
-                <span className="text-[10px] text-[#00f0ff] font-bold" title="Treinos">
+                <span className="text-[10px] text-zinc-300 font-medium" title="Treinos">
                   {day.treinos}
                 </span>
               )}
@@ -146,7 +146,7 @@ export const DashboardWeeklyTrend: React.FC<DashboardWeeklyTrendProps> = ({
           </div>
         ))}
       </div>
-      <div className="mt-4 pt-3 border-t border-zinc-800 flex items-center justify-between text-[10px] text-zinc-500">
+      <div className="mt-4 pt-3 border-t border-zinc-700 flex items-center justify-between text-[10px] text-zinc-500">
         <span className="flex items-center gap-1.5">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> V
           <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> E

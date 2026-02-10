@@ -143,23 +143,23 @@ export const SleepAndPseAlerts: React.FC<SleepAndPseAlertsProps> = ({
   return (
     <>
       {sonoPhrase && (
-        <div className="bg-indigo-500/25 border-l-4 border-indigo-500 rounded-r-lg px-3 py-2 backdrop-blur-sm shadow-md">
-          <div className="flex items-start gap-1.5 text-[11px]">
-            <Moon className="w-3.5 h-3.5 text-indigo-200 flex-shrink-0 mt-0" />
+        <div className="rounded-lg border border-zinc-600 bg-zinc-800/80 border-l-4 border-l-slate-500 px-3 py-2.5">
+          <div className="flex items-start gap-2 text-xs">
+            <Moon className="w-4 h-4 text-zinc-400 flex-shrink-0 mt-0" />
             <div className="min-w-0">
-              <span className="text-indigo-100 font-bold block mb-0.5">Qualidade de sono</span>
-              <span className="text-indigo-200/90 text-[10px] leading-snug line-clamp-2">{sonoPhrase}</span>
+              <span className="text-zinc-200 font-semibold block mb-0.5">Qualidade de sono</span>
+              <span className="text-zinc-500 text-[11px] leading-snug line-clamp-2">{sonoPhrase}</span>
             </div>
           </div>
         </div>
       )}
       {psePhrase && (
-        <div className="bg-emerald-500/25 border-l-4 border-emerald-500 rounded-r-lg px-3 py-2 backdrop-blur-sm shadow-md">
-          <div className="flex items-start gap-1.5 text-[11px]">
-            <Activity className="w-3.5 h-3.5 text-emerald-200 flex-shrink-0 mt-0" />
+        <div className="rounded-lg border border-zinc-600 bg-zinc-800/80 border-l-4 border-l-slate-500 px-3 py-2.5">
+          <div className="flex items-start gap-2 text-xs">
+            <Activity className="w-4 h-4 text-zinc-400 flex-shrink-0 mt-0" />
             <div className="min-w-0">
-              <span className="text-emerald-100 font-bold block mb-0.5">PSE – Treinos</span>
-              <span className="text-emerald-200/90 text-[10px] leading-snug line-clamp-2">{psePhrase}</span>
+              <span className="text-zinc-200 font-semibold block mb-0.5">PSE – Treinos</span>
+              <span className="text-zinc-500 text-[11px] leading-snug line-clamp-2">{psePhrase}</span>
             </div>
           </div>
         </div>

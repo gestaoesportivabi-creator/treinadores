@@ -102,12 +102,12 @@ export const DashboardNextGameCard: React.FC<DashboardNextGameCardProps> = ({
 
   if (!nextMatch) {
     return (
-      <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-6">
-        <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2 mb-4">
-          <Trophy className="text-zinc-500" size={18} />
+      <div className="rounded-lg border border-white/[0.08] bg-zinc-900/40 p-4">
+        <h3 className="text-[10px] uppercase tracking-[0.3em] text-zinc-500 font-semibold flex items-center gap-2 mb-2">
+          <Trophy className="text-zinc-500" size={14} />
           Próximo jogo
         </h3>
-        <p className="text-zinc-500 text-sm">Nenhum jogo agendado.</p>
+        <p className="text-zinc-500 text-xs">Nenhum jogo agendado.</p>
       </div>
     );
   }
@@ -118,56 +118,52 @@ export const DashboardNextGameCard: React.FC<DashboardNextGameCardProps> = ({
   const timeLabel = nextMatch.time ? nextMatch.time.slice(0, 5) : '';
 
   return (
-    <div className="rounded-2xl border border-amber-500/30 bg-zinc-950/80 p-6">
-      <h3 className="text-sm font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2 mb-4">
-        <Trophy size={18} />
+    <div className="rounded-lg border border-white/[0.08] bg-zinc-900/40 p-4">
+      <h3 className="text-[10px] uppercase tracking-[0.3em] text-zinc-500 font-semibold flex items-center gap-2 mb-3">
+        <Trophy size={14} className="text-zinc-500" />
         Próximo jogo
       </h3>
-      <div className="mb-4">
-        <p className="text-white font-black text-lg">
+      <div className="mb-3">
+        <p className="text-white font-medium text-sm">
           {nextMatch.team || 'Time'} x {nextMatch.opponent}
         </p>
-        <p className="text-zinc-400 text-xs mt-1 flex items-center gap-2">
+        <p className="text-zinc-400 text-[11px] mt-0.5 flex items-center gap-1.5">
           <Calendar size={12} /> {dateLabel} {timeLabel && `· ${timeLabel}`}
         </p>
         {nextMatch.competition && (
-          <p className="text-amber-300/90 text-xs mt-0.5">{nextMatch.competition}</p>
+          <p className="text-zinc-500 text-[11px] mt-0.5">{nextMatch.competition}</p>
         )}
       </div>
 
-      <div className="space-y-3 pt-3 border-t border-zinc-800">
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-zinc-500 flex items-center gap-1.5">
-            <Users size={14} /> Impacto no elenco
+      <div className="space-y-2 pt-2 border-t border-white/[0.08]">
+        <div className="flex items-center justify-between text-[11px]">
+          <span className="text-zinc-500 flex items-center gap-1">
+            <Users size={12} /> Impacto no elenco
           </span>
-          <span className="text-white font-bold">{availableCount} disp. · {suspended.length} susp. · {pendurados.length} pend.</span>
+          <span className="text-zinc-400">{availableCount} disp. · {suspended.length} susp. · {pendurados.length} pend.</span>
         </div>
-        <div className="flex items-center gap-4 text-xs">
+        <div className="flex items-center gap-3 text-[11px]">
           {avgPse != null && (
-            <span className="flex items-center gap-1.5 text-zinc-400">
-              <Activity size={14} /> PSE médio <strong className="text-white">{avgPse}</strong>/10
+            <span className="flex items-center gap-1 text-zinc-400">
+              <Activity size={12} /> PSE <strong className="text-white/90">{avgPse}</strong>/10
             </span>
           )}
           {avgSono != null && (
-            <span className="flex items-center gap-1.5 text-zinc-400">
-              <Moon size={14} /> Sono <strong className="text-white">{avgSono}</strong>/5
+            <span className="flex items-center gap-1 text-zinc-400">
+              <Moon size={12} /> Sono <strong className="text-white/90">{avgSono}</strong>/5
             </span>
           )}
         </div>
         {suspended.length > 0 && (
-          <div className="flex items-start gap-2 text-[11px]">
-            <UserX className="text-red-400 flex-shrink-0 mt-0.5" size={14} />
-            <span className="text-red-200">
-              Suspensos: {suspended.map((p) => p.nickname || p.name).join(', ')}
-            </span>
+          <div className="flex items-start gap-1.5 text-[10px] text-zinc-500 opacity-80">
+            <UserX className="flex-shrink-0 mt-0.5" size={12} />
+            <span>Suspensos: {suspended.map((p) => p.nickname || p.name).join(', ')}</span>
           </div>
         )}
         {pendurados.length > 0 && (
-          <div className="flex items-start gap-2 text-[11px]">
-            <UserCheck className="text-amber-400 flex-shrink-0 mt-0.5" size={14} />
-            <span className="text-amber-200">
-              Pendurados: {pendurados.map((p) => p.nickname || p.name).join(', ')}
-            </span>
+          <div className="flex items-start gap-1.5 text-[10px] text-zinc-500 opacity-80">
+            <UserCheck className="flex-shrink-0 mt-0.5" size={12} />
+            <span>Pendurados: {pendurados.map((p) => p.nickname || p.name).join(', ')}</span>
           </div>
         )}
       </div>

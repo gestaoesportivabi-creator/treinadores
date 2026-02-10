@@ -24,15 +24,15 @@ export const InjuredPlayersAlert: React.FC<InjuredPlayersAlertProps> = ({ player
   if (injuredList.length === 0) return null;
 
   return (
-    <div className="bg-red-500/25 border-l-4 border-red-500 rounded-r-lg px-3 py-2 backdrop-blur-sm shadow-md">
-      <div className="flex items-start gap-1.5 text-[11px]">
-        <Ambulance className="w-3.5 h-3.5 text-red-200 flex-shrink-0 mt-0" />
+    <div className="rounded-lg border border-white/[0.08] bg-zinc-900/60 border-l-[3px] border-l-red-500 px-3 py-2.5">
+      <div className="flex items-start gap-2">
+        <Ambulance className="w-4 h-4 text-zinc-500 flex-shrink-0 mt-0" />
         <div className="min-w-0">
-          <span className="text-red-100 font-bold block mb-0.5">
+          <span className="text-white font-semibold text-sm block mb-0.5">
             {injuredList.length} desfalque{injuredList.length > 1 ? 's' : ''} por lesão
           </span>
-          <span className="text-red-200/90 text-[10px] font-medium line-clamp-2">
-            {injuredList.map((p) => p.nickname || p.name).join(' • ')}
+          <span className="text-zinc-400 text-[11px] line-clamp-2 opacity-80">
+            {injuredList.map((p) => p.nickname || p.name).join(' · ')}
           </span>
         </div>
       </div>

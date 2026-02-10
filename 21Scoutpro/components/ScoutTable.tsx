@@ -167,6 +167,9 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
         }
     ]);
 
+    // Atletas transferidos não devem aparecer na seleção para o jogo (apenas visualização/lista)
+    const isPlayerEligibleForMatchSelection = (player: Player): boolean => !player.isTransferred;
+
     // Lesão vigente = sem data de retorno REAL (returnDateActual/endDate) salva = em recuperação = indisponível
     // Retorno Previsto (returnDate) não conta - é apenas projeção; só Retorno Real/Alta (returnDateActual/endDate) indica que voltou
     const isPlayerUnavailableForMatch = (player: Player, matchDate?: string): boolean => {
@@ -226,9 +229,10 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
         // Se não tem players, não fazer nada
         if (!players || players.length === 0) return;
         
-        // Obter jogadores ativos (não suspensos, não lesionados - excluir lesão sem data de retorno)
+        // Obter jogadores ativos (não transferidos, não suspensos, não lesionados - excluir lesão sem data de retorno)
         const currentDate = entries[0]?.date || new Date().toISOString().split('T')[0];
         const activePlayers = players.filter(p => {
+            if (!isPlayerEligibleForMatchSelection(p)) return false; // Excluir transferidos
             if ((p as any).status && (p as any).status !== 'Ativo') return false;
             return !isPlayerUnavailableForMatch(p, currentDate); // Excluir lesionados sem data de retorno
         });
@@ -458,8 +462,9 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
             setEntries(newEntries);
         }
         
-        // Preencher atletas ativos (excluir lesionados sem data de retorno)
+        // Preencher atletas ativos (excluir transferidos e lesionados sem data de retorno)
         const activePlayers = players.filter(p => {
+            if (!isPlayerEligibleForMatchSelection(p)) return false;
             if ((p as any).status && (p as any).status !== 'Ativo') return false;
             return !isPlayerUnavailableForMatch(p, nextMatch.date);
         });
@@ -525,8 +530,9 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
             // Preencher data
             const formattedDate = initialData.date;
             
-            // Obter jogadores ativos (excluir lesionados sem data de retorno)
+            // Obter jogadores ativos (excluir transferidos e lesionados sem data de retorno)
             const activePlayers = players.filter(p => {
+                if (!isPlayerEligibleForMatchSelection(p)) return false;
                 if ((p as any).status && (p as any).status !== 'Ativo') return false;
                 return !isPlayerUnavailableForMatch(p, formattedDate);
             });
@@ -641,6 +647,7 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
             const hasValidEntries = entries.some(e => e.athleteId && e.athleteId.trim() !== '');
             if (!hasValidEntries && players.length > 0) {
                 const activePlayers = players.filter(p => {
+                    if (!isPlayerEligibleForMatchSelection(p)) return false;
                     if ((p as any).status && (p as any).status !== 'Ativo') return false;
                     return !isPlayerUnavailableForMatch(p, normalizedCurrentDate);
                 });
@@ -2038,7 +2045,7 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                     <Users className="text-[#00f0ff]" size={16} /> Selecionar Atletas
                                 </h3>
                                 <div className="max-h-96 overflow-y-auto space-y-2">
-                                    {players.map((player) => {
+                                    {players.filter(isPlayerEligibleForMatchSelection).map((player) => {
                                         const isSelected = selectedPlayersForMatch.has(String(player.id).trim());
                                         const isUnavailable = isPlayerUnavailableForMatch(player, selectedScheduledMatch?.date);
                                         return (
@@ -2067,8 +2074,11 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                                     className="w-5 h-5 text-[#00f0ff] bg-zinc-900 border-zinc-700 rounded focus:ring-[#00f0ff] focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                                 />
                                                 {isUnavailable && (
-                                                    <div className="flex-shrink-0 bg-red-600 p-1 rounded" title="Indisponível - em recuperação (lesão sem data de retorno)">
-                                                        <Ambulance size={16} className="text-white" />
+                                                    <div className="flex items-center gap-1.5 flex-shrink-0" title="Indisponível - em recuperação (lesão sem data de retorno)">
+                                                        <div className="bg-red-600 p-1 rounded">
+                                                            <Ambulance size={16} className="text-white" />
+                                                        </div>
+                                                        <span className="text-[10px] font-bold uppercase text-red-400">Lesão</span>
                                                     </div>
                                                 )}
                                                 <div className="flex-1">
@@ -2080,8 +2090,8 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                             </label>
                                         );
                                     })}
-                                    {players.length === 0 && (
-                                        <p className="text-zinc-500 text-sm text-center py-4">Nenhum jogador cadastrado</p>
+                                    {players.filter(isPlayerEligibleForMatchSelection).length === 0 && (
+                                        <p className="text-zinc-500 text-sm text-center py-4">Nenhum jogador cadastrado (transferidos não entram na seleção)</p>
                                     )}
                                 </div>
                             </div>
@@ -2233,7 +2243,7 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                     <Users className="text-[#00f0ff]" size={16} /> Selecionar Atletas
                                 </h3>
                                 <div className="max-h-96 overflow-y-auto space-y-2">
-                                    {players.map((player) => {
+                                    {players.filter(isPlayerEligibleForMatchSelection).map((player) => {
                                         const isSelected = selectedPlayersForMatch.has(String(player.id).trim());
                                         const isUnavailable = isPlayerUnavailableForMatch(player, selectedScheduledMatch?.date);
                                         return (
@@ -2262,8 +2272,11 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                                     className="w-5 h-5 text-[#00f0ff] bg-zinc-900 border-zinc-700 rounded focus:ring-[#00f0ff] focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                                 />
                                                 {isUnavailable && (
-                                                    <div className="flex-shrink-0 bg-red-600 p-1 rounded" title="Indisponível - em recuperação (lesão sem data de retorno)">
-                                                        <Ambulance size={16} className="text-white" />
+                                                    <div className="flex items-center gap-1.5 flex-shrink-0" title="Indisponível - em recuperação (lesão sem data de retorno)">
+                                                        <div className="bg-red-600 p-1 rounded">
+                                                            <Ambulance size={16} className="text-white" />
+                                                        </div>
+                                                        <span className="text-[10px] font-bold uppercase text-red-400">Lesão</span>
                                                     </div>
                                                 )}
                                                 <div className="flex-1">
@@ -2275,8 +2288,8 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                             </label>
                                         );
                                     })}
-                                    {players.length === 0 && (
-                                        <p className="text-zinc-500 text-sm text-center py-4">Nenhum jogador cadastrado</p>
+                                    {players.filter(isPlayerEligibleForMatchSelection).length === 0 && (
+                                        <p className="text-zinc-500 text-sm text-center py-4">Nenhum jogador cadastrado (transferidos não entram na seleção)</p>
                                     )}
                                 </div>
                             </div>
@@ -2707,7 +2720,9 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                     <div className="mb-4 p-3 bg-zinc-950 rounded-xl border border-zinc-800">
                         <p className="text-zinc-400 text-[10px] font-bold uppercase mb-2">Selecionar Jogadores:</p>
                         <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                            {players.filter(p => (p as any).status === 'Ativo' || !(p as any).status).map(player => {
+                            {players
+                                .filter(p => isPlayerEligibleForMatchSelection(p) && ((p as any).status === 'Ativo' || !(p as any).status))
+                                .map(player => {
                                 const isInField = playersInField.has(String(player.id).trim());
                                 const matchDate = entries[0]?.date;
                                 const isUnavailable = isPlayerUnavailableForMatch(player, matchDate);
@@ -2741,8 +2756,11 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                             className="w-4 h-4 text-[#00f0ff] bg-zinc-900 border-zinc-700 rounded focus:ring-[#00f0ff] disabled:opacity-50 disabled:cursor-not-allowed"
                                         />
                                         {isUnavailable && (
-                                            <div className="flex-shrink-0 bg-red-600 p-0.5 rounded" title="Indisponível - em recuperação (lesão sem data de retorno)">
-                                                <Ambulance size={14} className="text-white" />
+                                            <div className="flex items-center gap-1 flex-shrink-0" title="Indisponível - em recuperação (lesão sem data de retorno)">
+                                                <div className="bg-red-600 p-0.5 rounded">
+                                                    <Ambulance size={14} className="text-white" />
+                                                </div>
+                                                <span className="text-[9px] font-bold uppercase text-red-400">Lesão</span>
                                             </div>
                                         )}
                                         <span className={`text-xs font-bold ${isUnavailable ? 'text-zinc-500' : 'text-white'}`}>#{player.jerseyNumber} {player.name}</span>

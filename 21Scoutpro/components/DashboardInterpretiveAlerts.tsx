@@ -204,32 +204,26 @@ export const DashboardInterpretiveAlerts: React.FC<DashboardInterpretiveAlertsPr
   if (alerts.length === 0) return null;
 
   const riskStyles = {
-    green: 'bg-emerald-500/15 border-emerald-500/50 text-emerald-200',
-    yellow: 'bg-amber-500/15 border-amber-500/50 text-amber-200',
-    red: 'bg-red-500/15 border-red-500/50 text-red-200',
-  };
-
-  const riskBorder = {
-    green: 'border-l-emerald-500',
-    yellow: 'border-l-amber-500',
-    red: 'border-l-red-500',
+    green: 'bg-zinc-800/80 border-zinc-600 text-zinc-200 border-l-4 border-l-emerald-600',
+    yellow: 'bg-zinc-800/80 border-zinc-600 text-zinc-200 border-l-4 border-l-amber-600',
+    red: 'bg-zinc-800/80 border-zinc-600 text-zinc-200 border-l-4 border-l-red-600',
   };
 
   const Icon = ({ icon }: { icon?: InterpretiveAlert['icon'] }) => {
-    if (icon === 'sleep') return <Moon size={14} className="flex-shrink-0" />;
-    if (icon === 'pse') return <Activity size={14} className="flex-shrink-0" />;
-    if (icon === 'injury') return <AlertTriangle size={14} className="flex-shrink-0" />;
-    return <AlertCircle size={14} className="flex-shrink-0" />;
+    if (icon === 'sleep') return <Moon size={14} className="flex-shrink-0 text-zinc-400" />;
+    if (icon === 'pse') return <Activity size={14} className="flex-shrink-0 text-zinc-400" />;
+    if (icon === 'injury') return <AlertTriangle size={14} className="flex-shrink-0 text-zinc-400" />;
+    return <AlertCircle size={14} className="flex-shrink-0 text-zinc-400" />;
   };
 
   return (
-    <div className="space-y-2">
-      <p className="text-[10px] uppercase tracking-[0.35em] text-zinc-500 font-bold mb-2">Alertas interpretativos</p>
+    <div className="rounded-lg border border-zinc-700 bg-zinc-900/50 p-5">
+      <p className="text-[10px] uppercase tracking-[0.3em] text-zinc-500 font-semibold mb-3">Indicadores de risco e recuperação</p>
       <ul className="space-y-2">
         {alerts.map((a, i) => (
           <li
             key={i}
-            className={`rounded-r-lg border-l-4 px-3 py-2 text-xs font-medium ${riskStyles[a.risk]} ${riskBorder[a.risk]}`}
+            className={`rounded-r border px-3 py-2 text-xs ${riskStyles[a.risk]}`}
           >
             <div className="flex items-start gap-2">
               <Icon icon={a.icon} />
