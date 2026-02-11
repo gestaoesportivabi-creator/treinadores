@@ -7,11 +7,12 @@ interface TeamManagementProps {
     players: Player[];
     onAddPlayer: (player: Player) => void;
     onUpdatePlayer: (player: Player) => void;
+    onDeletePlayer?: (player: Player) => void;
     onClearDemoData?: () => Promise<void>;
     config: SportConfig;
 }
 
-export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPlayer, onUpdatePlayer, onClearDemoData, config }) => {
+export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPlayer, onUpdatePlayer, onDeletePlayer, onClearDemoData, config }) => {
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editMode, setEditMode] = useState(false);
     const [editPlayerId, setEditPlayerId] = useState<string | null>(null);
@@ -54,6 +55,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
     const [maxLoads, setMaxLoads] = useState<MaxLoad[]>([]);
     const [isAddingMaxLoad, setIsAddingMaxLoad] = useState(false);
     const [editingMaxLoadId, setEditingMaxLoadId] = useState<string | null>(null);
+    const [playerToDelete, setPlayerToDelete] = useState<Player | null>(null);
     const [newMaxLoadCategory, setNewMaxLoadCategory] = useState('');
     const [newMaxLoadExercise, setNewMaxLoadExercise] = useState('');
     const [newMaxLoadType, setNewMaxLoadType] = useState<'Kg' | 'Repetições'>('Kg');
@@ -469,6 +471,41 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
 
     return (
         <>
+        {/* Modal de confirmação de exclusão */}
+        {playerToDelete && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={() => setPlayerToDelete(null)}>
+                <div className="bg-zinc-900 border border-zinc-700 rounded-2xl shadow-xl max-w-md w-full p-6" onClick={e => e.stopPropagation()}>
+                    <p className="text-white font-medium mb-6">
+                        Deseja realmente excluir o cadastro de <strong>{playerToDelete.nickname || playerToDelete.name}</strong>? Esta ação não pode ser desfeita.
+                    </p>
+                    <div className="flex justify-end gap-3">
+                        <button
+                            type="button"
+                            onClick={() => setPlayerToDelete(null)}
+                            className="px-4 py-2 rounded-lg border border-zinc-600 bg-zinc-800 text-white font-medium hover:bg-zinc-700 transition-colors"
+                        >
+                            Não
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                if (editPlayerId === playerToDelete.id) {
+                                    setEditMode(false);
+                                    setEditPlayerId(null);
+                                    resetForm();
+                                }
+                                onDeletePlayer?.(playerToDelete);
+                                setPlayerToDelete(null);
+                            }}
+                            className="px-4 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-500 transition-colors"
+                        >
+                            Sim
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+
         <div className="space-y-6 animate-fade-in pb-12">
             
             {/* Header */}

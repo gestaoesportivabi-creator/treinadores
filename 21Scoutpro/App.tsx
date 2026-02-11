@@ -489,6 +489,17 @@ export default function App() {
       }
   };
 
+  const handleDeletePlayer = async (player: Player) => {
+    try {
+      await playersApi.delete(player.id);
+      setPlayers(prev => prev.filter(p => p.id !== player.id));
+      alert("Cadastro do atleta excluído com sucesso.");
+    } catch (error) {
+      console.error('Erro ao excluir atleta:', error);
+      alert("Erro ao excluir atleta. Tente novamente.");
+    }
+  };
+
   const handleSaveAssessment = async (newAssessment: PhysicalAssessment) => {
       try {
         const saved = await assessmentsApi.create(newAssessment);
@@ -804,6 +815,7 @@ export default function App() {
               players={players} 
               onAddPlayer={handleAddPlayer} 
               onUpdatePlayer={handleUpdatePlayer}
+              onDeletePlayer={handleDeletePlayer}
               config={config} 
             />
           </TabBackgroundWrapper>
