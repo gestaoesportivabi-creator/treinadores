@@ -160,12 +160,9 @@ export const playersService = {
         throw new Error('Configuração do tenant inválida. Entre em contato com o suporte.');
       }
 
-      // Remover equipeId, id e injuryHistory dos dados antes de criar o jogador
-      // (equipeId não é campo da tabela jogadores, id é gerado pelo banco, injuryHistory é criado separadamente)
-      const { equipeId, ...dadosRecebidos } = data as any;
-      // Remover id e injuryHistory se existirem
+      // Remover equipeId, id, injuryHistory e maxLoads dos dados antes de criar o jogador
+      const { equipeId, injuryHistory: injuryHistoryPayload, maxLoads: maxLoadsPayload, ...dadosRecebidos } = data as any;
       delete (dadosRecebidos as any).id;
-      delete (dadosRecebidos as any).injuryHistory;
 
       // Validar que o nome está presente
       const nome = dadosRecebidos.nome || (dadosRecebidos as any).name;
@@ -185,7 +182,9 @@ export const playersService = {
             : undefined,
         dataNascimento: (dadosRecebidos.dataNascimento && dadosRecebidos.dataNascimento.toString().trim() !== '')
           ? new Date(dadosRecebidos.dataNascimento)
-          : undefined,
+          : ((dadosRecebidos as any).birthDate && (dadosRecebidos as any).birthDate.toString().trim() !== '')
+            ? new Date((dadosRecebidos as any).birthDate)
+            : undefined,
         idade: (dadosRecebidos.idade !== undefined && dadosRecebidos.idade !== null && dadosRecebidos.idade !== '' && typeof dadosRecebidos.idade !== 'string')
           ? Number(dadosRecebidos.idade) 
           : ((dadosRecebidos as any).age !== undefined && (dadosRecebidos as any).age !== null && (dadosRecebidos as any).age !== '' && typeof (dadosRecebidos as any).age !== 'string')
@@ -242,6 +241,9 @@ export const playersService = {
           : ((dadosRecebidos as any).photoUrl && (dadosRecebidos as any).photoUrl.toString().trim() !== '')
             ? (dadosRecebidos as any).photoUrl.toString().trim()
             : undefined,
+        maxLoadsJson: Array.isArray(maxLoadsPayload) && maxLoadsPayload.length > 0
+          ? maxLoadsPayload
+          : undefined,
         isTransferido: dadosRecebidos.isTransferido !== undefined 
           ? Boolean(dadosRecebidos.isTransferido) 
           : (dadosRecebidos as any).isTransferred !== undefined 
@@ -324,6 +326,28 @@ export const playersService = {
 
           console.log('[PLAYERS_SERVICE] create - Vínculo criado com sucesso');
         }
+
+        // Persistir lesões se houver
+        const injuries = Array.isArray(injuryHistoryPayload) ? injuryHistoryPayload : [];
+        for (const inj of injuries) {
+          const startDate = inj.startDate || inj.date;
+          if (!startDate) continue;
+          const endDateVal = inj.returnDateActual || inj.returnDate || inj.endDate;
+          await prisma.lesao.create({
+            data: {
+              jogadorId: jogador.id,
+              data: new Date(startDate),
+              dataInicio: new Date(startDate),
+              dataFim: endDateVal ? new Date(endDateVal) : null,
+              tipo: inj.type || 'Outros',
+              localizacao: inj.location || 'Não informado',
+              lado: inj.side || null,
+              severidade: inj.severity || null,
+              origem: inj.origin || null,
+              diasAfastado: inj.daysOut ?? null,
+            },
+          });
+        }
       } catch (error: any) {
         // Se houver erro ao vincular, fazer rollback: deletar o jogador criado
         console.error('[PLAYERS_SERVICE] create - ERRO ao vincular jogador à equipe:', {
@@ -389,8 +413,34 @@ export const playersService = {
     const dtNasc = mapDate(d.dataNascimento ?? d.birthDate);
     if (dtNasc !== undefined) payload.dataNascimento = dtNasc;
     if (d.isAtivo !== undefined) payload.isAtivo = Boolean(d.isAtivo);
+    if (Array.isArray(d.maxLoads) && d.maxLoads.length > 0) payload.maxLoadsJson = d.maxLoads;
 
     const jogador = await playersRepository.update(id, payload as any);
+
+    // Sincronizar lesões (injuryHistory)
+    const injuryHistory = (d as any).injuryHistory;
+    if (Array.isArray(injuryHistory)) {
+      await prisma.lesao.deleteMany({ where: { jogadorId: id } });
+      for (const inj of injuryHistory) {
+        const startDate = inj.startDate || inj.date;
+        if (!startDate) continue;
+        const endDateVal = inj.returnDateActual || inj.returnDate || inj.endDate;
+        await prisma.lesao.create({
+          data: {
+            jogadorId: id,
+            data: new Date(startDate),
+            dataInicio: new Date(startDate),
+            dataFim: endDateVal ? new Date(endDateVal) : null,
+            tipo: inj.type || 'Outros',
+            localizacao: inj.location || 'Não informado',
+            lado: inj.side || null,
+            severidade: inj.severity || null,
+            origem: inj.origin || null,
+            diasAfastado: inj.daysOut ?? null,
+          },
+        });
+      }
+    }
 
     const [lesoes, avaliacoes] = await Promise.all([
       lesoesRepository.findByJogador(id, tenantInfo),

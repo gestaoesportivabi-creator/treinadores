@@ -21,6 +21,8 @@ interface PostMatchCollectionSheetProps {
   players: Player[];
   onSave: (match: MatchRecord) => void;
   onBack: () => void;
+  /** Usuário que está registrando as ações (para auditoria: quem fez/registrou cada ação) */
+  recordedByUser?: { id?: string; name: string };
 }
 
 const ACTION_GROUPS: { group: string; options: { value: PostMatchAction; label: string }[] }[] = [
@@ -172,6 +174,7 @@ export const PostMatchCollectionSheet: React.FC<PostMatchCollectionSheetProps> =
   players,
   onSave,
   onBack,
+  recordedByUser,
 }) => {
   const [formData, setFormData] = useState<FormData>(defaultFormData);
   const [events, setEvents] = useState<PostMatchEvent[]>([]);
@@ -296,6 +299,13 @@ export const PostMatchCollectionSheet: React.FC<PostMatchCollectionSheetProps> =
     }
 
     const result: 'V' | 'D' | 'E' = 'E';
+    const postMatchEventLogWithRecordedBy = recordedByUser
+      ? events.map((e) => ({
+          ...e,
+          recordedByUserId: recordedByUser.id,
+          recordedByName: recordedByUser.name,
+        }))
+      : events;
     const savedMatch: MatchRecord = {
       id: match.id,
       opponent: match.opponent,
@@ -306,7 +316,7 @@ export const PostMatchCollectionSheet: React.FC<PostMatchCollectionSheetProps> =
       competition: match.competition,
       playerStats,
       teamStats,
-      postMatchEventLog: events,
+      postMatchEventLog: postMatchEventLogWithRecordedBy,
     };
 
     onSave(savedMatch);

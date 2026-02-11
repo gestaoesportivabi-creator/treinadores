@@ -11,9 +11,10 @@ interface LoginProps {
   initialMode?: 'login' | 'register';
   onSwitchToLogin?: () => void;
   onSwitchToRegister?: () => void;
+  onBackToHome?: () => void;
 }
 
-export const Login: React.FC<LoginProps> = ({ onLogin, initialMode = 'login', onSwitchToLogin, onSwitchToRegister }) => {
+export const Login: React.FC<LoginProps> = ({ onLogin, initialMode = 'login', onSwitchToLogin, onSwitchToRegister, onBackToHome }) => {
   const [isRegistering, setIsRegistering] = useState(initialMode === 'register');
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [email, setEmail] = useState('');
@@ -104,33 +105,22 @@ export const Login: React.FC<LoginProps> = ({ onLogin, initialMode = 'login', on
         }
       } else {
         // Login - chamar API do backend
-        const identifier = email.trim();
-        
-        // Detectar se é email (contém @) ou username (não contém @)
         // IMPORTANTE: Se o usuário digitar "admin", sempre usar "admin@admin.com"
-        const isEmail = identifier.includes('@') || identifier === 'admin' || identifier === 'admin@admin.com';
-        const emailToUse = (identifier === 'admin' || identifier === 'admin@admin.com') 
+        const emailToUse = (email.trim() === 'admin' || email.trim() === 'admin@admin.com') 
           ? 'admin@admin.com' 
-          : identifier;
+          : email.trim();
         
-        console.log('🔐 Tentando login com:', isEmail ? 'email' : 'username', emailToUse);
-        
-        const requestBody: any = {
-          password: password,
-        };
-        
-        if (isEmail) {
-          requestBody.email = emailToUse;
-        } else {
-          requestBody.username = emailToUse;
-        }
+        console.log('🔐 Tentando login com email:', emailToUse);
         
         const response = await fetch(`${getApiUrl()}/auth/login`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(requestBody),
+          body: JSON.stringify({
+            email: emailToUse,
+            password: password,
+          }),
         });
 
         const result = await response.json();
@@ -153,7 +143,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin, initialMode = 'login', on
           onLogin(user);
           setIsLoading(false);
         } else {
-          setError(result.error || 'Email/username ou senha incorretos.');
+          setError(result.error || 'Email ou senha incorretos.');
           setIsLoading(false);
         }
       }
@@ -165,15 +155,44 @@ export const Login: React.FC<LoginProps> = ({ onLogin, initialMode = 'login', on
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center relative bg-black overflow-hidden font-sans text-white">
-      
-      {/* Background - Gradiente otimizado sem imagem externa */}
-      <div className="absolute inset-0 z-0 bg-gradient-to-br from-zinc-900 via-black to-zinc-950">
+    <div className="min-h-screen w-full flex flex-col relative bg-black overflow-hidden font-sans text-white">
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-black/90 backdrop-blur-lg border-b border-zinc-800/50 shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 md:px-8 lg:px-12 py-4 md:py-5">
+          <div className="flex items-center justify-between gap-6">
+            <div className="flex items-center shrink-0">
+              {onBackToHome ? (
+                <button type="button" onClick={onBackToHome} className="hover:opacity-80 transition-opacity cursor-pointer">
+                  <img src={LOGO_IMAGE} alt="SCOUT21PRO Logo" className="h-10 md:h-12 w-auto" />
+                </button>
+              ) : (
+                <img src={LOGO_IMAGE} alt="SCOUT21PRO Logo" className="h-10 md:h-12 w-auto" />
+              )}
+            </div>
+            <div className="flex items-center gap-3 md:gap-4">
+              <a href="https://instagram.com/scout21pro" target="_blank" rel="noopener noreferrer" className="hidden sm:flex items-center gap-2 px-4 py-2 text-[#00f0ff] hover:text-[#00d4e6] text-sm font-semibold transition-all hover:bg-zinc-900/50 rounded-lg border border-transparent hover:border-[#00f0ff]/30">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                </svg>
+                <span className="hidden md:inline">@scout21pro</span>
+              </a>
+              {onBackToHome && (
+                <button type="button" onClick={onBackToHome} className="px-5 md:px-7 py-2.5 md:py-3 bg-[#00f0ff] hover:bg-[#00d4e6] active:scale-[0.98] text-black font-black text-sm md:text-base uppercase tracking-wider rounded-lg transition-all duration-300 shadow-[0_0_20px_rgba(0,240,255,0.3)] hover:shadow-[0_0_30px_rgba(0,240,255,0.5)]">Voltar</button>
+              )}
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <div className="flex-1 flex items-center justify-center pt-24 pb-8">
+      <div className="absolute inset-0 z-0">
+          <img 
+            src="https://images.unsplash.com/photo-1504450758481-7338eba7524a?q=80&w=2069&auto=format&fit=crop" 
+            alt="Arena Lotada Emoção" 
+            className="w-full h-full object-cover opacity-60"
+          />
           {/* Gradient Overlay for Text Readability and Mood */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/80"></div>
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/80 mix-blend-multiply"></div>
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/20 to-black"></div>
-          {/* Efeito sutil de textura */}
-          <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_50%_50%,rgba(0,240,255,0.1),transparent_50%)]"></div>
       </div>
 
       {/* Auth Card - Black Piano Aesthetic - EXTRA TRANSPARENT (20%) */}
@@ -352,8 +371,8 @@ export const Login: React.FC<LoginProps> = ({ onLogin, initialMode = 'login', on
              </button>
         </div>
       </div>
+      </div>
 
-      {/* Welcome Banner Footer - Updated Text & Transparency & Color */}
       <div className="absolute bottom-8 left-0 right-0 z-30 flex justify-center px-6 animate-fade-in-up">
         <div className="flex flex-col items-center gap-2.5">
             {/* Decorative Line */}

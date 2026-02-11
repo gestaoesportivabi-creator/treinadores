@@ -87,5 +87,36 @@ export const lesoesRepository = {
       orderBy: { dataInicio: 'desc' },
     }) as Promise<LesaoDB[]>;
   },
+
+  /**
+   * Criar lesão
+   */
+  async create(data: {
+    jogadorId: string;
+    data: Date;
+    dataInicio: Date;
+    dataFim?: Date | null;
+    tipo: string;
+    localizacao: string;
+    lado?: string | null;
+    severidade?: string | null;
+    origem?: string | null;
+    diasAfastado?: number | null;
+  }): Promise<LesaoDB> {
+    return prisma.lesao.create({
+      data: {
+        jogadorId: data.jogadorId,
+        data: data.data,
+        dataInicio: data.dataInicio,
+        dataFim: data.dataFim ?? null,
+        tipo: data.tipo,
+        localizacao: data.localizacao,
+        lado: data.lado ?? null,
+        severidade: data.severidade ?? null,
+        origem: data.origem ?? null,
+        diasAfastado: data.diasAfastado ?? null,
+      },
+    }) as Promise<LesaoDB>;
+  },
 };
 

@@ -19,6 +19,7 @@ interface JogadorDB {
   peso?: number | null;
   ultimoClube?: string | null;
   fotoUrl?: string | null;
+  maxLoadsJson?: unknown;
   isTransferido: boolean;
   dataTransferencia?: Date | string | null;
   isAtivo: boolean;
@@ -137,11 +138,14 @@ export function transformPlayerToFrontend(
     dominantFoot: (jogador.peDominante as any) || 'Destro',
     age,
     height: jogador.altura ? Number(jogador.altura) : 0,
+    weight: jogador.peso ? Number(jogador.peso) : undefined,
     lastClub: jogador.ultimoClube || '',
     photoUrl: jogador.fotoUrl || undefined,
     isTransferred: jogador.isTransferido || false,
     transferDate: formatDate(jogador.dataTransferencia || undefined),
+    birthDate: formatDate(jogador.dataNascimento || undefined),
     injuryHistory: injuryHistory.length > 0 ? injuryHistory : undefined,
+    maxLoads: Array.isArray(jogador.maxLoadsJson) ? (jogador.maxLoadsJson as any[]) : undefined,
   };
 }
 

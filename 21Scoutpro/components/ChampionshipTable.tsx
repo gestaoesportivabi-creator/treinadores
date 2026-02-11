@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Calendar, Clock, Users, Trophy, Plus, Save, Trash2, Edit2, RefreshCw, X, Upload, BarChart3 } from 'lucide-react';
+import { Calendar, Clock, Users, Trophy, Plus, Save, Trash2, Edit2, RefreshCw, X, Upload, BarChart3, Award, Flag } from 'lucide-react';
 import { Championship } from '../types';
+import { setChampionshipCards } from '../utils/championshipCards';
 
 export interface ChampionshipMatch {
     id: string;
@@ -9,6 +10,7 @@ export interface ChampionshipMatch {
     team?: string;
     opponent: string;
     competition: string;
+    phase?: string; // Fase da partida (ex: "1 Fase classificatória", "1 PlayOffs")
     location?: string; // Mandante/Visitante
     scoreTarget?: string; // Meta de pontuação esperada
 }
@@ -22,8 +24,13 @@ interface ChampionshipTableProps {
     onRefresh?: () => void; // Callback para recarregar dados da API
     championships?: Championship[]; // Campeonatos cadastrados
     onSaveChampionship?: (championship: Championship) => void; // Callback para salvar campeonato
-    
+    teams?: { id: string; nome: string }[]; // Equipes para cadastrar no campeonato
 }
+
+const PHASE_OPTIONS = [
+    { value: '1 Fase classificatória', label: '1 Fase classificatória' },
+    { value: '1 PlayOffs', label: '1 PlayOffs' },
+];
 
 export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({ 
     matches = [], 
@@ -33,7 +40,8 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
     onUseForInput,
     onRefresh,
     championships = [],
-    onSaveChampionship
+    onSaveChampionship,
+    teams = []
 }) => {
     // Debug: log matches
     useEffect(() => {
@@ -46,12 +54,20 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
     const [isCreating, setIsCreating] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [isAmistoso, setIsAmistoso] = useState(false);
+    // Lista de competições: campeonatos salvos primeiro, depois da API
+    const competitionOptions = useMemo(() => {
+        const fromChampionships = championships.map(c => c.name);
+        const fromApi = competitions.filter(c => !fromChampionships.includes(c));
+        return [...fromChampionships, ...fromApi];
+    }, [championships, competitions]);
+
     const [formData, setFormData] = useState<ChampionshipMatch>({
         id: '',
         date: new Date().toISOString().split('T')[0],
         time: '20:00',
         opponent: '',
-        competition: competitions.length > 0 ? competitions[0] : '',
+        competition: competitionOptions.length > 0 ? competitionOptions[0] : '',
+        phase: '1 Fase classificatória',
         location: '',
         scoreTarget: ''
     });
@@ -61,12 +77,17 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
     const [championshipForm, setChampionshipForm] = useState<Championship>({
         id: '',
         name: '',
-        phase: '',
+        phase: '1 Fase classificatória',
+        pointsPerWin: 3,
+        pointsPerDraw: 1,
+        pointsPerLoss: 0,
         suspensionRules: {
             yellowCardsForSuspension: 3,
             redCardSuspension: 1,
             yellowAccumulationSuspension: 1
-        }
+        },
+        resetCardsOnPhaseAdvance: false,
+        teamIds: []
     });
     const [showChampionshipMatchesForm, setShowChampionshipMatchesForm] = useState(false);
     const [currentChampionshipId, setCurrentChampionshipId] = useState<string | null>(null);
@@ -75,6 +96,10 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
     // Estados para importação
     const [showImportModal, setShowImportModal] = useState(false);
     const [importData, setImportData] = useState<string>('');
+    
+    // Modal de regras quando a fase da partida difere da fase do campeonato
+    const [showPhaseRulesModal, setShowPhaseRulesModal] = useState(false);
+    const [phaseRulesChampionship, setPhaseRulesChampionship] = useState<Championship | null>(null);
     
     // Estados para filtros de tempo e visualização
     const [timeFilter, setTimeFilter] = useState<'all' | '7days' | '30days' | '90days'>('all');
@@ -94,6 +119,7 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
                 time: formData.time,
                 opponent: formData.opponent,
                 competition: formData.competition,
+                phase: formData.phase,
                 location: formData.location,
                 scoreTarget: formData.scoreTarget
             } as any;
@@ -108,7 +134,8 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
             date: new Date().toISOString().split('T')[0],
             time: '20:00',
             opponent: '',
-            competition: competitions.length > 0 ? competitions[0] : '',
+            competition: competitionOptions.length > 0 ? competitionOptions[0] : '',
+            phase: '1 Fase classificatória',
             location: 'Mandante',
             scoreTarget: ''
         });
@@ -118,7 +145,10 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
     };
 
     const handleEdit = (match: ChampionshipMatch) => {
-        setFormData(match);
+        setFormData({
+            ...match,
+            phase: match.phase || '1 Fase classificatória'
+        });
         setEditingId(match.id);
         // Detectar se é amistoso
         setIsAmistoso(match.competition === 'Amistoso');
@@ -131,7 +161,8 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
             date: new Date().toISOString().split('T')[0],
             time: '20:00',
             opponent: '',
-            competition: competitions.length > 0 ? competitions[0] : '',
+            competition: competitionOptions.length > 0 ? competitionOptions[0] : '',
+            phase: '1 Fase classificatória',
             location: 'Mandante',
             scoreTarget: ''
         });
@@ -416,12 +447,17 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
                                     setChampionshipForm({
                                         id: '',
                                         name: '',
-                                        phase: '',
+                                        phase: '1 Fase classificatória',
+                                        pointsPerWin: 3,
+                                        pointsPerDraw: 1,
+                                        pointsPerLoss: 0,
                                         suspensionRules: {
                                             yellowCardsForSuspension: 3,
                                             redCardSuspension: 1,
                                             yellowAccumulationSuspension: 1
-                                        }
+                                        },
+                                        resetCardsOnPhaseAdvance: false,
+                                        teamIds: []
                                     });
                                     setShowChampionshipModal(true);
                                 }}
@@ -430,7 +466,19 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
                                 <Trophy size={16} /> Cadastrar Campeonato
                             </button>
                             <button
-                                onClick={() => setIsCreating(true)}
+                                onClick={() => {
+                                    setFormData({
+                                        id: '',
+                                        date: new Date().toISOString().split('T')[0],
+                                        time: '20:00',
+                                        opponent: '',
+                                        competition: competitionOptions.length > 0 ? competitionOptions[0] : '',
+                                        phase: '1 Fase classificatória',
+                                        location: 'Mandante',
+                                        scoreTarget: ''
+                                    });
+                                    setIsCreating(true);
+                                }}
                                 className="flex items-center gap-2 bg-[#10b981] hover:bg-[#34d399] text-white px-4 py-2 font-bold uppercase text-xs rounded-xl transition-colors shadow-[0_0_15px_rgba(16,185,129,0.3)]"
                             >
                                 <Plus size={16} /> Nova Partida
@@ -488,7 +536,7 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
                                     if (checked) {
                                         setFormData({ ...formData, competition: 'Amistoso' });
                                     } else {
-                                        setFormData({ ...formData, competition: competitions.length > 0 ? competitions[0] : '' });
+                                        setFormData({ ...formData, competition: competitionOptions.length > 0 ? competitionOptions[0] : '' });
                                     }
                                 }}
                                 className="w-4 h-4 accent-[#10b981] cursor-pointer"
@@ -543,12 +591,50 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
                                     {isAmistoso ? (
                                         <option value="Amistoso">Amistoso</option>
                                     ) : (
-                                        competitions.map(comp => (
+                                        competitionOptions.map(comp => (
                                             <option key={comp} value={comp}>{comp}</option>
                                         ))
                                     )}
                                 </select>
                             </div>
+                            {!isAmistoso && championships.some(c => c.name === formData.competition) && (
+                                <div>
+                                    <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Fase da partida</label>
+                                    <div className="flex gap-2 items-center">
+                                        <select
+                                            value={formData.phase || '1 Fase classificatória'}
+                                            onChange={(e) => {
+                                                const newPhase = e.target.value;
+                                                const champ = championships.find(c => c.name === formData.competition);
+                                                setFormData({ ...formData, phase: newPhase });
+                                                // Se fase diferente da fase do campeonato, abrir modal de regras
+                                                if (champ && newPhase !== (champ.phase || '1 Fase classificatória')) {
+                                                    setPhaseRulesChampionship({ ...champ });
+                                                    setShowPhaseRulesModal(true);
+                                                }
+                                            }}
+                                            className="flex-1 bg-black border border-zinc-700 rounded-lg p-2 text-white text-xs outline-none focus:border-[#10b981]"
+                                        >
+                                            {PHASE_OPTIONS.map(opt => (
+                                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                            ))}
+                                        </select>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const champ = championships.find(c => c.name === formData.competition);
+                                                if (champ) {
+                                                    setPhaseRulesChampionship({ ...champ });
+                                                    setShowPhaseRulesModal(true);
+                                                }
+                                            }}
+                                            className="text-[10px] font-bold uppercase text-orange-500 hover:text-orange-400 whitespace-nowrap"
+                                        >
+                                            Regras
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                             <div>
                                 <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Local</label>
                                 <select
@@ -738,13 +824,6 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
                                             <td className="p-3">
                                                 <div className="flex items-center justify-center gap-2">
                                                     <button
-                                                        onClick={() => handleUseForInput(match)}
-                                                        className="p-2 text-[#10b981] hover:bg-zinc-900 rounded-lg transition-colors"
-                                                        title="Usar no Input de Dados"
-                                                    >
-                                                        <Plus size={16} />
-                                                    </button>
-                                                    <button
                                                         onClick={() => handleEdit(match)}
                                                         className="p-2 text-blue-400 hover:bg-zinc-900 rounded-lg transition-colors"
                                                         title="Editar"
@@ -860,7 +939,7 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
                         
                         <div className="space-y-4">
                             <div>
-                                <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Nome da Competição *</label>
+                                <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Nome do Campeonato *</label>
                                 <input
                                     type="text"
                                     value={championshipForm.name}
@@ -871,14 +950,51 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
                             </div>
                             
                             <div>
-                                <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Fase da Competição</label>
-                                <input
-                                    type="text"
-                                    value={championshipForm.phase || ''}
+                                <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Fase</label>
+                                <select
+                                    value={championshipForm.phase || '1 Fase classificatória'}
                                     onChange={(e) => setChampionshipForm({ ...championshipForm, phase: e.target.value })}
-                                    placeholder="Ex: Fase de Grupos, Quartas de Final, etc."
                                     className="w-full bg-black border border-zinc-700 rounded-lg p-3 text-white text-sm outline-none focus:border-purple-500"
-                                />
+                                >
+                                    <option value="1 Fase classificatória">1 Fase classificatória</option>
+                                    <option value="1 PlayOffs">1 PlayOffs</option>
+                                </select>
+                            </div>
+                            
+                            <div className="border-t border-zinc-800 pt-4">
+                                <h4 className="text-white font-bold text-sm mb-4 uppercase">Pontuação por resultado</h4>
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div>
+                                        <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Vitória</label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            value={championshipForm.pointsPerWin ?? 3}
+                                            onChange={(e) => setChampionshipForm({ ...championshipForm, pointsPerWin: parseInt(e.target.value) || 0 })}
+                                            className="w-full bg-black border border-zinc-700 rounded-lg p-3 text-white text-sm outline-none focus:border-purple-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Empate</label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            value={championshipForm.pointsPerDraw ?? 1}
+                                            onChange={(e) => setChampionshipForm({ ...championshipForm, pointsPerDraw: parseInt(e.target.value) || 0 })}
+                                            className="w-full bg-black border border-zinc-700 rounded-lg p-3 text-white text-sm outline-none focus:border-purple-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Derrota</label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            value={championshipForm.pointsPerLoss ?? 0}
+                                            onChange={(e) => setChampionshipForm({ ...championshipForm, pointsPerLoss: parseInt(e.target.value) || 0 })}
+                                            className="w-full bg-black border border-zinc-700 rounded-lg p-3 text-white text-sm outline-none focus:border-purple-500"
+                                        />
+                                    </div>
+                                </div>
                             </div>
                             
                             <div className="border-t border-zinc-800 pt-4">
@@ -941,6 +1057,29 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
                                             className="w-full bg-black border border-zinc-700 rounded-lg p-3 text-white text-sm outline-none focus:border-purple-500"
                                         />
                                     </div>
+                                </div>
+                                
+                                <div className="mt-4 flex items-center gap-3 p-3 bg-black rounded-lg border border-zinc-800">
+                                    <input
+                                        type="checkbox"
+                                        id="reset-cards-phase"
+                                        checked={championshipForm.resetCardsOnPhaseAdvance ?? false}
+                                        onChange={(e) => setChampionshipForm({ ...championshipForm, resetCardsOnPhaseAdvance: e.target.checked })}
+                                        className="w-4 h-4 accent-purple-500 cursor-pointer"
+                                    />
+                                    <label htmlFor="reset-cards-phase" className="text-white text-xs font-bold uppercase cursor-pointer">
+                                        Zerar cartões ao avançar de fase
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div className="border-t border-zinc-800 pt-4">
+                                <h4 className="text-white font-bold text-sm mb-4 uppercase">Cadastrar Equipes</h4>
+                                <p className="text-zinc-500 text-xs mb-3">
+                                    As equipes serão vinculadas ao campeonato. Mantenha as configurações existentes da sua equipe.
+                                </p>
+                                <div className="bg-black border border-zinc-800 rounded-lg p-3 text-zinc-400 text-xs">
+                                    As equipes cadastradas em Gestão de Equipe já estão disponíveis. Ao cadastrar partidas, selecione o campeonato para vincular.
                                 </div>
                             </div>
                         </div>
@@ -1110,6 +1249,172 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
                 </div>
             )}
             
+            {/* Modal de Regras quando fase da partida difere da fase do campeonato */}
+            {showPhaseRulesModal && phaseRulesChampionship && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-white font-black text-xl uppercase flex items-center gap-2">
+                                <Flag className="text-orange-500" size={24} /> Regras para nova fase
+                            </h3>
+                            <button
+                                onClick={() => {
+                                    setShowPhaseRulesModal(false);
+                                    setPhaseRulesChampionship(null);
+                                }}
+                                className="text-zinc-400 hover:text-white transition-colors"
+                            >
+                                <X size={24} />
+                            </button>
+                        </div>
+                        <p className="text-zinc-400 text-sm mb-4">
+                            A partida refere-se a uma fase diferente da fase cadastrada no campeonato. Configure as regras e opções de cartões para esta fase.
+                        </p>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Fase</label>
+                                <select
+                                    value={phaseRulesChampionship.phase || '1 Fase classificatória'}
+                                    onChange={(e) => setPhaseRulesChampionship({ ...phaseRulesChampionship, phase: e.target.value })}
+                                    className="w-full bg-black border border-zinc-700 rounded-lg p-3 text-white text-sm outline-none focus:border-orange-500"
+                                >
+                                    {PHASE_OPTIONS.map(opt => (
+                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="border-t border-zinc-800 pt-4">
+                                <h4 className="text-white font-bold text-sm mb-4 uppercase">Pontuação por resultado</h4>
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div>
+                                        <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Vitória</label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            value={phaseRulesChampionship.pointsPerWin ?? 3}
+                                            onChange={(e) => setPhaseRulesChampionship({ ...phaseRulesChampionship, pointsPerWin: parseInt(e.target.value) || 0 })}
+                                            className="w-full bg-black border border-zinc-700 rounded-lg p-3 text-white text-sm outline-none focus:border-orange-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Empate</label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            value={phaseRulesChampionship.pointsPerDraw ?? 1}
+                                            onChange={(e) => setPhaseRulesChampionship({ ...phaseRulesChampionship, pointsPerDraw: parseInt(e.target.value) || 0 })}
+                                            className="w-full bg-black border border-zinc-700 rounded-lg p-3 text-white text-sm outline-none focus:border-orange-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Derrota</label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            value={phaseRulesChampionship.pointsPerLoss ?? 0}
+                                            onChange={(e) => setPhaseRulesChampionship({ ...phaseRulesChampionship, pointsPerLoss: parseInt(e.target.value) || 0 })}
+                                            className="w-full bg-black border border-zinc-700 rounded-lg p-3 text-white text-sm outline-none focus:border-orange-500"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="border-t border-zinc-800 pt-4">
+                                <h4 className="text-white font-bold text-sm mb-4 uppercase">Regras de Suspensão</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div>
+                                        <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Amarelos para suspensão</label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            value={phaseRulesChampionship.suspensionRules.yellowCardsForSuspension}
+                                            onChange={(e) => setPhaseRulesChampionship({
+                                                ...phaseRulesChampionship,
+                                                suspensionRules: { ...phaseRulesChampionship.suspensionRules, yellowCardsForSuspension: parseInt(e.target.value) || 3 }
+                                            })}
+                                            className="w-full bg-black border border-zinc-700 rounded-lg p-3 text-white text-sm outline-none focus:border-orange-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Jogos por vermelho</label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            value={phaseRulesChampionship.suspensionRules.redCardSuspension}
+                                            onChange={(e) => setPhaseRulesChampionship({
+                                                ...phaseRulesChampionship,
+                                                suspensionRules: { ...phaseRulesChampionship.suspensionRules, redCardSuspension: parseInt(e.target.value) || 1 }
+                                            })}
+                                            className="w-full bg-black border border-zinc-700 rounded-lg p-3 text-white text-sm outline-none focus:border-orange-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Jogos por acumulação</label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            value={phaseRulesChampionship.suspensionRules.yellowAccumulationSuspension}
+                                            onChange={(e) => setPhaseRulesChampionship({
+                                                ...phaseRulesChampionship,
+                                                suspensionRules: { ...phaseRulesChampionship.suspensionRules, yellowAccumulationSuspension: parseInt(e.target.value) || 1 }
+                                            })}
+                                            className="w-full bg-black border border-zinc-700 rounded-lg p-3 text-white text-sm outline-none focus:border-orange-500"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="mt-4 flex items-center gap-3 p-3 bg-black rounded-lg border border-zinc-800">
+                                    <input
+                                        type="checkbox"
+                                        id="phase-reset-cards"
+                                        checked={phaseRulesChampionship.resetCardsOnPhaseAdvance ?? false}
+                                        onChange={(e) => setPhaseRulesChampionship({ ...phaseRulesChampionship, resetCardsOnPhaseAdvance: e.target.checked })}
+                                        className="w-4 h-4 accent-orange-500 cursor-pointer"
+                                    />
+                                    <label htmlFor="phase-reset-cards" className="text-white text-xs font-bold uppercase cursor-pointer">
+                                        Zerar cartões ao avançar de fase
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex gap-2 mt-6">
+                            <button
+                                onClick={() => {
+                                    if (onSaveChampionship) onSaveChampionship(phaseRulesChampionship);
+                                    if (phaseRulesChampionship.resetCardsOnPhaseAdvance) {
+                                        setChampionshipCards(phaseRulesChampionship.id, {});
+                                    }
+                                    setShowPhaseRulesModal(false);
+                                    setPhaseRulesChampionship(null);
+                                    alert('Regras atualizadas com sucesso!');
+                                }}
+                                className="flex-1 flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-4 py-3 font-bold uppercase text-xs rounded-xl transition-colors"
+                            >
+                                <Save size={16} /> Aplicar e Salvar
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setChampionshipCards(phaseRulesChampionship.id, {});
+                                    alert('Cartões zerados com sucesso!');
+                                    setShowPhaseRulesModal(false);
+                                    setPhaseRulesChampionship(null);
+                                }}
+                                className="flex items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-3 font-bold uppercase text-xs rounded-xl transition-colors"
+                            >
+                                Zerar Cartões
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShowPhaseRulesModal(false);
+                                    setPhaseRulesChampionship(null);
+                                }}
+                                className="bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-3 font-bold uppercase text-xs rounded-xl transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Modal de Importação */}
             {showImportModal && (
                 <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">

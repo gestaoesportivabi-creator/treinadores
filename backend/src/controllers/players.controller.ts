@@ -40,9 +40,13 @@ export const playersController = {
           error: error.message,
         });
       }
+      console.error('[PLAYERS_CONTROLLER] getAll error', error);
+      if (error instanceof Error && error.stack) {
+        console.error('[PLAYERS_CONTROLLER] getAll stack', error.stack);
+      }
       return res.status(500).json({
         success: false,
-        error: 'Erro ao buscar jogadores',
+        error: error instanceof Error ? error.message : 'Erro ao buscar jogadores',
       });
     }
   },
@@ -117,10 +121,7 @@ export const playersController = {
           error: error.message,
         });
       }
-      // Retornar mensagem de erro mais detalhada em desenvolvimento
-      const errorMessage = process.env.NODE_ENV === 'development' 
-        ? error?.message || 'Erro ao criar jogador'
-        : 'Erro ao criar jogador';
+      const errorMessage = error?.message || 'Erro ao criar jogador';
       return res.status(500).json({
         success: false,
         error: errorMessage,

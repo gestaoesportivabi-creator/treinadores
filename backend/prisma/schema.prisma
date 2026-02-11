@@ -7,8 +7,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 model Role {
   id          String   @id @default(uuid())
@@ -97,7 +98,8 @@ model Jogador {
   altura              Decimal?                   @db.Decimal(5, 2)
   peso                Decimal?                   @db.Decimal(5, 2)
   ultimoClube         String?                    @map("ultimo_clube") @db.VarChar(255)
-  fotoUrl             String?                    @map("foto_url")
+  fotoUrl             String?                    @map("foto_url") @db.Text
+  maxLoadsJson        Json?                      @map("max_loads_json")
   isTransferido       Boolean                    @default(false) @map("is_transferido")
   dataTransferencia   DateTime?                  @map("data_transferencia") @db.Date
   isAtivo             Boolean                    @default(true) @map("is_ativo")
@@ -129,18 +131,22 @@ model EquipesJogadores {
 }
 
 model Jogo {
-  id                  String                     @id @default(uuid())
-  equipeId            String                     @map("equipe_id")
-  adversario          String                     @db.VarChar(255)
-  data                DateTime                   @db.Date
-  campeonato          String?                    @db.VarChar(255)
-  competicaoId        String?                    @map("competicao_id")
-  local               String?                    @db.VarChar(255)
-  resultado           String?                    @db.Char(1)
-  golsPro             Int                        @default(0) @map("gols_pro")
-  golsContra          Int                        @default(0) @map("gols_contra")
-  videoUrl            String?                    @map("video_url")
-  createdAt           DateTime                   @default(now()) @map("created_at")
+  id                     String                     @id @default(uuid())
+  equipeId               String                     @map("equipe_id")
+  adversario             String                     @db.VarChar(255)
+  data                   DateTime                   @db.Date
+  campeonato             String?                    @db.VarChar(255)
+  competicaoId          String?                    @map("competicao_id")
+  local                  String?                    @db.VarChar(255)
+  resultado             String?                    @db.Char(1)
+  golsPro               Int                        @default(0) @map("gols_pro")
+  golsContra            Int                        @default(0) @map("gols_contra")
+  videoUrl              String?                    @map("video_url")
+  postMatchEventLog     Json?                      @map("post_match_event_log")
+  playerRelationships   Json?                      @map("player_relationships")
+  lineup                Json?                      @map("lineup")
+  substitutionHistory   Json?                      @map("substitution_history")
+  createdAt             DateTime                   @default(now()) @map("created_at")
   campeonatosJogos    CampeonatosJogos[]
   competicao          Competicao?                @relation(fields: [competicaoId], references: [id])
   equipe              Equipe                     @relation(fields: [equipeId], references: [id])
@@ -299,6 +305,8 @@ model ProgramacoesDias {
   horario         String?     @db.VarChar(10)
   localizacao     String?     @db.VarChar(255)
   observacoes     String?
+  exercicioId     String?     @map("exercicio_id") @db.VarChar(50)
+  cargaPercent    Int?        @map("carga_percent")
   createdAt       DateTime    @default(now()) @map("created_at")
   programacao     Programacao @relation(fields: [programacaoId], references: [id], onDelete: Cascade)
 

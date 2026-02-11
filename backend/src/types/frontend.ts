@@ -14,11 +14,14 @@ export interface Player {
   dominantFoot: 'Destro' | 'Canhoto' | 'Ambidestro';
   age: number;
   height: number;
+  weight?: number;
+  birthDate?: string;
   lastClub: string;
   photoUrl?: string;
   isTransferred?: boolean;
   transferDate?: string;
   injuryHistory?: InjuryRecord[];
+  maxLoads?: unknown[];
 }
 
 export interface InjuryRecord {
@@ -51,7 +54,7 @@ export interface PhysicalAssessment {
 }
 
 export interface MatchRecord {
-  id: string;
+  id?: string;
   opponent: string;
   date: string;
   result: 'V' | 'D' | 'E';
@@ -60,6 +63,10 @@ export interface MatchRecord {
   competition?: string;
   playerStats: { [playerId: string]: MatchStats };
   teamStats: MatchStats;
+  playerRelationships?: { [p1: string]: { [p2: string]: { passes: number; assists: number } } };
+  postMatchEventLog?: Array<{ id: string; time: string; period: string; playerId: string; action: string; tipo: string; subtipo: string; passToPlayerId?: string; playerName?: string; passToPlayerName?: string; zone?: 'AT_ESQ' | 'AT_DIR' | 'DF_ESQ' | 'DF_DIR'; recordedByUserId?: string; recordedByName?: string }>;
+  lineup?: { players: string[]; bench: string[]; ballPossessionStart: string };
+  substitutionHistory?: Array<{ playerOutId: string; playerInId: string; time: number; period: string }>;
 }
 
 export interface MatchStats {
@@ -87,12 +94,29 @@ export interface WeeklySchedule {
 
 export interface DaySchedule {
   day: string;
+  date?: string;  // YYYY-MM-DD - data do dia
   activities: {
     time: string;
     activity: string;
     location: string;
     notes?: string;
+    carga?: number;
+    cargaPercent?: number;
+    exerciseName?: string;
   }[];
+}
+
+/** Formato flat: cada linha = um evento (para Schedule component e ScheduleAlerts) */
+export interface ScheduleDay {
+  date: string;
+  weekday: string;
+  time: string;
+  activity: string;
+  location: string;
+  notes?: string;
+  carga?: number;
+  cargaPercent?: number;
+  exerciseName?: string;
 }
 
 export interface StatTargets {

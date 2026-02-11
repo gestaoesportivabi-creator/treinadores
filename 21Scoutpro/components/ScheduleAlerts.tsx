@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { WeeklySchedule, ScheduleDay } from '../types';
-import { CalendarClock, Bell, CheckCircle, Clock } from 'lucide-react';
+import { normalizeScheduleDays } from '../utils/scheduleUtils';
+import { Bell, CheckCircle } from 'lucide-react';
 
 interface ScheduleAlertsProps {
     schedules: WeeklySchedule[];
@@ -13,7 +14,7 @@ interface AlertItem {
     time: string;
     date: string;
     notes?: string;
-    alertTime: Date; // Hora em que o alerta deve aparecer (3 horas antes)
+    alertTime: Date; // Hora em que o alerta deve aparecer (12 horas antes)
     eventTime: Date; // Hora do evento
 }
 
@@ -121,35 +122,7 @@ export const ScheduleAlerts: React.FC<ScheduleAlertsProps> = ({ schedules }) => 
 
             const result = (shouldShow || showToday) && !hasPassed;
             
-            if (result) {
-              console.log('✅ Alerta ativo:', {
-                activity: alert.activity,
-                time: alert.time,
-                alertTime: alert.alertTime.toLocaleString('pt-BR'),
-                eventTime: alert.eventTime.toLocaleString('pt-BR'),
-                currentTime: currentTime.toLocaleString('pt-BR'),
-                shouldShow,
-                showToday,
-                hasPassed
-              });
-            }
-
             return result;
-        });
-        
-        // Debug: Log para verificar alertas
-        console.log('🔔 ScheduleAlerts Debug:', {
-            totalAlerts: alerts.length,
-            activeAlerts: filtered.length,
-            currentTime: currentTime.toLocaleString('pt-BR'),
-            alerts: alerts.map(a => ({
-                activity: a.activity,
-                time: a.time,
-                alertTime: a.alertTime.toLocaleString('pt-BR'),
-                eventTime: a.eventTime.toLocaleString('pt-BR'),
-                shouldShow: currentTime >= a.alertTime,
-                hasPassed: currentTime > a.eventTime
-            }))
         });
         
         return filtered;
@@ -165,9 +138,8 @@ export const ScheduleAlerts: React.FC<ScheduleAlertsProps> = ({ schedules }) => 
         const events: ScheduleDay[] = [];
 
         activeSchedules.forEach(schedule => {
-            if (!schedule.days || !Array.isArray(schedule.days)) return;
-            
-            schedule.days.forEach(day => {
+            const flatDays = normalizeScheduleDays(schedule);
+            flatDays.forEach(day => {
                 if (day.date === todayStr && day.time && day.activity) {
                     events.push(day);
                 }
@@ -223,7 +195,7 @@ export const ScheduleAlerts: React.FC<ScheduleAlertsProps> = ({ schedules }) => 
                 textColorSecondary: 'text-orange-300/80',
                 emoji: '🛣️ 🚌'
             };
-        } else if (activityLower.includes('academia')) {
+        } else if (activityLower.includes('academia') || activityLower.includes('musculação') || activityLower.includes('musculacao')) {
             return {
                 bgColor: 'bg-gray-500/20',
                 borderColor: 'border-gray-400',
@@ -259,7 +231,7 @@ export const ScheduleAlerts: React.FC<ScheduleAlertsProps> = ({ schedules }) => 
         <div className="mb-4">
             {/* Alertas Ativos - Compacto em uma linha com formatação condicional */}
             {activeAlerts.length > 0 && (
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                     {activeAlerts.map((alert, index) => {
                         const alertKey = `${alert.date}-${alert.time}-${alert.activity}`;
                         const hoursUntil = Math.round((alert.eventTime.getTime() - currentTime.getTime()) / (1000 * 60 * 60));
@@ -280,8 +252,8 @@ export const ScheduleAlerts: React.FC<ScheduleAlertsProps> = ({ schedules }) => 
                                     hover:shadow-xl
                                 `}
                             >
-                                <div className="flex items-center gap-2 text-xs flex-wrap">
-                                    <Bell className={`w-4 h-4 ${style.textColor} flex-shrink-0 animate-pulse`} />
+                                <div className="flex items-center gap-1.5 text-[11px] flex-wrap">
+                                    <Bell className={`w-3.5 h-3.5 ${style.textColor} flex-shrink-0 animate-pulse`} />
                                     <span className={`${style.textColor} font-bold`}>
                                         {style.emoji} {alert.activity}
                                     </span>
@@ -315,13 +287,13 @@ export const ScheduleAlerts: React.FC<ScheduleAlertsProps> = ({ schedules }) => 
                         <div className={`
                             ${style.bgColor} 
                             border-l-4 ${style.borderColor} 
-                            rounded-r-lg px-4 py-3 
+                            rounded-r-lg px-3 py-2 
                             backdrop-blur-sm
                             shadow-md ${style.borderColor}/20
                             transition-all duration-300
                         `}>
-                            <div className="flex items-center gap-2 text-xs flex-wrap">
-                                <CheckCircle className={`w-4 h-4 ${style.textColor} flex-shrink-0`} />
+                            <div className="flex items-center gap-1.5 text-[11px] flex-wrap">
+                                <CheckCircle className={`w-3.5 h-3.5 ${style.textColor} flex-shrink-0`} />
                                 <span className={`${style.textColor} font-bold`}>
                                     Hoje o compromisso da nossa equipe é <span className="uppercase">{style.emoji} {firstEvent.activity}</span>
                                     {firstEvent.time && ` às ${formatTime(firstEvent.time)}`}

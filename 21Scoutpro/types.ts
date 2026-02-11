@@ -2,6 +2,7 @@
 export type UserRole = 'Treinador' | 'Preparador Físico' | 'Supervisor' | 'Diretor' | 'Atleta';
 
 export interface User {
+  id?: string;
   name: string;
   email: string;
   role: UserRole;
@@ -24,12 +25,20 @@ export interface ChampionshipMatch {
 export interface Championship {
   id: string;
   name: string;
-  phase?: string; // Fase da competição
+  phase?: string; // Fase: "1 Fase classificatória" | "1 PlayOffs"
+  /** Pontuação por resultado */
+  pointsPerWin?: number;
+  pointsPerDraw?: number;
+  pointsPerLoss?: number;
   suspensionRules: {
     yellowCardsForSuspension: number; // Quantidade de amarelos para suspensão
     redCardSuspension: number; // Jogos de suspensão por vermelho
     yellowAccumulationSuspension: number; // Jogos de suspensão por acumulação de amarelos
   };
+  /** Zerar cartões ao avançar de fase */
+  resetCardsOnPhaseAdvance?: boolean;
+  /** IDs das equipes participantes */
+  teamIds?: string[];
   createdAt?: string;
 }
 
@@ -106,6 +115,12 @@ export interface MatchStats {
   fouls?: number;
   /** Defesas – goleiro (planilha pós-jogo) */
   saves?: number;
+  /** Cartões amarelos (contabilizados por campeonato) */
+  yellowCards?: number;
+  /** Cartões vermelhos (contabilizados por campeonato) */
+  redCards?: number;
+  /** PSE média da partida (0-10) – Evolução PSE (Jogos) */
+  rpeMatch?: number;
 }
 
 export type PostMatchAction =
@@ -134,6 +149,18 @@ export interface PostMatchEvent {
   tipo: string;
   /** Subtipo para exibição e dashboard (ex.: A favor, Certo, No gol) */
   subtipo: string;
+  /** ID do jogador que recebeu o passe (apenas para ações passCorrect/passWrong) */
+  passToPlayerId?: string;
+  /** Nome do atleta que fez a ação */
+  playerName?: string;
+  /** Nome do atleta que recebeu o passe (para passes) */
+  passToPlayerName?: string;
+  /** Zona da quadra (AT ESQ, AT DIR, DF ESQ, DF DIR) */
+  zone?: 'AT_ESQ' | 'AT_DIR' | 'DF_ESQ' | 'DF_DIR';
+  /** ID do usuário que registrou a ação (auditoria) */
+  recordedByUserId?: string;
+  /** Nome do usuário que registrou a ação (auditoria) */
+  recordedByName?: string;
 }
 
 export interface MatchRecord {
@@ -167,6 +194,12 @@ export interface MatchRecord {
     time: number; // segundos
     period: '1T' | '2T';
   }>;
+  /** Segundos com posse de bola (nossa equipe) – evolução campeonato */
+  possessionSecondsWith?: number;
+  /** Segundos sem posse de bola – evolução campeonato */
+  possessionSecondsWithout?: number;
+  /** Status da partida para exibição e filtros */
+  status?: 'encerrado' | 'em_andamento' | 'nao_executado';
 }
 
 // Physical Assessment Types
@@ -185,14 +218,32 @@ export interface PhysicalAssessment {
   agility: number;
 }
 
-// Schedule Types
+// Schedule Types - Formato flat: cada linha = um evento (data, horário, atividade)
+export interface ScheduleDay {
+  date: string;       // YYYY-MM-DD
+  weekday: string;    // Nome do dia da semana
+  time: string;       // HH:MM
+  activity: string;   // Treino, Jogo, Musculação, etc.
+  location: string;
+  notes?: string;
+  // Campos para Musculação: carga e porcentagem
+  carga?: number;     // Carga em kg ou repetições
+  cargaPercent?: number; // Porcentagem da carga máxima do atleta
+  exerciseName?: string; // Nome do exercício (para Musculação)
+}
+
+// Compatibilidade: DaySchedule agrupado (usado pelo backend em alguns casos)
 export interface DaySchedule {
   day: string;
+  date?: string;      // YYYY-MM-DD - incluído para não perder a data
   activities: {
     time: string;
     activity: string;
     location: string;
     notes?: string;
+    carga?: number;
+    cargaPercent?: number;
+    exerciseName?: string;
   }[];
 }
 
@@ -201,7 +252,9 @@ export interface WeeklySchedule {
   title: string;
   weekStart: string;
   weekEnd: string;
-  days: DaySchedule[];
+  startDate?: string;  // Alias para weekStart
+  endDate?: string;    // Alias para weekEnd
+  days: ScheduleDay[] | DaySchedule[];  // Aceita formato flat ou agrupado
   isActive?: boolean;
   createdAt?: number;
 }

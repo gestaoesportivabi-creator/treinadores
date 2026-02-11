@@ -13,25 +13,72 @@ import { TeamManagement } from './components/TeamManagement';
 import { StatsRanking } from './components/StatsRanking';
 import { Schedule } from './components/Schedule';
 import { Academia } from './components/Academia';
+import { PseTab } from './components/PseTab';
+import { QualidadeSonoTab } from './components/QualidadeSonoTab';
 import { LoadingMessage } from './components/LoadingMessage';
 import { ChampionshipTable, ChampionshipMatch } from './components/ChampionshipTable';
 import { ScheduleAlerts } from './components/ScheduleAlerts';
+import { SuspensionsAlert } from './components/SuspensionsAlert';
+import { InjuredPlayersAlert } from './components/InjuredPlayersAlert';
+import { SleepAndPseAlerts } from './components/SleepAndPseAlerts';
 import { TabBackgroundWrapper } from './components/TabBackgroundWrapper';
 import { ManagementReport } from './components/ManagementReport';
 import { NextMatchAlert } from './components/NextMatchAlert';
 import { RealtimeScoutPage } from './components/RealtimeScoutPage';
+import { DashboardTodayBlock } from './components/DashboardTodayBlock';
+import { DashboardInterpretiveAlerts } from './components/DashboardInterpretiveAlerts';
+import { DashboardSquadAvailability } from './components/DashboardSquadAvailability';
+import { DashboardNextGameCard } from './components/DashboardNextGameCard';
+import { DashboardWeeklyTrend } from './components/DashboardWeeklyTrend';
 import { SPORT_CONFIGS } from './constants';
-import { BarChart3, FileText } from 'lucide-react';
+import { BarChart3, FileText, Clock, Trophy, Ambulance, UserX, UserCheck } from 'lucide-react';
 import { User, MatchRecord, Player, PhysicalAssessment, WeeklySchedule, StatTargets, PlayerTimeControl, Team, Championship } from './types';
 import { playersApi, matchesApi, assessmentsApi, schedulesApi, competitionsApi, statTargetsApi, timeControlsApi, championshipMatchesApi, teamsApi } from './services/api';
+import { normalizeScheduleDays } from './utils/scheduleUtils';
+import { getChampionshipCards, getPlayerStatus } from './utils/championshipCards';
 
-type StatCardProps = {
-  label: string;
-  value: React.ReactNode;
-  helper?: string;
-  highlight?: boolean;
-};
-
+const SLIDES = [
+    {
+        img: "https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=2070&auto=format&fit=crop",
+        quote: "A força do time está em cada membro. A força de cada membro é o time.",
+        author: "Phil Jackson"
+    },
+    {
+        img: "https://images.unsplash.com/photo-1551958219-acbc608c6377?q=80&w=2070&auto=format&fit=crop",
+        quote: "A disciplina é a ponte entre metas e realizações.",
+        author: "Jim Rohn"
+    },
+    {
+        img: "https://images.unsplash.com/photo-1517649763962-0c623066013b?q=80&w=2070&auto=format&fit=crop",
+        quote: "Concentre-se em onde você quer chegar, não no que você teme.",
+        author: "Tony Robbins"
+    },
+    {
+        img: "https://images.unsplash.com/photo-1517466787929-bc90951d0528?q=80&w=2070&auto=format&fit=crop",
+        quote: "Não diminua a meta. Aumente o esforço.",
+        author: "Mentalidade de Elite"
+    },
+    {
+        img: "https://images.unsplash.com/photo-1579952363873-27f3bade9f55?q=80&w=2070&auto=format&fit=crop",
+        quote: "Os vencedores nunca desistem, e os que desistem nunca vencem.",
+        author: "Vince Lombardi"
+    },
+    {
+        img: "https://images.unsplash.com/photo-1551698618-1dfe5d97d256?q=80&w=2070&auto=format&fit=crop",
+        quote: "O sucesso não é final, o fracasso não é fatal: é a coragem de continuar que conta.",
+        author: "Winston Churchill"
+    },
+    {
+        img: "https://images.unsplash.com/photo-1560272564-c83b66b1ad12?q=80&w=2070&auto=format&fit=crop",
+        quote: "O trabalho em equipe faz o sonho funcionar.",
+        author: "Michael Jordan"
+    },
+    {
+        img: "https://images.unsplash.com/photo-1594736797933-d0cbc3dc5bdb?q=80&w=2070&auto=format&fit=crop",
+        quote: "A excelência não é um ato, mas um hábito.",
+        author: "Aristóteles"
+    }
+];
 
 export default function App() {
   // Route state: 'landing' | 'login' | 'register' | 'app'
@@ -41,6 +88,8 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [scoutWindowOpen, setScoutWindowOpen] = useState(false); // true quando a janela Scout da Partida está aberta (para esconder a sidebar)
+  const [currentSlide, setCurrentSlide] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
 
@@ -159,13 +208,142 @@ export default function App() {
     };
   }, [matches, players, championshipMatches]);
 
+  // Atualizar a cada minuto para contagem regressiva ao vivo
+  const [liveNow, setLiveNow] = useState(() => new Date());
+  useEffect(() => {
+    const t = setInterval(() => setLiveNow(new Date()), 60000);
+    return () => clearInterval(t);
+  }, []);
+
+  // Próximo compromisso: o mais próximo entre próximo jogo e próximo treino (hoje/futuro)
+  const nextCommitment = useMemo(() => {
+    const now = liveNow;
+    const todayStr = now.toISOString().split('T')[0];
+
+    const candidates: { dateTime: Date; type: 'jogo' | 'treino'; label: string; competition?: string }[] = [];
+
+    if (overviewStats.nextMatch) {
+      const m = overviewStats.nextMatch;
+      const [y, mo, d] = (m.date || '').split('-').map(Number);
+      const [h = 0, min = 0] = (m.time || '00:00').split(':').map(Number);
+      const dt = new Date(y, (mo || 1) - 1, d || 0, h, min);
+      if (!Number.isNaN(dt.getTime()) && dt >= now) {
+        candidates.push({
+          dateTime: dt,
+          type: 'jogo',
+          label: `${m.team || 'Time'} x ${m.opponent || 'Adversário'}`,
+          competition: m.competition
+        });
+      }
+    }
+
+    const activeSchedules = (schedules || []).filter(
+      s => s && (s.isActive === true || s.isActive === 'TRUE' || s.isActive === 'true') && s.days && Array.isArray(s.days)
+    );
+    activeSchedules.forEach(s => {
+      try {
+        const flat = normalizeScheduleDays(s);
+        flat.forEach(day => {
+          const date = (day as { date?: string }).date || '';
+          const time = (day as { time?: string }).time || '00:00';
+          const activity = (day as { activity?: string }).activity || '';
+          if (!date || date < todayStr) return;
+          const [h = 0, m = 0] = time.split(':').map(Number);
+          const dt = new Date(date + 'T' + String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':00');
+          if (Number.isNaN(dt.getTime()) || dt < now) return;
+          candidates.push({
+            dateTime: dt,
+            type: 'treino',
+            label: activity || 'Treino'
+          });
+        });
+      } catch (_) {}
+    });
+
+    candidates.sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime());
+    const first = candidates[0];
+    if (!first) return null;
+    const diff = first.dateTime.getTime() - now.getTime();
+    const within24h = diff > 0 && diff <= 24 * 60 * 60 * 1000;
+    const hours = within24h ? Math.floor(diff / (1000 * 60 * 60)) : null;
+    const minutes = within24h ? Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)) : null;
+    return { ...first, countdown: hours != null && minutes != null ? { hours, minutes } : null };
+  }, [overviewStats.nextMatch, schedules, liveNow]);
+
+  // Contagens para alertas resumidos (lesões ativas, suspensos, pendurados)
+  const dashboardAlertCounts = useMemo(() => {
+    const injuredCount = players.filter(p => {
+      if (!p.injuryHistory?.length) return false;
+      return p.injuryHistory.some(inj => !(inj.returnDateActual || inj.endDate));
+    }).length;
+
+    let suspendedCount = 0;
+    let penduradosCount = 0;
+    const nextMatch = overviewStats.nextMatch;
+    if (nextMatch?.competition && championships?.length) {
+      const champ = championships.find(c => c.name === nextMatch.competition);
+      if (champ?.suspensionRules) {
+        const rules = champ.suspensionRules;
+        const cards = getChampionshipCards(champ.id);
+        players.forEach(p => {
+          const status = getPlayerStatus(champ.id, p.id, rules);
+          if (status.suspended) suspendedCount++;
+          else if (status.pendurado) penduradosCount++;
+        });
+      }
+    }
+    return { injuredCount, suspendedCount, penduradosCount };
+  }, [players, overviewStats.nextMatch, championships]);
+
+  // Foco do dia: preparação para próximo jogo ou atividade do dia (treino)
+  const focusOfDay = useMemo(() => {
+    if (nextCommitment?.type === 'jogo') {
+      const opp = overviewStats.nextMatch?.opponent || 'próximo jogo';
+      return `Preparação para ${opp}`;
+    }
+    if (nextCommitment?.type === 'treino') {
+      return nextCommitment.label || 'Treino';
+    }
+    const todayStr = liveNow.toISOString().split('T')[0];
+    const activeSchedules = (schedules || []).filter(
+      s => s && (s.isActive === true || s.isActive === 'TRUE' || s.isActive === 'true') && s.days && Array.isArray(s.days)
+    );
+    for (const s of activeSchedules) {
+      try {
+        const flat = normalizeScheduleDays(s);
+        const today = flat.find((d: { date?: string }) => d.date === todayStr);
+        if (today && (today as { activity?: string }).activity) {
+          return (today as { activity: string }).activity;
+        }
+      } catch (_) {}
+    }
+    return 'Dia sem compromisso registrado';
+  }, [nextCommitment, overviewStats.nextMatch, schedules, liveNow]);
+
+  // Lesões com início nos últimos 7 dias (para tendência semanal)
+  const injuriesLast7Days = useMemo(() => {
+    const now = new Date();
+    const sevenDaysAgo = new Date(now);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    let count = 0;
+    players.forEach(p => {
+      (p.injuryHistory || []).forEach(inj => {
+        const dateValue = inj.startDate || inj.date;
+        if (!dateValue) return;
+        const d = new Date(dateValue);
+        if (!Number.isNaN(d.getTime()) && d >= sevenDaysAgo && d <= now) count++;
+      });
+    });
+    return count;
+  }, [players]);
+
   const StatCard = ({ label, value, helper, highlight = false }: StatCardProps) => (
-    <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
+    <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-6 min-h-[140px] flex flex-col justify-center">
       <p className="text-[10px] uppercase tracking-[0.35em] text-zinc-500">{label}</p>
-      <p className={`mt-2 text-2xl font-semibold ${highlight ? 'text-[#00f0ff]' : 'text-white'}`}>
+      <p className={`mt-3 text-2xl md:text-3xl font-semibold ${highlight ? 'text-[#00f0ff]' : 'text-white'}`}>
         {value}
       </p>
-      {helper && <p className="mt-1 text-xs text-zinc-500">{helper}</p>}
+      {helper && <p className="mt-2 text-xs text-zinc-500">{helper}</p>}
     </div>
   );
 
@@ -194,10 +372,6 @@ export default function App() {
     const loadData = async () => {
       try {
         setIsInitializing(true);
-        
-        // Pequeno delay para garantir que o token foi salvo
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
         const token = localStorage.getItem('token');
         console.log('🔄 Carregando dados da API...');
         console.log('👤 Usuário logado:', currentUser?.email);
@@ -217,8 +391,12 @@ export default function App() {
           teamsApi.getAll().catch(err => { console.error('❌ Erro ao carregar teams:', err); return []; })
         ]).then(results => results.map(r => r.status === 'fulfilled' ? r.value : []));
 
-        // Atualizar UI imediatamente com dados críticos
-        setPlayers(playersData as Player[]);
+        // Atualizar UI: merge players da API com players salvos localmente (fallback)
+        const apiPlayers = playersData as Player[];
+        const localPlayers = JSON.parse(localStorage.getItem('scout21_players_local') || '[]');
+        const apiIds = new Set(apiPlayers.map(p => p.id));
+        const localOnly = localPlayers.filter((p: Player) => !apiIds.has(p.id));
+        setPlayers([...apiPlayers, ...localOnly]);
         
         // Validar matches antes de definir - garantir que todos tenham teamStats válido
         const validMatches = (matchesData as MatchRecord[]).filter(m => {
@@ -238,53 +416,38 @@ export default function App() {
         });
 
         // FASE 2: Carregar dados importantes em background (não bloqueia UI)
+        // Programação: carregar apenas do localStorage (salvamento local)
         setTimeout(async () => {
           console.log('🚀 Fase 2: Carregando dados importantes...');
-          const [schedulesData, competitionsData, championshipMatchesData] = await Promise.allSettled([
-            schedulesApi.getAll().catch(err => { console.error('❌ Erro ao carregar schedules:', err); return []; }),
+          const localSchedules = JSON.parse(localStorage.getItem('scout21_schedules_local') || '[]');
+          const validSchedules = localSchedules
+            .filter((s: WeeklySchedule) => s && s.id)
+            .map((s: WeeklySchedule) => ({
+              ...s,
+              days: Array.isArray(s.days) ? s.days : (s.days ? [s.days] : []),
+              isActive: s.isActive === true || s.isActive === 'TRUE' || s.isActive === 'true'
+            }))
+            .sort((a: WeeklySchedule, b: WeeklySchedule) => {
+              if (a.isActive && !b.isActive) return -1;
+              if (!a.isActive && b.isActive) return 1;
+              const aCreated = a.createdAt || 0;
+              const bCreated = b.createdAt || 0;
+              return bCreated - aCreated;
+            });
+          setSchedules(validSchedules);
+
+          const [competitionsData, championshipMatchesData] = await Promise.allSettled([
             competitionsApi.getAll().catch(err => { console.error('❌ Erro ao carregar competitions:', err); return []; }),
             championshipMatchesApi.getAll().catch(err => { console.error('❌ Erro ao carregar championshipMatches:', err); return []; })
           ]).then(results => results.map(r => r.status === 'fulfilled' ? r.value : []));
-
-          // Processar schedules
-          const scheduleMap = new Map<string, WeeklySchedule>();
-          (schedulesData as WeeklySchedule[]).forEach(schedule => {
-            if (schedule && schedule.id) {
-              const validSchedule = {
-                ...schedule,
-                days: Array.isArray(schedule.days) ? schedule.days : (schedule.days ? [schedule.days] : []),
-                isActive: schedule.isActive === true || schedule.isActive === 'TRUE' || schedule.isActive === 'true'
-              };
-              if (scheduleMap.has(schedule.id)) {
-                const existing = scheduleMap.get(schedule.id)!;
-                if (validSchedule.isActive && !existing.isActive) {
-                  scheduleMap.set(schedule.id, validSchedule);
-                } else if (!validSchedule.isActive && existing.isActive) {
-                  // Manter o existente que está ativo
-                } else if (validSchedule.createdAt && existing.createdAt && validSchedule.createdAt > existing.createdAt) {
-                  scheduleMap.set(schedule.id, validSchedule);
-                }
-              } else {
-                scheduleMap.set(schedule.id, validSchedule);
-              }
-            }
-          });
-          const validSchedules = Array.from(scheduleMap.values()).sort((a, b) => {
-            if (a.isActive && !b.isActive) return -1;
-            if (!a.isActive && b.isActive) return 1;
-            const aCreated = a.createdAt || 0;
-            const bCreated = b.createdAt || 0;
-            return bCreated - aCreated;
-          });
-          setSchedules(validSchedules);
           
           setCompetitions((competitionsData as string[]).length > 0 ? (competitionsData as string[]) : []);
           setChampionshipMatches((championshipMatchesData as ChampionshipMatch[]).length > 0 ? (championshipMatchesData as ChampionshipMatch[]) : []);
           
           console.log('✅ Fase 2 concluída:', {
             schedules: validSchedules.length,
-            competitions: competitionsData.length,
-            championshipMatches: championshipMatchesData.length,
+            competitions: (competitionsData as string[]).length,
+            championshipMatches: (championshipMatchesData as ChampionshipMatch[]).length,
           });
         }, 100);
 
@@ -318,11 +481,13 @@ export default function App() {
         console.log('✅ Dados críticos carregados com sucesso!');
       } catch (error) {
         console.error('❌ Erro ao carregar dados da API:', error);
-        // Manter arrays vazios em caso de erro (sem fallback para dados iniciais)
-        setPlayers([]);
+        // Fallback: carregar players e schedules salvos localmente
+        const localPlayers = JSON.parse(localStorage.getItem('scout21_players_local') || '[]');
+        const localSchedules = JSON.parse(localStorage.getItem('scout21_schedules_local') || '[]');
+        setPlayers(localPlayers);
         setMatches([]);
         setAssessments([]);
-        setSchedules([]);
+        setSchedules(localSchedules);
         setCompetitions([]);
         setChampionshipMatches([]);
         console.warn('⚠️ Erro ao carregar dados da API. Sistema iniciado sem dados.');
@@ -353,6 +518,16 @@ export default function App() {
         return validSchedules;
     });
   }, []);
+
+  // Carousel Timer
+  useEffect(() => {
+    if (activeTab === 'dashboard') {
+        const interval = setInterval(() => {
+            setCurrentSlide((prev) => (prev + 1) % SLIDES.length);
+        }, 10000); // 10 seconds
+        return () => clearInterval(interval);
+    }
+  }, [activeTab]);
 
   const handleLogin = (user: User) => {
       console.log('🔐 handleLogin chamado com usuário:', user);
@@ -435,6 +610,26 @@ export default function App() {
         console.log('💾 Resposta do salvamento:', saved);
         
         if (saved) {
+          // Atualizar cartões por campeonato (se partida vinculada a campeonato)
+          if (saved.competition && saved.playerStats) {
+            try {
+              const savedChampionships = JSON.parse(localStorage.getItem('championships') || '[]');
+              const championship = savedChampionships.find((c: any) => c.name === saved.competition);
+              if (championship?.id && championship?.suspensionRules) {
+                const { updateCardsFromMatch } = await import('./utils/championshipCards');
+                const playerStatsForCards: Record<string, { yellowCards?: number; redCards?: number }> = {};
+                Object.entries(saved.playerStats || {}).forEach(([playerId, stats]: [string, any]) => {
+                  playerStatsForCards[playerId] = {
+                    yellowCards: stats.yellowCards ?? 0,
+                    redCards: stats.redCards ?? 0,
+                  };
+                });
+                updateCardsFromMatch(championship.id, playerStatsForCards, championship.suspensionRules);
+              }
+            } catch (e) {
+              console.warn('Erro ao atualizar cartões do campeonato:', e);
+            }
+          }
           // Validar match salvo antes de adicionar à lista
           if (saved.teamStats) {
             setMatches(prev => [...prev, saved]);
@@ -447,16 +642,26 @@ export default function App() {
           }
         } else {
           console.error('❌ Erro: Resposta do salvamento foi null/undefined');
-          alert("Erro ao salvar partida. Verifique o console (F12) para mais detalhes.");
+          // Fallback: adicionar partida à lista local como encerrada para o status aparecer na tela
+          const matchToAdd = { ...newMatch, status: 'encerrado' as const };
+          setMatches(prev => [...prev, matchToAdd]);
+          setActiveTab('general');
+          alert("O servidor não conseguiu salvar a partida (erro 500), mas ela foi marcada como encerrada localmente. Ao reabrir Dados do jogo você verá o status atualizado. Verifique sua conexão e tente encerrar outra partida para testar o servidor.");
         }
       } catch (error) {
         console.error('❌ Erro ao salvar partida:', error);
         if (error instanceof Error) {
           console.error('Detalhes do erro:', error.message, error.stack);
         }
-        alert("Erro ao salvar partida. Verifique o console (F12) para mais detalhes.");
+        // Fallback: adicionar partida à lista local como encerrada
+        const matchToAdd = { ...newMatch, status: 'encerrado' as const };
+        setMatches(prev => [...prev, matchToAdd]);
+        setActiveTab('general');
+        alert("Erro ao salvar partida no servidor. A partida foi marcada como encerrada localmente. Verifique o console (F12) para mais detalhes.");
       }
   };
+
+  const PLAYERS_LOCAL_KEY = 'scout21_players_local';
 
   const handleAddPlayer = async (newPlayer: Player) => {
       try {
@@ -465,11 +670,30 @@ export default function App() {
           setPlayers(prev => [...prev, saved]);
           alert("Atleta cadastrado com sucesso!");
         } else {
-          alert("Erro ao cadastrar atleta. Tente novamente.");
+          if (import.meta.env.PROD) {
+            alert("Não foi possível salvar o atleta no servidor. Verifique sua conexão e as variáveis de ambiente (DATABASE_URL) em produção. Os dados não foram gravados.");
+          } else {
+            const localPlayers = JSON.parse(localStorage.getItem(PLAYERS_LOCAL_KEY) || '[]');
+            const playerWithId = { ...newPlayer, id: newPlayer.id || `p${Date.now()}` };
+            localPlayers.push(playerWithId);
+            localStorage.setItem(PLAYERS_LOCAL_KEY, JSON.stringify(localPlayers));
+            setPlayers(prev => [...prev, playerWithId]);
+            alert("Atleta cadastrado localmente (backend indisponível).");
+          }
         }
       } catch (error) {
-        console.error('Erro ao cadastrar atleta:', error);
-        alert("Erro ao cadastrar atleta. Tente novamente.");
+        if (import.meta.env.PROD) {
+          console.error('Erro ao criar atleta:', error);
+          alert("Erro ao salvar atleta no servidor. Os dados não foram gravados. Verifique o console (F12) e as variáveis de ambiente em produção.");
+        } else {
+          console.warn('Backend indisponível, salvando localmente:', error);
+          const localPlayers = JSON.parse(localStorage.getItem(PLAYERS_LOCAL_KEY) || '[]');
+          const playerWithId = { ...newPlayer, id: newPlayer.id || `p${Date.now()}` };
+          localPlayers.push(playerWithId);
+          localStorage.setItem(PLAYERS_LOCAL_KEY, JSON.stringify(localPlayers));
+          setPlayers(prev => [...prev, playerWithId]);
+          alert("Atleta cadastrado localmente (backend indisponível).");
+        }
       }
   };
 
@@ -481,11 +705,38 @@ export default function App() {
           setPlayers(prev => prev.map(p => p.id === updatedPlayer.id ? saved : p));
           alert("Dados do atleta atualizados com sucesso!");
         } else {
-          alert("Erro ao atualizar atleta. Tente novamente.");
+          if (import.meta.env.PROD) {
+            alert("Não foi possível atualizar o atleta no servidor. Os dados não foram gravados.");
+          } else {
+            const localPlayers = JSON.parse(localStorage.getItem(PLAYERS_LOCAL_KEY) || '[]');
+            const idx = localPlayers.findIndex((p: Player) => p.id === updatedPlayer.id);
+            if (idx >= 0) {
+              localPlayers[idx] = updatedPlayer;
+            } else {
+              localPlayers.push(updatedPlayer);
+            }
+            localStorage.setItem(PLAYERS_LOCAL_KEY, JSON.stringify(localPlayers));
+            setPlayers(prev => prev.map(p => p.id === updatedPlayer.id ? updatedPlayer : p));
+            alert("Dados do atleta atualizados localmente (backend indisponível).");
+          }
         }
       } catch (error) {
-        console.error('Erro ao atualizar atleta:', error);
-        alert("Erro ao atualizar atleta. Tente novamente.");
+        if (import.meta.env.PROD) {
+          console.error('Erro ao atualizar atleta:', error);
+          alert("Erro ao atualizar atleta no servidor. Os dados não foram gravados.");
+        } else {
+          console.warn('Backend indisponível, atualizando localmente:', error);
+          const localPlayers = JSON.parse(localStorage.getItem(PLAYERS_LOCAL_KEY) || '[]');
+          const idx = localPlayers.findIndex((p: Player) => p.id === updatedPlayer.id);
+          if (idx >= 0) {
+            localPlayers[idx] = updatedPlayer;
+          } else {
+            localPlayers.push(updatedPlayer);
+          }
+          localStorage.setItem(PLAYERS_LOCAL_KEY, JSON.stringify(localPlayers));
+          setPlayers(prev => prev.map(p => p.id === updatedPlayer.id ? updatedPlayer : p));
+          alert("Dados do atleta atualizados localmente (backend indisponível).");
+        }
       }
   };
 
@@ -553,6 +804,8 @@ export default function App() {
     }
   };
 
+  const SCHEDULES_LOCAL_KEY = 'scout21_schedules_local';
+
   const handleSaveSchedule = async (newSchedule: WeeklySchedule) => {
       try {
         // Garantir que days seja um array válido
@@ -564,16 +817,9 @@ export default function App() {
         // Normalizar datas para formato YYYY-MM-DD (sem hora/timezone)
         const normalizeDate = (dateStr: string): string => {
           if (!dateStr) return dateStr;
-          // Se já está no formato YYYY-MM-DD, retornar como está
-          if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-            return dateStr;
-          }
-          // Se tem timestamp (T ou espaço), extrair apenas a data
+          if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
           const datePart = dateStr.split('T')[0].split(' ')[0];
-          if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
-            return datePart;
-          }
-          // Tentar parsear como Date e converter para YYYY-MM-DD
+          if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return datePart;
           try {
             const date = new Date(dateStr);
             const year = date.getFullYear();
@@ -588,40 +834,26 @@ export default function App() {
         const normalizedSchedule = {
           ...newSchedule,
           startDate: normalizeDate(newSchedule.startDate),
-          endDate: normalizeDate(newSchedule.endDate)
+          endDate: normalizeDate(newSchedule.endDate),
+          createdAt: newSchedule.createdAt || Date.now()
         };
         
-        console.log('💾 Salvando programação:', {
-          id: normalizedSchedule.id,
-          title: normalizedSchedule.title,
-          startDate: normalizedSchedule.startDate,
-          endDate: normalizedSchedule.endDate,
-          daysCount: normalizedSchedule.days.length
-        });
+        const localSchedules = JSON.parse(localStorage.getItem(SCHEDULES_LOCAL_KEY) || '[]');
+        const exists = localSchedules.find((s: WeeklySchedule) => s.id === normalizedSchedule.id);
         
-        const exists = schedules.find(s => s.id === normalizedSchedule.id);
-        let saved;
-        
+        let updatedSchedules;
         if (exists) {
-          saved = await schedulesApi.update(normalizedSchedule.id, normalizedSchedule);
-          if (saved) {
-            setSchedules(prev => prev.map(s => s.id === normalizedSchedule.id ? saved! : s));
-            alert('Programação atualizada com sucesso!');
-          } else {
-            alert('Erro ao atualizar programação. Verifique o console para mais detalhes.');
-          }
+          updatedSchedules = localSchedules.map((s: WeeklySchedule) => 
+            s.id === normalizedSchedule.id ? normalizedSchedule : s
+          );
+          alert('Programação atualizada com sucesso!');
         } else {
-          const scheduleWithTimestamp = { ...normalizedSchedule, createdAt: Date.now() };
-          saved = await schedulesApi.create(scheduleWithTimestamp);
-          if (saved) {
-            setSchedules(prev => [saved!, ...prev]);
-            alert('Programação salva com sucesso!');
-          } else {
-            alert('Erro ao salvar programação. Verifique o console para mais detalhes.');
-          }
+          updatedSchedules = [normalizedSchedule, ...localSchedules];
+          alert('Programação salva com sucesso! Ela ficará disponível por 30 dias.');
         }
         
-        console.log('✅ Programação salva:', saved);
+        localStorage.setItem(SCHEDULES_LOCAL_KEY, JSON.stringify(updatedSchedules));
+        setSchedules(updatedSchedules);
       } catch (error) {
         console.error('❌ Erro ao salvar programação:', error);
         alert('Erro ao salvar programação. Verifique o console para mais detalhes.');
@@ -636,13 +868,11 @@ export default function App() {
       if (!confirmDelete) return;
       
       try {
-        const success = await schedulesApi.delete(id);
-        if (success) {
-          setSchedules(prev => prev.filter(s => s.id !== id));
-          alert('Programação deletada com sucesso!');
-        } else {
-          alert('Erro ao deletar programação. Tente novamente.');
-        }
+        const localSchedules = JSON.parse(localStorage.getItem(SCHEDULES_LOCAL_KEY) || '[]');
+        const updatedSchedules = localSchedules.filter((s: WeeklySchedule) => s.id !== id);
+        localStorage.setItem(SCHEDULES_LOCAL_KEY, JSON.stringify(updatedSchedules));
+        setSchedules(updatedSchedules);
+        alert('Programação deletada com sucesso!');
       } catch (error) {
         console.error('Erro ao deletar programação:', error);
         alert('Erro ao deletar programação. Tente novamente.');
@@ -655,30 +885,19 @@ export default function App() {
         if (!schedule) return;
         
         const newActiveState = !schedule.isActive;
+        const localSchedules = JSON.parse(localStorage.getItem(SCHEDULES_LOCAL_KEY) || '[]');
+        const updatedSchedules = localSchedules.map((s: WeeklySchedule) => ({
+          ...s,
+          isActive: s.id === id ? newActiveState : false,
+          days: s.days ?? []
+        }));
+        localStorage.setItem(SCHEDULES_LOCAL_KEY, JSON.stringify(updatedSchedules));
+        setSchedules(updatedSchedules);
         
-        // Preservar todos os dados do schedule, especialmente o array 'days'
-        const updateData = {
-          isActive: newActiveState,
-          ...schedule
-        };
-        
-        const updated = await schedulesApi.update(id, updateData);
-        if (updated) {
-          setSchedules(prev => prev.map(s => ({
-            ...s,
-            isActive: s.id === id ? (updated.isActive ?? newActiveState) : false,
-            // Garantir que days seja preservado
-            days: s.id === id ? (updated.days ?? s.days) : s.days
-          })));
-          
-          // Mostrar mensagem informativa
-          if (newActiveState) {
-            alert(`✅ Programação "${schedule.title}" marcada como ATIVA!\n\nEsta programação será considerada para exibir alertas na Visão Geral.`);
-          } else {
-            alert(`Programação "${schedule.title}" desativada.`);
-          }
+        if (newActiveState) {
+          alert(`✅ Programação "${schedule.title}" marcada como ATIVA!\n\nEsta programação será considerada para exibir alertas na Visão Geral.`);
         } else {
-          alert('Erro ao atualizar programação. Tente novamente.');
+          alert(`Programação "${schedule.title}" desativada.`);
         }
       } catch (error) {
         console.error('Erro ao atualizar programação:', error);
@@ -686,16 +905,59 @@ export default function App() {
       }
   };
 
-  // Sync URL with route on mount
+  // Restaurar sessão ao carregar/atualizar: se houver token, buscar perfil e manter na plataforma.
+  // Se restaurar com sucesso, não chamar setIsInitializing(false) aqui — loadData fará isso após carregar os dados (uma única tela de loading).
   useEffect(() => {
+    let cancelled = false;
+    let restored = false;
     const path = window.location.pathname;
-    if (path === '/registro' || path === '/register') {
-      setCurrentRoute('register');
-    } else if (path === '/login') {
-      setCurrentRoute('login');
-    } else if (path === '/' || path === '') {
-      setCurrentRoute('landing');
-    }
+    const token = localStorage.getItem('token');
+
+    const setRouteFromPath = () => {
+      if (path === '/registro' || path === '/register') setCurrentRoute('register');
+      else if (path === '/login') setCurrentRoute('login');
+      else if (path === '/dashboard') setCurrentRoute('login');
+      else if (path === '/' || path === '') setCurrentRoute('landing');
+    };
+
+    const run = async () => {
+      if (!token) {
+        setRouteFromPath();
+        setIsInitializing(false);
+        return;
+      }
+      try {
+        const { getApiUrl } = await import('./config');
+        const response = await fetch(`${getApiUrl()}/auth/profile`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        const result = await response.json();
+        if (cancelled) return;
+        if (result.success && result.data) {
+          const u = result.data;
+          setCurrentUser({
+            id: u.id,
+            name: u.name,
+            email: u.email,
+            role: u.role === 'TECNICO' ? 'Treinador' : u.role,
+            photoUrl: u.photoUrl,
+          });
+          setCurrentRoute('app');
+          restored = true;
+        } else {
+          localStorage.removeItem('token');
+          setRouteFromPath();
+        }
+      } catch {
+        if (cancelled) return;
+        localStorage.removeItem('token');
+        setRouteFromPath();
+      } finally {
+        if (!cancelled && !restored) setIsInitializing(false);
+      }
+    };
+    run();
+    return () => { cancelled = true; };
   }, []);
 
   // Update URL when route changes
@@ -724,19 +986,6 @@ export default function App() {
     setCurrentRoute('app');
   };
 
-  // Verificar se está na rota de coleta em tempo real
-  useEffect(() => {
-    const path = window.location.pathname;
-    if (path === '/scout-realtime') {
-      setCurrentRoute('realtime-scout' as any);
-    }
-  }, []);
-
-  // Mostrar página de coleta em tempo real (standalone)
-  if (window.location.pathname === '/scout-realtime') {
-    return <RealtimeScoutPage />;
-  }
-
   // Mostrar landing page
   if (currentRoute === 'landing') {
     return <LandingPage 
@@ -757,15 +1006,17 @@ export default function App() {
       onLogin={handleLoginWithRoute} 
       initialMode="register"
       onSwitchToLogin={() => setCurrentRoute('login')}
+      onSwitchToRegister={() => setCurrentRoute('register')}
+      onBackToHome={() => setCurrentRoute('landing')}
     />;
   }
 
-  // Mostrar página de login
   if (currentRoute === 'login') {
     return <Login 
       onLogin={handleLoginWithRoute}
       initialMode="login"
       onSwitchToRegister={() => setCurrentRoute('register')}
+      onBackToHome={() => setCurrentRoute('landing')}
     />;
   }
 
@@ -837,7 +1088,7 @@ export default function App() {
       case 'physical':
         return (
           <TabBackgroundWrapper>
-            <PhysicalScout matches={matches} players={players} />
+            <PhysicalScout matches={matches} players={players} schedules={schedules} championshipMatches={championshipMatches} />
           </TabBackgroundWrapper>
         );
       case 'assessment': 
@@ -870,6 +1121,7 @@ export default function App() {
             matches={championshipMatches}
             competitions={competitions}
             championships={championships}
+            allMatches={matches}
             onSaveChampionship={(championship) => {
               setChampionships(prev => {
                 const updated = prev.filter(c => c.id !== championship.id);
@@ -880,39 +1132,21 @@ export default function App() {
             }}
             onSave={async (match) => {
               try {
-                console.log('💾 Salvando partida:', match);
-                console.log('📋 Partidas atuais na lista:', championshipMatches.length);
-                
                 if (match.id && championshipMatches.find(m => m.id === match.id)) {
                   // Atualizar
-                  console.log('🔄 Atualizando partida existente:', match.id);
                   const updated = await championshipMatchesApi.update(match.id, match);
-                  console.log('📥 API retornou (update):', updated);
                   if (updated) {
                     setChampionshipMatches(prev => prev.map(m => m.id === match.id ? updated : m));
-                    console.log('✅ Partida atualizada com sucesso');
-                  } else {
-                    console.error('❌ API retornou null ao atualizar');
-                    alert('Erro: A API não retornou a partida atualizada. Verifique o console.');
                   }
                 } else {
                   // Criar
-                  console.log('➕ Criando nova partida (sem ID ou ID não encontrado)');
                   const saved = await championshipMatchesApi.create(match);
-                  console.log('📥 API retornou (create):', saved);
                   if (saved) {
-                    setChampionshipMatches(prev => {
-                      const newList = [...prev, saved];
-                      console.log('✅ Partida criada e adicionada à lista. Total:', newList.length);
-                      return newList;
-                    });
-                  } else {
-                    console.error('❌ API retornou null ao criar');
-                    alert('Erro: A API não retornou a partida criada. Verifique o console do navegador e do backend.');
+                    setChampionshipMatches(prev => [...prev, saved]);
                   }
                 }
               } catch (error) {
-                console.error('❌ Erro ao salvar partida do campeonato:', error);
+                console.error('Erro ao salvar partida do campeonato:', error);
                 alert('Erro ao salvar partida. Verifique o console.');
               }
             }}
@@ -969,13 +1203,27 @@ export default function App() {
           }}
           championshipMatches={championshipMatches}
           teams={teams}
+          currentUser={currentUser}
+          onScoutWindowOpenChange={setScoutWindowOpen}
             />
+          </TabBackgroundWrapper>
+        );
+      case 'pse':
+        return (
+          <TabBackgroundWrapper>
+            <PseTab schedules={schedules} championshipMatches={championshipMatches} players={players} />
+          </TabBackgroundWrapper>
+        );
+      case 'qualidade-sono':
+        return (
+          <TabBackgroundWrapper>
+            <QualidadeSonoTab schedules={schedules} championshipMatches={championshipMatches} players={players} />
           </TabBackgroundWrapper>
         );
       case 'academia':
         return (
           <TabBackgroundWrapper>
-            <Academia />
+            <Academia schedules={schedules} players={players} />
           </TabBackgroundWrapper>
         );
       case 'management-report':
@@ -1001,80 +1249,125 @@ export default function App() {
           </TabBackgroundWrapper>
         );
       case 'dashboard':
-      default:
+      default: {
+        const nextCommitmentForToday: import('./components/DashboardTodayBlock').NextCommitmentInfo = nextCommitment
+          ? {
+              type: nextCommitment.type,
+              label: nextCommitment.label,
+              competition: nextCommitment.competition,
+              countdown: nextCommitment.countdown,
+            }
+          : null;
+        const activeAlertsForToday: import('./components/DashboardTodayBlock').ActiveAlert[] = [];
+        if (dashboardAlertCounts.injuredCount > 0) activeAlertsForToday.push({ kind: 'lesão', count: dashboardAlertCounts.injuredCount });
+        if (dashboardAlertCounts.suspendedCount > 0) activeAlertsForToday.push({ kind: 'suspenso', count: dashboardAlertCounts.suspendedCount });
+        if (dashboardAlertCounts.penduradosCount > 0) activeAlertsForToday.push({ kind: 'pendurado', count: dashboardAlertCounts.penduradosCount });
+
         return (
           <div className="h-full w-full rounded-3xl border border-zinc-900 bg-black p-6 md:p-10 shadow-2xl animate-fade-in">
-            <div className="flex flex-col gap-8">
-              <div className="flex flex-col gap-4">
-                <div className="flex flex-col gap-3">
-                  <span className="text-[10px] uppercase tracking-[0.4em] text-zinc-500">Visão Geral</span>
-                  <h1 className="text-3xl md:text-4xl font-semibold text-white">Primeira impressão</h1>
-                  <p className="text-sm text-zinc-400 max-w-2xl">
-                    Insights essenciais do scout coletivo, resultados e participações recentes.
-                  </p>
-                </div>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  <NextMatchAlert matches={championshipMatches} />
-                  <ScheduleAlerts schedules={schedules} />
-                </div>
-              </div>
+            <div className="flex flex-col gap-6">
+              <header className="flex flex-col gap-1">
+                <span className="text-[10px] uppercase tracking-[0.4em] text-zinc-500">Centro de decisão</span>
+                <h1 className="text-2xl md:text-3xl font-black italic text-white" style={{ fontFamily: "'Arial Black', Arial, sans-serif" }}>RELATÓRIO GERENCIAL</h1>
+              </header>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
-                <StatCard
-                  label="Quantidade de atletas"
-                  value={overviewStats.totalAthletes}
-                  helper={overviewStats.totalAthletes > 0 ? 'Cadastros ativos' : 'Sem atletas cadastrados'}
-                />
-                <StatCard
-                  label="Próximo jogo"
-                  value={overviewStats.nextMatch ? `${overviewStats.nextMatch.team} x ${overviewStats.nextMatch.opponent}` : '—'}
-                  helper={
-                    overviewStats.nextMatch
-                      ? `${formatMatchDate(overviewStats.nextMatch.dateTime)} • ${overviewStats.nextMatch.competition}`
-                      : 'Sem partidas agendadas'
-                  }
-                />
-                <StatCard
-                  label="Quantidade de jogos"
-                  value={overviewStats.totalGames}
-                  helper={`Vitórias ${overviewStats.wins} • Derrotas ${overviewStats.losses}`}
-                  highlight={overviewStats.totalGames > 0}
-                />
-                <StatCard
-                  label="Artilheiro do time"
-                  value={overviewStats.topScorerName}
-                  helper={
-                    overviewStats.topScorerGoals > 0
-                      ? `${overviewStats.topScorerGoals} gols`
-                      : 'Sem gols registrados'
-                  }
-                />
-                <StatCard
-                  label="Lesões no ano"
-                  value={overviewStats.injuriesThisYear}
-                  helper={`Ano ${overviewStats.currentYear}`}
-                />
-              </div>
+              {/* 1. Bloco fixo HOJE NO CLUBE */}
+              <DashboardTodayBlock
+                nextCommitment={nextCommitmentForToday}
+                focusOfDay={focusOfDay}
+                activeAlerts={activeAlertsForToday}
+              />
 
-              <div className="flex flex-wrap gap-3">
+              {/* 2. Alertas interpretativos (PSE + sono + histórico) */}
+              <DashboardInterpretiveAlerts
+                players={players}
+                schedules={schedules}
+                championshipMatches={championshipMatches}
+              />
+
+              {/* 3. Elenco disponível real + Próximo jogo evoluído */}
+              <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2">
+                  <DashboardSquadAvailability
+                    players={players}
+                    nextMatch={overviewStats.nextMatch}
+                    championships={championships}
+                  />
+                </div>
+                <div>
+                  <DashboardNextGameCard
+                    nextMatch={overviewStats.nextMatch}
+                    championships={championships}
+                    players={players}
+                  />
+                </div>
+              </section>
+
+              {/* 4. Tendência semanal */}
+              <DashboardWeeklyTrend
+                matches={matches}
+                schedules={schedules}
+                injuriesLast7Days={injuriesLast7Days}
+              />
+
+              {/* 5. Detalhes: lesões, suspensões, sono/PSE (colunas) */}
+              <section className="grid grid-cols-1 lg:grid-cols-2 gap-6" aria-label="Alertas e saúde do elenco">
+                <div className="space-y-4">
+                  <p className="text-[10px] uppercase tracking-[0.35em] text-zinc-500 font-bold">Riscos e desfalques</p>
+                  <div className="flex flex-col gap-3">
+                    <InjuredPlayersAlert players={players} />
+                    {overviewStats.nextMatch && (
+                      <SuspensionsAlert
+                        nextMatch={overviewStats.nextMatch}
+                        championships={championships}
+                        players={players}
+                      />
+                    )}
+                    {!overviewStats.nextMatch && dashboardAlertCounts.injuredCount === 0 && (
+                      <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 px-4 py-3 text-zinc-500 text-xs font-medium">
+                        Sem lesões ou suspensões no momento.
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <p className="text-[10px] uppercase tracking-[0.35em] text-zinc-500 font-bold">Fisiologia e recuperação</p>
+                  <div className="flex flex-col gap-3">
+                    <SleepAndPseAlerts schedules={schedules} championshipMatches={championshipMatches} />
+                    <ScheduleAlerts schedules={schedules} />
+                  </div>
+                </div>
+              </section>
+
+              {/* 6. KPIs operacionais */}
+              <section className="grid grid-cols-2 lg:grid-cols-4 gap-4" aria-label="KPIs operacionais">
+                <StatCard label="Atletas" value={overviewStats.totalAthletes} helper={overviewStats.totalAthletes > 0 ? 'Cadastros' : '—'} />
+                <StatCard label="Jogos" value={overviewStats.totalGames} helper={`V ${overviewStats.wins} · D ${overviewStats.losses}`} highlight={overviewStats.totalGames > 0} />
+                <StatCard label="Artilheiro" value={overviewStats.topScorerName} helper={overviewStats.topScorerGoals > 0 ? `${overviewStats.topScorerGoals} gols` : '—'} />
+                <StatCard label="Lesões no ano" value={overviewStats.injuriesThisYear} helper={String(overviewStats.currentYear)} />
+              </section>
+
+              {/* 7. Ações principais no rodapé */}
+              <footer className="flex flex-wrap gap-4 pt-2 border-t border-zinc-800">
                 <button
                   onClick={() => handleTabChange('general')}
-                  className="flex items-center gap-2 rounded-full border border-zinc-800 bg-black px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-zinc-200 transition-colors hover:border-[#00f0ff]/60 hover:text-white"
+                  className="flex items-center gap-2 rounded-full border border-[#00f0ff]/50 bg-[#00f0ff]/15 px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.3em] text-[#00f0ff] transition-colors hover:bg-[#00f0ff]/25 hover:border-[#00f0ff]"
                 >
                   <BarChart3 size={14} />
                   Scout Coletivo
                 </button>
                 <button
                   onClick={() => handleTabChange('management-report')}
-                  className="flex items-center gap-2 rounded-full border border-zinc-800 bg-black px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-zinc-200 transition-colors hover:border-[#00f0ff]/60 hover:text-white"
+                  className="flex items-center gap-2 rounded-full border border-amber-500/50 bg-amber-500/15 px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.3em] text-amber-400 transition-colors hover:bg-amber-500/25 hover:border-amber-500"
                 >
                   <FileText size={14} />
                   Relatório Gerencial
                 </button>
-              </div>
+              </footer>
             </div>
           </div>
         );
+      }
     }
   };
 
@@ -1084,20 +1377,22 @@ export default function App() {
     return null; // Os returns acima já cobrem esses casos
   }
 
-  // Rota 'app' - renderizar com Sidebar
+  // Rota 'app' - renderizar com Sidebar (escondida quando a janela Scout da Partida está aberta)
   return (
     <div className="flex min-h-screen bg-black text-zinc-100 font-sans">
-      <Sidebar 
-        activeTab={activeTab} 
-        setActiveTab={handleTabChange} 
-        onLogout={() => {
-          console.log('👋 Logout - Voltando para home');
-          setCurrentUser(null);
-          setCurrentRoute('landing');
-        }}
-        currentUser={currentUser}
-      />
-      <main className="flex-1 ml-64 p-6 overflow-y-auto h-screen scroll-smooth print:ml-0 print:p-0">
+      {!scoutWindowOpen && (
+        <Sidebar 
+          activeTab={activeTab} 
+          setActiveTab={handleTabChange} 
+          onLogout={() => {
+            console.log('👋 Logout - Voltando para home');
+            setCurrentUser(null);
+            setCurrentRoute('landing');
+          }}
+          currentUser={currentUser}
+        />
+      )}
+      <main className={`flex-1 p-6 overflow-y-auto h-screen scroll-smooth print:ml-0 print:p-0 ${scoutWindowOpen ? 'ml-0' : 'ml-64'}`}>
         {isLoading ? <LoadingMessage activeTab={activeTab} /> : renderContent()}
       </main>
     </div>

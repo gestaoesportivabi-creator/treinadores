@@ -164,31 +164,29 @@ export const NextMatchAlert: React.FC<NextMatchAlertProps> = ({ matches }) => {
   }
 
   return (
-    <div className="mb-6 bg-gradient-to-r from-[#00f0ff]/20 via-[#00f0ff]/10 to-transparent border-l-4 border-[#00f0ff] rounded-r-lg px-6 py-4 backdrop-blur-sm shadow-lg hover:shadow-xl hover:shadow-[#00f0ff]/40 transition-all duration-300 animate-pulse">
-      <div className="flex items-center gap-3">
+    <div className="bg-[#00f0ff]/20 border-l-4 border-[#00f0ff] rounded-r-lg px-3 py-2 backdrop-blur-sm shadow-md">
+      <div className="flex items-center gap-2">
         <div className="flex-shrink-0">
-          <Clock className="text-[#00f0ff] animate-pulse" size={24} />
+          <Clock className="text-[#00f0ff]" size={18} />
         </div>
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1">
-            <Trophy className="text-[#00f0ff]" size={16} />
-            <span className="text-white font-bold text-sm uppercase">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 mb-0">
+            <Trophy className="text-[#00f0ff]" size={12} />
+            <span className="text-white font-bold text-xs uppercase truncate">
               {nextMatch.opponent || 'Próximo Jogo'}
             </span>
             {nextMatch.competition && (
-              <span className="text-zinc-400 text-xs font-medium">
+              <span className="text-zinc-400 text-[10px] font-medium truncate">
                 ({nextMatch.competition})
               </span>
             )}
           </div>
-          <p className="text-zinc-400 text-xs font-bold uppercase mb-2">
-            Tempo faltante para o próximo jogo
+          <p className="text-zinc-400 text-[10px] font-bold uppercase">
+            Tempo faltante
           </p>
-          <div className="flex items-center gap-2">
-            <span className="text-[#00f0ff] font-black text-2xl">
-              {timeRemaining.hours > 0 ? `${timeRemaining.hours}h` : ''} {timeRemaining.minutes > 0 ? `${timeRemaining.minutes}min` : 'agora'}
-            </span>
-          </div>
+          <span className="text-[#00f0ff] font-black text-base">
+            {timeRemaining.hours > 0 ? `${timeRemaining.hours}h` : ''} {timeRemaining.minutes > 0 ? `${timeRemaining.minutes}min` : 'agora'}
+          </span>
         </div>
       </div>
     </div>
