@@ -957,8 +957,9 @@ export default function App() {
     return () => { cancelled = true; };
   }, []);
 
-  // Update URL when route changes
+  // Update URL when route changes (skip while initializing to avoid overwriting the current URL before session restore)
   useEffect(() => {
+    if (isInitializing) return;
     if (currentRoute === 'register') {
       window.history.pushState({}, '', '/registro');
     } else if (currentRoute === 'login') {
@@ -968,7 +969,7 @@ export default function App() {
     } else if (currentRoute === 'app') {
       window.history.pushState({}, '', '/dashboard');
     }
-  }, [currentRoute]);
+  }, [currentRoute, isInitializing]);
 
   // Redirecionar para login se estiver na rota 'app' mas não tiver usuário
   useEffect(() => {
