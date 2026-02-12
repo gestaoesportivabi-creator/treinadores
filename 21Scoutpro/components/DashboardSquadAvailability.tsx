@@ -56,39 +56,39 @@ export const DashboardSquadAvailability: React.FC<DashboardSquadAvailabilityProp
   }, [players, nextMatch, championships]);
 
   return (
-    <div className="space-y-3">
-      <p className="text-[10px] uppercase tracking-[0.35em] text-zinc-500 font-bold">Elenco disponível</p>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3">
-          <div className="flex items-center gap-2 mb-2">
-            <UserCheck className="text-emerald-400" size={18} />
-            <span className="text-emerald-200 font-bold text-sm">Disponíveis</span>
+    <div className="rounded-lg border border-white/[0.08] bg-zinc-900/40 p-4 space-y-3">
+      <p className="text-[10px] uppercase tracking-[0.3em] text-zinc-500 font-semibold">Elenco disponível</p>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="rounded border border-white/[0.08] bg-zinc-900/30 px-3 py-2.5 border-l-[3px] border-l-emerald-500/80">
+          <div className="flex items-center gap-1.5 mb-1">
+            <UserCheck className="text-zinc-500" size={14} />
+            <span className="text-zinc-400 font-medium text-xs">Disponíveis</span>
           </div>
-          <p className="text-2xl font-black text-white">{available.length}</p>
-          <p className="text-[10px] text-zinc-400 mt-1 truncate">
+          <p className="text-base font-semibold text-white">{available.length}</p>
+          <p className="text-[10px] text-zinc-500 mt-0.5 truncate opacity-80">
             {available.slice(0, 3).map((p) => p.nickname || p.name).join(' · ')}
             {available.length > 3 ? ` +${available.length - 3}` : ''}
           </p>
         </div>
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
-          <div className="flex items-center gap-2 mb-2">
-            <UserCog className="text-amber-400" size={18} />
-            <span className="text-amber-200 font-bold text-sm">Com restrição</span>
+        <div className="rounded border border-white/[0.08] bg-zinc-900/30 px-3 py-2.5 border-l-[3px] border-l-amber-500/80">
+          <div className="flex items-center gap-1.5 mb-1">
+            <UserCog className="text-zinc-500" size={14} />
+            <span className="text-zinc-400 font-medium text-xs">Com restrição</span>
           </div>
-          <p className="text-2xl font-black text-white">{withRestriction.length}</p>
-          <p className="text-[10px] text-zinc-400 mt-1 truncate">
+          <p className="text-base font-semibold text-white">{withRestriction.length}</p>
+          <p className="text-[10px] text-zinc-500 mt-0.5 truncate opacity-80">
             {withRestriction.length === 0
               ? 'Nenhum pendurado'
               : withRestriction.slice(0, 3).map((p) => p.nickname || p.name).join(' · ') + (withRestriction.length > 3 ? ` +${withRestriction.length - 3}` : '')}
           </p>
         </div>
-        <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3">
-          <div className="flex items-center gap-2 mb-2">
-            <UserX className="text-red-400" size={18} />
-            <span className="text-red-200 font-bold text-sm">Indisponíveis</span>
+        <div className="rounded border border-white/[0.08] bg-zinc-900/30 px-3 py-2.5 border-l-[3px] border-l-red-500/80">
+          <div className="flex items-center gap-1.5 mb-1">
+            <UserX className="text-zinc-500" size={14} />
+            <span className="text-zinc-400 font-medium text-xs">Indisponíveis</span>
           </div>
-          <p className="text-2xl font-black text-white">{unavailable.length}</p>
-          <p className="text-[10px] text-zinc-400 mt-1 truncate">
+          <p className="text-base font-semibold text-white">{unavailable.length}</p>
+          <p className="text-[10px] text-zinc-500 mt-0.5 truncate opacity-80">
             {unavailable.length === 0
               ? 'Nenhum'
               : unavailable.slice(0, 3).map((p) => p.nickname || p.name).join(' · ') + (unavailable.length > 3 ? ` +${unavailable.length - 3}` : '')}

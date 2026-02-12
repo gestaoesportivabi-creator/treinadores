@@ -62,22 +62,21 @@ export const SuspensionsAlert: React.FC<SuspensionsAlertProps> = ({
   const showSimulated = showSimulatedExample && suspended.length === 0 && pendurados.length === 0 && nextMatch?.competition;
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       {suspended.length > 0 && (
-        <div className="bg-red-500/25 border-l-4 border-red-500 rounded-r-lg px-3 py-2 backdrop-blur-sm shadow-md">
-          <div className="flex items-start gap-1.5 text-[11px]">
-            <UserX className="w-3.5 h-3.5 text-red-200 flex-shrink-0 mt-0" />
+        <div className="rounded-lg border border-white/[0.08] bg-zinc-900/60 border-l-[3px] border-l-red-500 px-3 py-2.5">
+          <div className="flex items-start gap-2">
+            <UserX className="w-4 h-4 text-zinc-500 flex-shrink-0 mt-0" />
             <div className="min-w-0">
-              <span className="text-red-100 font-bold block mb-0.5">
-                Suspensos para o próximo jogo{competitionName ? ` · ${competitionName}` : ''}
+              <span className="text-white font-semibold text-sm block mb-0.5">
+                {suspended.length} suspenso{suspended.length > 1 ? 's' : ''} para o próximo jogo{competitionName ? ` · ${competitionName}` : ''}
               </span>
-              <ul className="text-red-200/90 text-[10px] font-medium space-y-0.5 list-none">
+              <ul className="text-zinc-400 text-[11px] space-y-0.5 list-none opacity-80">
                 {suspended.map(({ player, reasonLabel }) => (
                   <li key={player.id}>
-                    <span className="font-semibold text-red-100">{player.nickname || player.name}</span>
+                    <span className="font-medium text-zinc-400">{player.nickname || player.name}</span>
                     {' — '}
                     {reasonLabel}
-                    {competitionName && ` · ${competitionName}`}
                   </li>
                 ))}
               </ul>
@@ -86,34 +85,34 @@ export const SuspensionsAlert: React.FC<SuspensionsAlertProps> = ({
         </div>
       )}
       {pendurados.length > 0 && (
-        <div className="bg-yellow-500/20 border-l-4 border-yellow-500 rounded-r-lg px-3 py-2">
-          <div className="flex items-start gap-1.5 text-[11px]">
-            <UserCheck className="w-3.5 h-3.5 text-yellow-400 flex-shrink-0 mt-0" />
+        <div className="rounded-lg border border-white/[0.08] bg-zinc-900/60 border-l-[3px] border-l-amber-500 px-3 py-2.5">
+          <div className="flex items-start gap-2">
+            <UserCheck className="w-4 h-4 text-zinc-500 flex-shrink-0 mt-0" />
             <div className="min-w-0">
-              <span className="text-yellow-200 font-bold block mb-0.5">
-                Pendurados (1 amarelo da suspensão){competitionName ? ` · ${competitionName}` : ''}
+              <span className="text-white font-semibold text-sm block mb-0.5">
+                {pendurados.length} pendurado{pendurados.length > 1 ? 's' : ''} (1 amarelo da suspensão){competitionName ? ` · ${competitionName}` : ''}
               </span>
-              <span className="text-yellow-300 text-[10px] font-medium line-clamp-2">
-                {pendurados.map(({ player, yellows }) => `${player.nickname || player.name} (${yellows} amarelo${yellows > 1 ? 's' : ''})`).join(' • ')}
+              <span className="text-zinc-400 text-[11px] line-clamp-2 opacity-80">
+                {pendurados.map(({ player, yellows }) => `${player.nickname || player.name} (${yellows} amarelo${yellows > 1 ? 's' : ''})`).join(' · ')}
               </span>
             </div>
           </div>
         </div>
       )}
       {showSimulated && (
-        <div className="bg-red-500/20 border-l-4 border-red-500 rounded-r-lg px-3 py-2 border-dashed">
-          <div className="flex items-start gap-1.5 text-[11px]">
-            <UserX className="w-3.5 h-3.5 text-red-300/80 flex-shrink-0 mt-0" />
+        <div className="rounded-lg border border-white/[0.08] border-dashed bg-zinc-900/50 border-l-[3px] border-l-red-500/80 px-3 py-2.5">
+          <div className="flex items-start gap-2 text-xs">
+            <UserX className="w-4 h-4 text-zinc-500 flex-shrink-0 mt-0" />
             <div className="min-w-0">
-              <span className="text-red-100/90 font-bold block mb-0.5">
+              <span className="text-zinc-400 font-semibold block mb-0.5">
                 Suspensos para o próximo jogo · {nextMatch!.competition}
               </span>
-              <p className="text-red-200/80 text-[10px] font-medium italic">
-                Exemplo (a partir das regras do campeonato e dos cartões lançados nos jogos):
+              <p className="text-zinc-500 text-[10px] italic">
+                Exemplo (regras do campeonato e cartões nos jogos):
               </p>
-              <ul className="text-red-200/90 text-[10px] font-medium space-y-0.5 list-none mt-0.5">
-                <li><span className="font-semibold text-red-100">João Silva</span> — 3 amarelos · {nextMatch!.competition}</li>
-                <li><span className="font-semibold text-red-100">Carlos Souza</span> — Vermelho direto · {nextMatch!.competition}</li>
+              <ul className="text-zinc-500 text-[10px] space-y-0.5 list-none mt-0.5">
+                <li><span className="text-zinc-400">João Silva</span> — 3 amarelos</li>
+                <li><span className="text-zinc-400">Carlos Souza</span> — Vermelho direto</li>
               </ul>
             </div>
           </div>
