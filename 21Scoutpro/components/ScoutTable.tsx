@@ -1465,13 +1465,11 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
         // Calcular resultado automaticamente baseado em gols feitos vs tomados
         const totalGoalsScored = teamStats.goals;
         const totalGoalsConceded = goalsConceded.length;
-        let calculatedResult: 'Vitória' | 'Derrota' | 'Empate' = 'Empate';
+        let calculatedResult: 'V' | 'D' | 'E' = 'E';
         if (totalGoalsScored > totalGoalsConceded) {
-            calculatedResult = 'Vitória';
+            calculatedResult = 'V';
         } else if (totalGoalsConceded > totalGoalsScored) {
-            calculatedResult = 'Derrota';
-        } else {
-            calculatedResult = 'Empate';
+            calculatedResult = 'D';
         }
         
         // Salvar tempos reais dos gols feitos (agregar de todos os jogadores)
@@ -1573,7 +1571,9 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
             date: entries[0].date,
             location: location as 'Mandante' | 'Visitante',
             opponent: opponent,
-            result: calculatedResult, // Resultado calculado automaticamente baseado em gols
+            result: calculatedResult,
+            goalsFor: totalGoalsScored,
+            goalsAgainst: totalGoalsConceded,
             teamStats: teamStats,
             playerStats: playerStats
         };

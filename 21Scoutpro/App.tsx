@@ -362,13 +362,14 @@ export default function App() {
     // Só carregar dados se o usuário estiver logado
     if (!currentUser) {
       console.log('⏸️ Usuário não logado, pulando carregamento de dados');
-      setIsInitializing(false);
+      // NÃO setar isInitializing(false) aqui — o efeito de restauração de sessão cuida disso.
+      // Setar aqui causava uma corrida: isInitializing ficava false antes do fetch do profile completar,
+      // fazendo o efeito de URL empurrar "/" antes da sessão ser restaurada.
       return;
     }
     
     const loadData = async () => {
       try {
-        setIsInitializing(true);
         const token = localStorage.getItem('token');
         console.log('🔄 Carregando dados da API...');
         console.log('👤 Usuário logado:', currentUser?.email);
@@ -376,7 +377,6 @@ export default function App() {
         
         if (!token) {
           console.error('❌ Token não encontrado no localStorage!');
-          setIsInitializing(false);
           return;
         }
         
@@ -488,8 +488,6 @@ export default function App() {
         setCompetitions([]);
         setChampionshipMatches([]);
         console.warn('⚠️ Erro ao carregar dados da API. Sistema iniciado sem dados.');
-      } finally {
-        setIsInitializing(false);
       }
     };
 
@@ -639,22 +637,14 @@ export default function App() {
           }
         } else {
           console.error('❌ Erro: Resposta do salvamento foi null/undefined');
-          // Fallback: adicionar partida à lista local como encerrada para o status aparecer na tela
-          const matchToAdd = { ...newMatch, status: 'encerrado' as const };
-          setMatches(prev => [...prev, matchToAdd]);
-          setActiveTab('general');
-          alert("O servidor não conseguiu salvar a partida (erro 500), mas ela foi marcada como encerrada localmente. Ao reabrir Dados do jogo você verá o status atualizado. Verifique sua conexão e tente encerrar outra partida para testar o servidor.");
+          alert("Erro ao salvar a partida no servidor. Verifique sua conexão e tente novamente. Os dados NÃO foram gravados.");
         }
       } catch (error) {
         console.error('❌ Erro ao salvar partida:', error);
         if (error instanceof Error) {
           console.error('Detalhes do erro:', error.message, error.stack);
         }
-        // Fallback: adicionar partida à lista local como encerrada
-        const matchToAdd = { ...newMatch, status: 'encerrado' as const };
-        setMatches(prev => [...prev, matchToAdd]);
-        setActiveTab('general');
-        alert("Erro ao salvar partida no servidor. A partida foi marcada como encerrada localmente. Verifique o console (F12) para mais detalhes.");
+        alert("Erro ao salvar partida no servidor. Os dados NÃO foram gravados. Verifique o console (F12) para mais detalhes.");
       }
   };
 
@@ -940,6 +930,7 @@ export default function App() {
             photoUrl: u.photoUrl,
           });
           setCurrentRoute('app');
+          setIsInitializing(false);
           restored = true;
         } else {
           localStorage.removeItem('token');
@@ -984,6 +975,18 @@ export default function App() {
     setCurrentRoute('app');
   };
 
+  // Mostrar loading enquanto inicializa (ANTES das verificações de rota para evitar flash da landing page)
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00f0ff] mx-auto mb-4"></div>
+          <p className="text-zinc-400">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+
   // Mostrar landing page
   if (currentRoute === 'landing') {
     return <LandingPage 
@@ -1016,18 +1019,6 @@ export default function App() {
       onSwitchToRegister={() => setCurrentRoute('register')}
       onBackToHome={() => setCurrentRoute('landing')}
     />;
-  }
-
-  // Mostrar loading enquanto inicializa
-  if (isInitializing) {
-    return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00f0ff] mx-auto mb-4"></div>
-          <p className="text-zinc-400">Carregando...</p>
-        </div>
-      </div>
-    );
   }
 
   // Se estiver na rota 'app' mas não tiver usuário, mostrar loading

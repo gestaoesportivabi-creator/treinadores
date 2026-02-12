@@ -24,7 +24,7 @@ export const DashboardTodayBlock: React.FC<DashboardTodayBlockProps> = ({
 }) => {
   return (
     <section
-      className="sticky top-0 z-10 w-full rounded-lg border border-zinc-700 bg-zinc-900/95 shadow-sm px-5 py-4 md:px-6 md:py-5"
+      className="w-full rounded-lg border border-zinc-700 bg-zinc-900/95 shadow-sm px-5 py-4 md:px-6 md:py-5"
       aria-label="Status operacional"
     >
       <h2 className="text-[10px] uppercase tracking-[0.35em] text-zinc-400 font-semibold mb-4">
