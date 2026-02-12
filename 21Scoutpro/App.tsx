@@ -1369,6 +1369,7 @@ export default function App() {
           setActiveTab={handleTabChange} 
           onLogout={() => {
             console.log('👋 Logout - Voltando para home');
+            localStorage.removeItem('token');
             setCurrentUser(null);
             setCurrentRoute('landing');
           }}

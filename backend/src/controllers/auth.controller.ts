@@ -176,5 +176,51 @@ export const authController = {
       });
     }
   },
+
+  /**
+   * GET /api/auth/profile
+   * Retorna dados do usuário autenticado (usado para restaurar sessão ao atualizar a página)
+   */
+  profile: async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          error: 'Usuário não autenticado',
+        });
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        include: { role: true },
+      });
+
+      if (!user || !user.isActive) {
+        return res.status(401).json({
+          success: false,
+          error: 'Usuário não encontrado ou inativo',
+        });
+      }
+
+      return res.json({
+        success: true,
+        data: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role.name,
+          photoUrl: user.photoUrl,
+        },
+      });
+    } catch (error) {
+      console.error('Erro ao buscar perfil:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Erro ao buscar perfil do usuário',
+      });
+    }
+  },
 };
 
