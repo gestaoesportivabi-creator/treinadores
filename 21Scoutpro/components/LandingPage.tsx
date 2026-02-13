@@ -172,7 +172,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
   const [refCarousel, inViewCarousel] = useInView(0.1);
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="landing-page min-h-screen bg-black text-white">
       <nav className="fixed top-0 left-0 right-0 z-50 bg-zinc-950/95 backdrop-blur-lg border-b border-zinc-800/50">
         <div className="max-w-7xl mx-auto px-4 md:px-8 lg:px-12 py-3 md:py-4">
           <div className="flex items-center justify-between gap-6">
@@ -210,8 +210,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
         <div className="pointer-events-none absolute inset-0" aria-hidden style={{ background: 'linear-gradient(to right, #000000 0%, #000000 25%, transparent 45%, transparent 55%, rgba(0, 240, 255, 0.12) 80%, rgba(0, 240, 255, 0.2) 100%), radial-gradient(ellipse 70% 80% at 90% 50%, rgba(0, 240, 255, 0.2) 0%, rgba(0, 240, 255, 0.06) 45%, transparent 75%)' }} />
         <div className="relative max-w-7xl mx-auto flex flex-col md:flex-row md:items-start md:justify-between gap-0 pt-[106px] pb-4 md:pb-6">
           <div className="max-w-[581px] text-left space-y-6 md:space-y-8 md:flex-shrink-0 mt-6 md:mt-10">
-            <h1 className="text-4xl md:text-6xl lg:text-7xl font-black text-white tracking-tight leading-[1.08]">
-              Gestão esportiva<br /><span className="italic">na prática</span>
+            <h1 className="text-4xl md:text-6xl lg:text-7xl font-black text-white tracking-tight leading-[1.08] uppercase italic">
+              <span className="whitespace-nowrap">Gestão esportiva</span><br /><span className="whitespace-nowrap">na prática</span>
             </h1>
             <p className="text-lg md:text-xl text-zinc-400 max-w-xl leading-relaxed">
               Indicadores, scout e análise de performance para transformar dados em insights poderosos para o dia a dia do clube.
@@ -221,7 +221,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
                 Começar Agora
                 <ArrowRight className="group-hover:translate-x-0.5 transition-transform" size={18} />
               </button>
-              <a href="https://wa.me/5548991486176?text=Olá%2C%20gostaria%20de%20agendar%20uma%20apresentação" target="_blank" rel="noopener noreferrer" className="text-zinc-400 hover:text-white text-sm font-medium transition-colors flex items-center gap-1 sm:self-center">
+              <a href="https://wa.me/5548991486176?text=Olá%2C%20gostaria%20de%20agendar%20uma%20apresentação" target="_blank" rel="noopener noreferrer" className="landing-body-medium text-zinc-400 hover:text-white text-sm transition-colors flex items-center gap-1 sm:self-center">
                 Novo: Agende uma apresentação <span aria-hidden>→</span>
               </a>
             </div>
@@ -235,15 +235,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
       <section id="para-quem-e" ref={refParaQuem} className={`py-24 px-4 sm:px-6 bg-zinc-900/50 border-y border-zinc-800 transition-all duration-700 ${inViewParaQuem ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-black uppercase text-white mb-4">Para Quem É</h2>
+            <h2 className="landing-headline text-4xl md:text-5xl text-white mb-4">Para Quem É</h2>
             <div className="w-24 h-1 bg-[#00f0ff] mx-auto"></div>
           </div>
           
           <div className="grid md:grid-cols-3 gap-8">
             {[
-              { icon: Users, title: 'Clubes de Futsal', desc: 'Equipes adultas e de base que buscam profissionalização' },
+              { icon: Users, title: 'Clubes de Futsal', desc: 'Equipes adultas e de base que buscam otimizar a gestão' },
               { icon: Target, title: 'Times Universitários', desc: 'Projetos esportivos acadêmicos e competitivos' },
-              { icon: Shield, title: 'Comissões Técnicas', desc: 'Treinadores que querem dados organizados para decisões' }
+              { icon: Shield, title: 'Comissões Técnicas', desc: 'Treinadores que querem informações centralizadas e organizadas' }
             ].map((item, idx) => (
               <div 
                 key={idx} 
@@ -263,9 +263,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
       <section ref={refDesafio} className={`py-24 px-4 sm:px-6 transition-all duration-700 ${inViewDesafio ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-black uppercase text-white mb-4">O Desafio Atual</h2>
+            <h2 className="landing-headline text-4xl md:text-5xl text-white mb-4">O Desafio Atual</h2>
             <div className="w-24 h-1 bg-[#00f0ff] mx-auto mb-6"></div>
-            <p className="text-xl text-zinc-400 font-medium">Gestão informal prejudica o desenvolvimento da equipe</p>
+            <p className="landing-impact text-xl text-zinc-400">Gestão informal prejudica o desenvolvimento da equipe</p>
           </div>
           
           <div className="grid md:grid-cols-2 gap-4 md:gap-6">
@@ -293,17 +293,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
       <section id="solucao" ref={refSolucao} className={`py-24 px-4 sm:px-6 bg-zinc-900/30 transition-all duration-700 ${inViewSolucao ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-black uppercase text-white mb-4">A Solução</h2>
+            <h2 className="landing-headline text-4xl md:text-5xl text-white mb-4">A Solução</h2>
             <div className="w-24 h-1 bg-[#00f0ff] mx-auto mb-6"></div>
-            <p className="text-xl text-zinc-400 font-medium">Gestão profissional, simples e completa</p>
+            <p className="landing-impact text-xl text-zinc-400">Gestão profissional, simples e completa</p>
           </div>
           
           <div className="grid md:grid-cols-2 gap-6 md:gap-8">
             {[
-              { icon: Users, title: 'Gestão de Equipe', desc: 'Cadastro completo de atletas, comissão técnica e histórico' },
+              { icon: Users, title: 'Gestão de Equipe', desc: 'Cadastro e histórico completo do atleta' },
               { icon: Clock, title: 'Programação', desc: 'Organize treinos, jogos e convocações em um só lugar' },
               { icon: BarChart3, title: 'Scout de Jogo', desc: 'Registre dados individuais e coletivos de cada partida' },
-              { icon: TrendingUp, title: 'Evolução e Ranking', desc: 'Acompanhe performance e compare atletas com dados reais' }
+              { icon: TrendingUp, title: 'Evolução e Ranking', desc: 'Acompanhe os resultados e compare as performances individuais do elenco' }
             ].map((feature, idx) => (
               <div 
                 key={idx} 
@@ -323,7 +323,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
       <section ref={refCarousel} className={`py-24 px-4 sm:px-6 transition-all duration-700 ${inViewCarousel ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-black uppercase text-white mb-4">Gestão de Alta Performance</h2>
+            <h2 className="landing-headline text-3xl md:text-4xl text-white mb-4">Gestão de Alta Performance</h2>
             <div className="w-24 h-1 bg-[#00f0ff] mx-auto"></div>
           </div>
           <ImageCarousel />
@@ -333,17 +333,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
       <section id="diferenciais" ref={refDiferenciais} className={`py-24 px-4 sm:px-6 transition-all duration-700 ${inViewDiferenciais ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-black uppercase text-white mb-4">Por Que SCOUT21PRO?</h2>
+            <h2 className="landing-headline text-4xl md:text-5xl text-white mb-4">Por Que SCOUT21PRO?</h2>
             <div className="w-24 h-1 bg-[#00f0ff] mx-auto"></div>
           </div>
           
           <div className="space-y-6">
             {[
-              'Foco exclusivo em esportes de quadra (futsal)',
-              'Pensado para clubes pequenos e médios do Brasil',
-              'Interface simples, sem complexidade desnecessária',
-              'Personalizável conforme a realidade do seu clube',
-              'Plataforma brasileira, próxima da sua realidade'
+              'Criado para o Futsal',
+              'Pensado para otimizar a rotina dos clubes',
+              'Plataforma brasileira, próxima da sua realidade',
+              'Descomplicado e Intuitivo'
             ].map((diff, idx) => (
               <div 
                 key={idx} 
@@ -362,12 +361,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
       <section ref={refVestiario} className={`py-24 px-4 sm:px-6 bg-zinc-900/30 transition-all duration-700 ${inViewVestiario ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-black uppercase text-white mb-4">Do Vestiário ao Escritório</h2>
+            <h2 className="landing-headline text-4xl md:text-5xl text-white mb-4">Do Vestiário ao Escritório</h2>
             <div className="w-24 h-1 bg-[#00f0ff] mx-auto mb-8"></div>
-            <p className="text-xl text-zinc-400 font-medium max-w-3xl mx-auto">
-              Trazer a frieza dos números para a emoção do campo.<br />
-              Transformar dados em legado vencedor.
-            </p>
           </div>
           
           <div className="grid md:grid-cols-3 gap-6 md:gap-8">
@@ -398,8 +393,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
               >
                 <div className="text-4xl mb-4">{item.emoji}</div>
                 <item.icon className="text-[#00f0ff] mb-4 mx-auto" size={40} />
-                <h3 className="text-xl font-black text-white mb-4 uppercase">{item.title}</h3>
-                <p className="text-zinc-400 font-medium leading-relaxed">{item.desc}</p>
+                <h3 className="landing-headline text-xl text-white mb-4">{item.title}</h3>
+                <p className="landing-body-medium text-zinc-400 leading-relaxed">{item.desc}</p>
               </div>
             ))}
           </div>
@@ -419,13 +414,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
               { 
                 icon: Trophy, 
                 title: 'Atleta (Vestiário)', 
-                desc: 'Vivência da dor real: falta de profissionalismo e gestão.',
+                desc: 'Vivência das dificuldades de gestão na modalidade',
                 emoji: '⚽'
               },
               { 
                 icon: Building2, 
-                title: 'Executivo (Logística)', 
-                desc: 'Gestão baseada em KPIs, SLA e Nível de Serviço ao Cliente.',
+                title: 'Analista (Logística)', 
+                desc: 'Experiência com Gestão baseada em KPIs, SLA e Nível de Serviço ao Cliente.',
                 emoji: '🏢'
               },
               { 
@@ -436,8 +431,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
               },
               { 
                 icon: Brain, 
-                title: 'Expertise em BI', 
-                desc: 'Expertise em transformar dados brutos de 20.000 linhas de excel em insights poderosos.',
+                title: 'Domínio em BI', 
+                desc: 'Expertise em transformar banco de dados brutos com milhares de linhas em insights poderosos.',
                 emoji: '📊'
               }
             ].map((item, idx) => (
@@ -451,9 +446,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-4">
                       <item.icon className="text-[#00f0ff]" size={32} />
-                      <h3 className="text-2xl font-black text-white uppercase">{item.title}</h3>
+                      <h3 className="landing-headline text-2xl text-white">{item.title}</h3>
                     </div>
-                    <p className="text-zinc-300 font-medium text-lg leading-relaxed">{item.desc}</p>
+                    <p className="landing-body-medium text-zinc-300 text-lg leading-relaxed">{item.desc}</p>
                   </div>
                 </div>
               </div>
@@ -465,9 +460,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
       <section ref={refComoFunciona} className={`py-24 px-4 sm:px-6 bg-zinc-900/30 transition-all duration-700 ${inViewComoFunciona ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-black uppercase text-white mb-4">Como Funciona</h2>
+            <h2 className="landing-headline text-4xl md:text-5xl text-white mb-4">Como Funciona</h2>
             <div className="w-24 h-1 bg-[#00f0ff] mx-auto mb-6"></div>
-            <p className="text-xl text-zinc-400 font-medium">Simples e direto ao ponto</p>
+            <p className="landing-impact text-xl text-zinc-400">Simples e direto ao ponto</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-5 gap-6 md:gap-8">
             {[
@@ -485,8 +480,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
                 <div className="w-16 h-16 bg-[#00f0ff] rounded-full flex items-center justify-center mx-auto mb-4 text-black font-black text-2xl transition-transform duration-300 hover:scale-110 shadow-[0_0_20px_rgba(0,240,255,0.25)]">
                   {step.num}
                 </div>
-                <h3 className="text-xl font-black text-white mb-3 uppercase">{step.title}</h3>
-                <p className="text-zinc-400 font-medium text-base">{step.desc}</p>
+                <h3 className="landing-headline text-xl text-white mb-3">{step.title}</h3>
+                <p className="landing-body-medium text-zinc-400 text-base">{step.desc}</p>
               </div>
             ))}
           </div>
@@ -495,45 +490,45 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
 
       <section id="contato" className="py-32 px-4 sm:px-6 bg-gradient-to-br from-zinc-900 to-black border-y border-zinc-800">
         <div className="max-w-4xl mx-auto text-center space-y-8">
-          <h2 className="text-5xl md:text-6xl font-black uppercase text-white leading-tight">
-            Pronto para profissionalizar<br />
-            <span className="text-[#00f0ff]">sua equipe?</span>
+          <h2 className="landing-headline text-5xl md:text-6xl text-white leading-tight">
+            Pronto para organizar a gestão<br />
+            <span className="text-[#00f0ff]">da sua equipe?</span>
           </h2>
-          <button onClick={handleClick} type="button" className="group px-10 py-5 bg-[#00f0ff] hover:bg-[#00d4e6] active:scale-[0.98] text-black font-black text-xl uppercase tracking-wider rounded-xl transition-all duration-300 shadow-[0_0_40px_rgba(0,240,255,0.5)] hover:shadow-[0_0_60px_rgba(0,240,255,0.7)] hover:scale-[1.02] flex items-center gap-3 mx-auto cursor-pointer">
+          <button onClick={handleClick} type="button" className="landing-impact group px-10 py-5 bg-[#00f0ff] hover:bg-[#00d4e6] active:scale-[0.98] text-black text-xl rounded-xl transition-all duration-300 shadow-[0_0_40px_rgba(0,240,255,0.5)] hover:shadow-[0_0_60px_rgba(0,240,255,0.7)] hover:scale-[1.02] flex items-center gap-3 mx-auto cursor-pointer">
             Criar Conta Grátis
             <ArrowRight className="group-hover:translate-x-1 transition-transform duration-300" size={28} />
           </button>
-          <p className="text-sm text-zinc-600 font-medium">
+          <p className="landing-body-medium text-sm text-zinc-600">
             ✓ Sem compromisso &nbsp;&nbsp; ✓ Cancele quando quiser &nbsp;&nbsp; ✓ Suporte em português
           </p>
           <div className="pt-16 border-t border-zinc-800 mt-16 text-left">
-            <h3 className="text-2xl md:text-3xl font-black uppercase text-white mb-2">Fale conosco</h3>
-            <p className="text-zinc-400 font-medium mb-8">Preencha o formulário ou use o botão do WhatsApp.</p>
+            <h3 className="landing-headline text-2xl md:text-3xl text-white mb-2">Fale conosco</h3>
+            <p className="landing-body-medium text-zinc-400 mb-8">Preencha o formulário ou use o botão do WhatsApp.</p>
             {contactSubmitted ? (
               <div className="bg-zinc-900/80 border border-[#00f0ff]/30 rounded-xl p-8 text-center">
                 <CheckCircle className="text-[#00f0ff] mx-auto mb-4" size={48} />
-                <p className="text-white font-bold text-lg">Mensagem enviada!</p>
-                <p className="text-zinc-400 mt-2">Em breve entraremos em contato.</p>
+                <p className="landing-body-medium text-white text-lg">Mensagem enviada!</p>
+                <p className="landing-body text-zinc-400 mt-2">Em breve entraremos em contato.</p>
               </div>
             ) : (
               <form onSubmit={handleContactSubmit} className="space-y-5 max-w-xl">
                 <div>
-                  <label htmlFor="contact-name" className="block text-sm font-semibold text-zinc-300 mb-2">Nome *</label>
+                  <label htmlFor="contact-name" className="landing-body-medium block text-sm text-zinc-300 mb-2">Nome *</label>
                   <input id="contact-name" type="text" required value={contactForm.name} onChange={(e) => setContactForm((f) => ({ ...f, name: e.target.value }))} className="w-full px-4 py-3 bg-zinc-900 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-[#00f0ff] focus:ring-1 focus:ring-[#00f0ff] transition-colors" placeholder="Seu nome" />
                 </div>
                 <div>
-                  <label htmlFor="contact-email" className="block text-sm font-semibold text-zinc-300 mb-2">E-mail *</label>
+                  <label htmlFor="contact-email" className="landing-body-medium block text-sm text-zinc-300 mb-2">E-mail *</label>
                   <input id="contact-email" type="email" required value={contactForm.email} onChange={(e) => setContactForm((f) => ({ ...f, email: e.target.value }))} className="w-full px-4 py-3 bg-zinc-900 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-[#00f0ff] focus:ring-1 focus:ring-[#00f0ff] transition-colors" placeholder="seu@email.com" />
                 </div>
                 <div>
-                  <label htmlFor="contact-phone" className="block text-sm font-semibold text-zinc-300 mb-2">Telefone / WhatsApp</label>
+                  <label htmlFor="contact-phone" className="landing-body-medium block text-sm text-zinc-300 mb-2">Telefone / WhatsApp</label>
                   <input id="contact-phone" type="tel" value={contactForm.phone} onChange={(e) => setContactForm((f) => ({ ...f, phone: e.target.value }))} className="w-full px-4 py-3 bg-zinc-900 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-[#00f0ff] focus:ring-1 focus:ring-[#00f0ff] transition-colors" placeholder="(48) 99999-9999" />
                 </div>
                 <div>
-                  <label htmlFor="contact-message" className="block text-sm font-semibold text-zinc-300 mb-2">Mensagem *</label>
+                  <label htmlFor="contact-message" className="landing-body-medium block text-sm text-zinc-300 mb-2">Mensagem *</label>
                   <textarea id="contact-message" required rows={4} value={contactForm.message} onChange={(e) => setContactForm((f) => ({ ...f, message: e.target.value }))} className="w-full px-4 py-3 bg-zinc-900 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-[#00f0ff] focus:ring-1 focus:ring-[#00f0ff] transition-colors resize-y" placeholder="Como podemos ajudar?" />
                 </div>
-                <button type="submit" className="px-6 py-3.5 bg-[#00f0ff] hover:bg-[#00d4e6] text-black font-semibold text-sm rounded-lg transition-all shadow-[0_0_20px_rgba(0,240,255,0.3)] hover:shadow-[0_0_30px_rgba(0,240,255,0.4)]">Enviar mensagem</button>
+                <button type="submit" className="landing-body-medium px-6 py-3.5 bg-[#00f0ff] hover:bg-[#00d4e6] text-black text-sm rounded-lg transition-all shadow-[0_0_20px_rgba(0,240,255,0.3)] hover:shadow-[0_0_30px_rgba(0,240,255,0.4)]">Enviar mensagem</button>
               </form>
             )}
           </div>
@@ -549,11 +544,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
           <div className="inline-flex items-center justify-center">
             <img src="/public-logo.png.png" alt="SCOUT21PRO Logo" className="h-12 w-auto" />
           </div>
-          <p className="text-zinc-500 font-medium">
+          <p className="landing-body text-zinc-500">
             Plataforma brasileira de gestão e performance para futsal
           </p>
           <div className="pt-8 border-t border-zinc-900">
-            <p className="text-zinc-700 text-xs">
+            <p className="landing-body text-zinc-700 text-xs">
               © 2026 SCOUT21PRO. Todos os direitos reservados.
             </p>
           </div>

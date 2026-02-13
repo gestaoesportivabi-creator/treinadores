@@ -14,6 +14,7 @@ import { StatsRanking } from './components/StatsRanking';
 import { Schedule } from './components/Schedule';
 import { Academia } from './components/Academia';
 import { PseTab } from './components/PseTab';
+import { PsrTab } from './components/PsrTab';
 import { QualidadeSonoTab } from './components/QualidadeSonoTab';
 import { LoadingMessage } from './components/LoadingMessage';
 import { ChampionshipTable, ChampionshipMatch } from './components/ChampionshipTable';
@@ -1201,6 +1202,12 @@ export default function App() {
         return (
           <TabBackgroundWrapper>
             <PseTab schedules={schedules} championshipMatches={championshipMatches} players={players} />
+          </TabBackgroundWrapper>
+        );
+      case 'psr':
+        return (
+          <TabBackgroundWrapper>
+            <PsrTab schedules={schedules} championshipMatches={championshipMatches} players={players} />
           </TabBackgroundWrapper>
         );
       case 'qualidade-sono':

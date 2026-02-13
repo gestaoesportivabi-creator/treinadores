@@ -385,6 +385,31 @@ export const GeneralScout: React.FC<GeneralScoutProps> = ({ config, matches, pla
     { name: 'Restante', value: 100 - percentage }
   ];
 
+  // Posse de bola (dados do jogo após coleta encerrada: possessionSecondsWith / possessionSecondsWithout)
+  const possessionDonutData = useMemo(() => {
+    let totalWith = 0;
+    let totalWithout = 0;
+    filteredMatches.forEach(m => {
+      const w = m.possessionSecondsWith ?? 0;
+      const wo = m.possessionSecondsWithout ?? 0;
+      totalWith += w;
+      totalWithout += wo;
+    });
+    const total = totalWith + totalWithout;
+    if (total <= 0) return null;
+    const pctUs = (totalWith / total) * 100;
+    const pctOpp = (totalWithout / total) * 100;
+    return [
+      { name: 'Nossa equipe', value: Math.round(pctUs * 10) / 10, fill: COLORS.blue },
+      { name: 'Adversário', value: Math.round(pctOpp * 10) / 10, fill: COLORS.slate }
+    ];
+  }, [filteredMatches]);
+
+  const hasPossessionData = useMemo(() => 
+    filteredMatches.some(m => (m.possessionSecondsWith ?? 0) + (m.possessionSecondsWithout ?? 0) > 0),
+    [filteredMatches]
+  );
+
   // Styles
   const tooltipStyle = { backgroundColor: '#000', borderColor: '#333', color: '#fff', fontFamily: 'Poppins', borderRadius: '8px', fontSize: '14px' };
   const axisStyle = { fontSize: 12, fontFamily: 'Poppins', fill: '#a1a1aa', fontWeight: 'bold' };
@@ -455,12 +480,10 @@ export const GeneralScout: React.FC<GeneralScoutProps> = ({ config, matches, pla
         />
       </div>
 
-       {/* Full Width Target/Meta Card - Speedometer Style */}
-       <div className="w-full">
-            <ExpandableCard 
-                noPadding
-                headerColor='text-[#ccff00]'
-            >
+       {/* Meta de Desarmes + Posse de Bola (lado a lado) */}
+       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Meta de Desarmes por Jogo - Speedometer */}
+            <ExpandableCard noPadding headerColor="text-[#ccff00]">
                 <div className="h-48 w-full flex flex-col md:flex-row items-center justify-between px-8 py-4 gap-8 bg-zinc-950/50">
                     <div className="flex flex-col gap-2">
                          <div className="flex items-center gap-3">
@@ -502,7 +525,6 @@ export const GeneralScout: React.FC<GeneralScoutProps> = ({ config, matches, pla
                                     </Pie>
                                 </PieChart>
                             </ResponsiveContainer>
-                            {/* Emoji and Percentage in Center */}
                             <div className="absolute top-[60%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center">
                                 <span className="text-2xl block mb-1">
                                     {percentageDisplay >= 100 ? '🚀' : percentageDisplay >= 75 ? '🔥' : '⚠️'}
@@ -512,6 +534,50 @@ export const GeneralScout: React.FC<GeneralScoutProps> = ({ config, matches, pla
                         </div>
                     </div>
                 </div>
+            </ExpandableCard>
+
+            {/* Posse de Bola - Donut (dados do jogo após coleta encerrada) */}
+            <ExpandableCard title="Posse de Bola" icon={PieChartIcon} headerColor="text-[#00f0ff]">
+                <p className="text-xs text-zinc-500 mb-4 font-medium">Distribuição da posse nos jogos com coleta encerrada (tempo com bola vs adversário).</p>
+                {hasPossessionData && possessionDonutData ? (
+                  <div className="flex flex-col md:flex-row items-center gap-6">
+                    <div className="h-56 w-56 flex-shrink-0">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={possessionDonutData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius="50%"
+                            outerRadius="85%"
+                            paddingAngle={2}
+                            dataKey="value"
+                            nameKey="name"
+                            stroke="none"
+                            label={({ name, value }) => `${name} ${value}%`}
+                          >
+                            {possessionDonutData.map((entry, index) => (
+                              <Cell key={`posse-${index}`} fill={entry.fill} />
+                            ))}
+                          </Pie>
+                          <Tooltip formatter={(value: number) => [`${value}%`, '']} contentStyle={tooltipStyle} />
+                          <Legend />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="flex flex-col gap-2 text-sm">
+                      {possessionDonutData.map((entry, i) => (
+                        <div key={entry.name} className="flex items-center gap-2">
+                          <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: entry.fill }} />
+                          <span className="text-zinc-300 font-medium">{entry.name}</span>
+                          <span className="text-white font-bold">{entry.value}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-zinc-500 text-sm py-8 text-center">Nenhum dado de posse disponível. A posse é registrada na coleta em tempo real (Dados do Jogo) e aparece aqui após a partida encerrada.</p>
+                )}
             </ExpandableCard>
        </div>
 

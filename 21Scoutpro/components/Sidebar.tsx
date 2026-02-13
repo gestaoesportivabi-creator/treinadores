@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, Users, User as UserIcon, LogOut, HeartPulse, MonitorPlay, Settings, Table2, Shirt, Trophy, Ruler, CalendarClock, ChevronDown, ChevronRight, Dumbbell, Activity, Moon } from 'lucide-react';
+import { LayoutDashboard, Users, User as UserIcon, LogOut, HeartPulse, MonitorPlay, Settings, Table2, Shirt, Trophy, Ruler, CalendarClock, ChevronDown, ChevronRight, Dumbbell, Activity, Moon, RefreshCw } from 'lucide-react';
 import { User } from '../types';
 
 // Importação explícita da logo oficial
@@ -60,6 +60,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLog
       items: [
         { id: 'physical', label: 'Monitoramento Fisiológico', icon: HeartPulse, restricted: isAthlete },
         { id: 'pse', label: 'PSE (Treinos e Jogos)', icon: Activity, restricted: isAthlete },
+        { id: 'psr', label: 'PSR (Treinos e Jogos)', icon: RefreshCw, restricted: isAthlete },
         { id: 'qualidade-sono', label: 'Qualidade de sono', icon: Moon, restricted: isAthlete },
         { id: 'assessment', label: 'Avaliação Física', icon: Ruler, restricted: isAthlete },
         { id: 'academia', label: 'Musculação', icon: Dumbbell, restricted: isAthlete },
