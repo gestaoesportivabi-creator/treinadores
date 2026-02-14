@@ -1192,6 +1192,7 @@ export default function App() {
             delete (window as any).selectedChampionshipMatch;
           }}
           championshipMatches={championshipMatches}
+          schedules={schedules}
           teams={teams}
           currentUser={currentUser}
           onScoutWindowOpenChange={setScoutWindowOpen}

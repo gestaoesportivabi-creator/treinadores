@@ -469,17 +469,33 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
                          <span className="text-2xl font-black text-white italic">#{player.jerseyNumber}</span>
                      </div>
 
-                     {/* Edit Button */}
-                     <button 
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            handleEditClick(player);
-                        }}
-                        className="absolute bottom-4 right-4 bg-white text-black p-2 rounded-full opacity-80 hover:opacity-100 transition-opacity hover:scale-110 z-10 cursor-pointer shadow-lg"
-                        title="Editar Atleta"
-                     >
-                         <Edit2 size={16} />
-                     </button>
+                     {/* Edit e Excluir */}
+                     <div className="absolute bottom-4 right-4 flex items-center gap-2 z-10">
+                         {onDeletePlayer && (
+                             <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setPlayerToDelete(player);
+                                }}
+                                className="bg-red-500/90 hover:bg-red-500 text-white p-2 rounded-full opacity-90 hover:opacity-100 transition-opacity hover:scale-110 cursor-pointer shadow-lg"
+                                title="Excluir Atleta"
+                             >
+                                 <Trash2 size={16} />
+                             </button>
+                         )}
+                         <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditClick(player);
+                            }}
+                            className="bg-white text-black p-2 rounded-full opacity-80 hover:opacity-100 transition-opacity hover:scale-110 cursor-pointer shadow-lg"
+                            title="Editar Atleta"
+                         >
+                             <Edit2 size={16} />
+                         </button>
+                     </div>
                      
                      <div className="absolute bottom-4 left-4">
                          <h3 className="text-xl font-black text-white uppercase italic tracking-tighter drop-shadow-lg">{player.nickname || player.name}</h3>
@@ -542,7 +558,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={() => setPlayerToDelete(null)}>
                 <div className="bg-zinc-900 border border-zinc-700 rounded-2xl shadow-xl max-w-md w-full p-6" onClick={e => e.stopPropagation()}>
                     <p className="text-white font-medium mb-6">
-                        Deseja realmente excluir o cadastro de <strong>{playerToDelete.nickname || playerToDelete.name}</strong>? Esta ação não pode ser desfeita.
+                        Deseja mesmo excluir esse atleta? <strong>{playerToDelete.nickname || playerToDelete.name}</strong> será removido do elenco. Esta ação não pode ser desfeita.
                     </p>
                     <div className="flex justify-end gap-3">
                         <button
