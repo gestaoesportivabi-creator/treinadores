@@ -456,6 +456,8 @@ export const playersService = {
 
   /**
    * Deletar jogador
+   * Remove primeiro registros que referenciam o jogador (eventos de jogo não tinham onDelete no schema antigo),
+   * depois o jogador. EquipesJogadores, Lesao, AvaliacaoFisica e JogosEstatisticasJogador já têm onDelete: Cascade.
    */
   async delete(id: string, tenantInfo: TenantInfo): Promise<boolean> {
     // Verificar se jogador existe e pertence ao tenant
@@ -463,6 +465,9 @@ export const playersService = {
     if (!existing) {
       throw new NotFoundError('Jogador', id);
     }
+
+    // Remover eventos de jogo do jogador (evita erro de FK se o banco ainda não tiver onDelete Cascade)
+    await prisma.jogosEventos.deleteMany({ where: { jogadorId: id } });
 
     await playersRepository.delete(id);
     return true;

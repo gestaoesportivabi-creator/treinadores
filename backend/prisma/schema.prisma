@@ -226,7 +226,7 @@ model JogosEventos {
   minuto     Int
   segundo    Int
   createdAt  DateTime @default(now()) @map("created_at")
-  jogador    Jogador  @relation(fields: [jogadorId], references: [id])
+  jogador    Jogador  @relation(fields: [jogadorId], references: [id], onDelete: Cascade)
   jogo       Jogo     @relation(fields: [jogoId], references: [id], onDelete: Cascade)
 
   @@map("jogos_eventos")
