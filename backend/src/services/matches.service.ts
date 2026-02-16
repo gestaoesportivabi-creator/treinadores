@@ -5,6 +5,7 @@
 
 import { TenantInfo } from '../utils/tenant.helper';
 import { matchesRepository } from '../repositories/matches.repository';
+import { playersRepository } from '../repositories/players.repository';
 import { transformMatchToFrontend } from '../adapters/match.adapter';
 import { MatchRecord } from '../types/frontend';
 import { NotFoundError } from '../utils/errors';
@@ -139,10 +140,13 @@ export const matchesService = {
       golsSofridosBolaParada: 0,
     });
 
-    // Persistir estatísticas dos jogadores (playerStats do frontend)
+    // Só persistir estatísticas de jogadores que existem no banco e pertencem ao tenant (evita FK violation)
+    const jogadoresTenant = await playersRepository.findAll(tenantInfo);
+    const validJogadorIds = new Set(jogadoresTenant.map((j) => j.id));
     for (const [jogadorId, stats] of Object.entries(playerStats)) {
+      if (!validJogadorIds.has(jogadorId.trim())) continue;
       const s = stats as any;
-      await matchesRepository.upsertEstatisticasJogador(jogo.id, jogadorId, {
+      await matchesRepository.upsertEstatisticasJogador(jogo.id, jogadorId.trim(), {
         minutosJogados: 40,
         gols: s.goals ?? 0,
         golsSofridos: 0,
