@@ -5,23 +5,34 @@ export type CommitmentType = 'jogo' | 'treino' | null;
 export type NextCommitmentInfo = {
   type: CommitmentType;
   label: string;
+  /** Nome da atividade para exibir em "Compromisso" (Jogo, Treino, Musculação, etc.) */
+  activityDisplay?: string;
+  /** Horário do compromisso (HH:MM) para exibir em "Tempo até" */
+  timeLabel?: string;
   competition?: string;
   countdown: { hours: number; minutes: number } | null;
 } | null;
 
 export type ActiveAlert = { kind: 'lesão'; count: number } | { kind: 'suspenso'; count: number } | { kind: 'pendurado'; count: number };
 
+/** Resultado das últimas partidas (V=vitória, D=derrota, E=empate) para bolinhas no Indicadores */
+export type LastMatchResults = ('V' | 'D' | 'E')[];
+
 interface DashboardTodayBlockProps {
   nextCommitment: NextCommitmentInfo;
   focusOfDay: string;
   activeAlerts: ActiveAlert[];
+  /** Últimas 3 partidas salvas (Dados do jogo) para exibir no card Indicadores */
+  lastMatchResults?: LastMatchResults;
 }
 
 export const DashboardTodayBlock: React.FC<DashboardTodayBlockProps> = ({
   nextCommitment,
   focusOfDay,
   activeAlerts,
+  lastMatchResults = [],
 }) => {
+  const hasResults = lastMatchResults.length > 0;
   return (
     <section
       className="w-full rounded-lg border border-zinc-700 bg-zinc-900/95 shadow-sm px-5 py-4 md:px-6 md:py-5"
@@ -38,13 +49,9 @@ export const DashboardTodayBlock: React.FC<DashboardTodayBlockProps> = ({
           <div className="min-w-0">
             <p className="text-[10px] uppercase tracking-wider text-zinc-500">Compromisso</p>
             <p className="text-white font-semibold text-sm mt-0.5">
-              {nextCommitment?.type === 'jogo'
-                ? 'Jogo'
-                : nextCommitment?.type === 'treino'
-                ? 'Treino'
-                : '—'}
+              {nextCommitment?.activityDisplay ?? (nextCommitment?.type === 'jogo' ? 'Jogo' : nextCommitment?.type === 'treino' ? 'Treino' : '—')}
             </p>
-            {nextCommitment?.label && (
+            {nextCommitment?.label && nextCommitment.type === 'jogo' && (
               <p className="text-zinc-400 text-xs truncate">{nextCommitment.label}</p>
             )}
           </div>
@@ -61,6 +68,9 @@ export const DashboardTodayBlock: React.FC<DashboardTodayBlockProps> = ({
                 ? `${nextCommitment.countdown.hours > 0 ? `${nextCommitment.countdown.hours}h ` : ''}${nextCommitment.countdown.minutes}min`
                 : '—'}
             </p>
+            {nextCommitment?.timeLabel && (
+              <p className="text-zinc-500 text-[11px] mt-0.5">às {nextCommitment.timeLabel}</p>
+            )}
           </div>
         </div>
 
@@ -68,9 +78,9 @@ export const DashboardTodayBlock: React.FC<DashboardTodayBlockProps> = ({
           <div className="w-9 h-9 rounded-lg bg-zinc-700 flex items-center justify-center flex-shrink-0">
             <Trophy className="text-zinc-300" size={18} />
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="text-[10px] uppercase tracking-wider text-zinc-500">Foco do dia</p>
-            <p className="text-white font-semibold text-sm mt-0.5 line-clamp-2">{focusOfDay || '—'}</p>
+            <p className="text-white font-semibold text-sm mt-0.5 line-clamp-3 whitespace-pre-wrap">{focusOfDay || '—'}</p>
           </div>
         </div>
 
@@ -79,10 +89,23 @@ export const DashboardTodayBlock: React.FC<DashboardTodayBlockProps> = ({
             <AlertTriangle className="text-zinc-300" size={18} />
           </div>
           <div>
-            <p className="text-[10px] uppercase tracking-wider text-zinc-500">Indicadores</p>
-            <div className="flex flex-wrap gap-1.5 mt-1">
-              {activeAlerts.length === 0 ? (
-                <span className="text-zinc-500 text-xs">Nenhum</span>
+            <p className="text-[10px] uppercase tracking-wider text-zinc-500">
+              {hasResults ? 'Resultado últimas partidas' : 'Indicadores'}
+            </p>
+            <div className="flex flex-wrap items-center gap-1.5 mt-1">
+              {hasResults ? (
+                lastMatchResults.map((result, i) => (
+                  <span
+                    key={i}
+                    className="w-3 h-3 rounded-full flex-shrink-0"
+                    title={result === 'V' ? 'Vitória' : result === 'D' ? 'Derrota' : 'Empate'}
+                    style={{
+                      backgroundColor: result === 'V' ? '#22c55e' : result === 'D' ? '#ef4444' : '#e5e7eb',
+                    }}
+                  />
+                ))
+              ) : activeAlerts.length === 0 ? (
+                <span className="text-zinc-500 text-xs">Nenhuma partida salva</span>
               ) : (
                 activeAlerts.map((a, i) =>
                   a.kind === 'lesão' && a.count > 0 ? (

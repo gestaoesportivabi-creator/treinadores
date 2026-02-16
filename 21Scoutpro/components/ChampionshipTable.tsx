@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Calendar, Clock, Users, Trophy, Plus, Save, Trash2, Edit2, RefreshCw, X, Upload, BarChart3, Award, Flag } from 'lucide-react';
 import { Championship } from '../types';
 import { setChampionshipCards } from '../utils/championshipCards';
+import { parseLocalDateOnly, isDateInPast } from '../utils/dateUtils';
 
 export interface ChampionshipMatch {
     id: string;
@@ -352,7 +353,7 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
     const formatMatchDate = (dateValue: string | undefined) => {
         if (!dateValue) return '-';
         try {
-            const date = new Date(dateValue);
+            const date = parseLocalDateOnly(dateValue);
             if (Number.isNaN(date.getTime())) return dateValue;
             return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
         } catch {
@@ -360,18 +361,17 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
         }
     };
     
-    // Separar e ordenar partidas por tempo (passadas vs futuras)
+    // Separar e ordenar partidas por tempo (passadas vs futuras) — datas como local (YYYY-MM-DD)
     const { pastMatches, futureMatches } = useMemo(() => {
         const now = new Date();
-        now.setHours(0, 0, 0, 0); // Zerar hora para comparação apenas de data
+        now.setHours(0, 0, 0, 0);
         
         const past: ChampionshipMatch[] = [];
         const future: ChampionshipMatch[] = [];
         
         matches.forEach(match => {
-            const matchDate = new Date(match.date);
-            matchDate.setHours(0, 0, 0, 0);
-            
+            const matchDate = parseLocalDateOnly(match.date);
+            if (Number.isNaN(matchDate.getTime())) return;
             if (matchDate < now) {
                 past.push(match);
             } else {
@@ -379,16 +379,14 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
             }
         });
         
-        // Ordenar passadas: mais recente primeiro (DESC)
         past.sort((a, b) => {
-            const dateCompare = new Date(b.date).getTime() - new Date(a.date).getTime();
+            const dateCompare = parseLocalDateOnly(b.date).getTime() - parseLocalDateOnly(a.date).getTime();
             if (dateCompare !== 0) return dateCompare;
             return (b.time || '').localeCompare(a.time || '');
         });
         
-        // Ordenar futuras: mais próxima primeiro (ASC)
         future.sort((a, b) => {
-            const dateCompare = new Date(a.date).getTime() - new Date(b.date).getTime();
+            const dateCompare = parseLocalDateOnly(a.date).getTime() - parseLocalDateOnly(b.date).getTime();
             if (dateCompare !== 0) return dateCompare;
             return (a.time || '').localeCompare(b.time || '');
         });
@@ -396,20 +394,20 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
         return { pastMatches: past, futureMatches: future };
     }, [matches]);
     
-    // Aplicar filtro de período às partidas passadas
+    // Aplicar filtro de período às partidas passadas (datas locais)
     const applyTimeFilter = (matchesList: ChampionshipMatch[]) => {
         if (timeFilter === 'all') return matchesList;
         
         const now = new Date();
+        now.setHours(0, 0, 0, 0);
         const daysMap = { '7days': 7, '30days': 30, '90days': 90 };
         const days = daysMap[timeFilter];
-        
         const cutoffDate = new Date(now);
         cutoffDate.setDate(cutoffDate.getDate() - days);
         
         return matchesList.filter(match => {
-            const matchDate = new Date(match.date);
-            return matchDate >= cutoffDate && matchDate <= now;
+            const matchDate = parseLocalDateOnly(match.date);
+            return !Number.isNaN(matchDate.getTime()) && matchDate >= cutoffDate && matchDate <= now;
         });
     };
 
@@ -781,14 +779,12 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
                             ) : (() => {
                                 // Função auxiliar para renderizar uma linha de partida
                                 const renderMatchRow = (match: ChampionshipMatch) => {
-                                    // Tratamento seguro de data
                                     let dateDisplay = '-';
-                                    const isPast = new Date(match.date) < new Date();
-                                    
+                                    const isPast = isDateInPast(match.date);
                                     try {
                                         if (match.date) {
-                                            const date = new Date(match.date);
-                                            if (!isNaN(date.getTime())) {
+                                            const date = parseLocalDateOnly(match.date);
+                                            if (!Number.isNaN(date.getTime())) {
                                                 dateDisplay = date.toLocaleDateString('pt-BR');
                                             }
                                         }

@@ -265,7 +265,9 @@ export default function App() {
     const within24h = diff > 0 && diff <= 24 * 60 * 60 * 1000;
     const hours = within24h ? Math.floor(diff / (1000 * 60 * 60)) : null;
     const minutes = within24h ? Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)) : null;
-    return { ...first, countdown: hours != null && minutes != null ? { hours, minutes } : null };
+    const timeLabel = `${String(first.dateTime.getHours()).padStart(2, '0')}:${String(first.dateTime.getMinutes()).padStart(2, '0')}`;
+    const activityDisplay = first.type === 'jogo' ? 'Jogo' : first.label;
+    return { ...first, countdown: hours != null && minutes != null ? { hours, minutes } : null, activityDisplay, timeLabel };
   }, [overviewStats.nextMatch, schedules, liveNow]);
 
   // Contagens para alertas resumidos (lesões ativas, suspensos, pendurados)
@@ -293,30 +295,36 @@ export default function App() {
     return { injuredCount, suspendedCount, penduradosCount };
   }, [players, overviewStats.nextMatch, championships]);
 
-  // Foco do dia: preparação para próximo jogo ou atividade do dia (treino)
+  // Foco do dia: observações da programação (aba Programação) para o dia de hoje
   const focusOfDay = useMemo(() => {
-    if (nextCommitment?.type === 'jogo') {
-      const opp = overviewStats.nextMatch?.opponent || 'próximo jogo';
-      return `Preparação para ${opp}`;
-    }
-    if (nextCommitment?.type === 'treino') {
-      return nextCommitment.label || 'Treino';
-    }
     const todayStr = liveNow.toISOString().split('T')[0];
     const activeSchedules = (schedules || []).filter(
       s => s && (s.isActive === true || s.isActive === 'TRUE' || s.isActive === 'true') && s.days && Array.isArray(s.days)
     );
-    for (const s of activeSchedules) {
+    const notes: string[] = [];
+    activeSchedules.forEach(s => {
       try {
         const flat = normalizeScheduleDays(s);
-        const today = flat.find((d: { date?: string }) => d.date === todayStr);
-        if (today && (today as { activity?: string }).activity) {
-          return (today as { activity: string }).activity;
-        }
+        flat.filter((d: { date?: string }) => d.date === todayStr).forEach((d: { notes?: string }) => {
+          if (d.notes && String(d.notes).trim()) notes.push(String(d.notes).trim());
+        });
       } catch (_) {}
+    });
+    if (notes.length > 0) return notes.join(' · ');
+    if (nextCommitment?.type === 'jogo') {
+      const opp = overviewStats.nextMatch?.opponent || 'próximo jogo';
+      return `Preparação para ${opp}`;
     }
+    if (nextCommitment?.type === 'treino') return nextCommitment.label || 'Treino';
     return 'Dia sem compromisso registrado';
   }, [nextCommitment, overviewStats.nextMatch, schedules, liveNow]);
+
+  // Últimas 3 partidas salvas (Dados do jogo) para o card Resultado últimas partidas
+  const lastMatchResults = useMemo((): ('V' | 'D' | 'E')[] => {
+    const withResult = (matches || []).filter(m => m && m.teamStats && (m.result === 'V' || m.result === 'D' || m.result === 'E'));
+    const sorted = [...withResult].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    return sorted.slice(0, 3).map(m => m.result);
+  }, [matches]);
 
   // Lesões com início nos últimos 7 dias (para tendência semanal)
   const injuriesLast7Days = useMemo(() => {
@@ -1279,6 +1287,7 @@ export default function App() {
                 nextCommitment={nextCommitmentForToday}
                 focusOfDay={focusOfDay}
                 activeAlerts={activeAlertsForToday}
+                lastMatchResults={lastMatchResults}
               />
 
               {/* 1. Riscos e desfalques */}
@@ -1334,14 +1343,14 @@ export default function App() {
               <footer className="flex flex-wrap gap-3 pt-4 border-t border-zinc-700">
                 <button
                   onClick={() => handleTabChange('general')}
-                  className="flex items-center gap-2 rounded-lg border border-zinc-600 bg-zinc-800 px-4 py-2.5 text-xs font-medium uppercase tracking-wider text-white transition-colors hover:bg-zinc-700"
+                  className="flex items-center gap-2 rounded-lg border border-[#10b981]/50 bg-[#10b981]/15 px-4 py-2.5 text-xs font-medium uppercase tracking-wider text-white transition-colors hover:bg-[#10b981]/25"
                 >
                   <BarChart3 size={14} />
                   Scout Coletivo
                 </button>
                 <button
                   onClick={() => handleTabChange('management-report')}
-                  className="flex items-center gap-2 rounded-lg border border-zinc-600 bg-zinc-800 px-4 py-2.5 text-xs font-medium uppercase tracking-wider text-white transition-colors hover:bg-zinc-700"
+                  className="flex items-center gap-2 rounded-lg border border-[#10b981]/50 bg-[#10b981]/15 px-4 py-2.5 text-xs font-medium uppercase tracking-wider text-white transition-colors hover:bg-[#10b981]/25"
                 >
                   <FileText size={14} />
                   Relatório Gerencial
