@@ -614,18 +614,20 @@ export default function App() {
         console.log('💾 Resposta do salvamento:', saved);
         
         if (saved) {
-          // Atualizar cartões por campeonato (se partida vinculada a campeonato)
-          if (saved.competition && saved.playerStats) {
+          // Atualizar cartões por campeonato (regras de suspensão) usando o payload enviado
+          const competitionName = newMatch.competition || saved.competition;
+          const statsSource = newMatch.playerStats || saved.playerStats;
+          if (competitionName && statsSource) {
             try {
               const savedChampionships = JSON.parse(localStorage.getItem('championships') || '[]');
-              const championship = savedChampionships.find((c: any) => c.name === saved.competition);
+              const championship = savedChampionships.find((c: any) => c.name === competitionName);
               if (championship?.id && championship?.suspensionRules) {
                 const { updateCardsFromMatch } = await import('./utils/championshipCards');
                 const playerStatsForCards: Record<string, { yellowCards?: number; redCards?: number }> = {};
-                Object.entries(saved.playerStats || {}).forEach(([playerId, stats]: [string, any]) => {
+                Object.entries(statsSource).forEach(([playerId, stats]: [string, any]) => {
                   playerStatsForCards[playerId] = {
-                    yellowCards: stats.yellowCards ?? 0,
-                    redCards: stats.redCards ?? 0,
+                    yellowCards: stats.yellowCards ?? stats.cartoesAmarelos ?? 0,
+                    redCards: stats.redCards ?? stats.cartoesVermelhos ?? 0,
                   };
                 });
                 updateCardsFromMatch(championship.id, playerStatsForCards, championship.suspensionRules);

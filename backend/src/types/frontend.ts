@@ -80,6 +80,8 @@ export interface MatchStats {
   tacklesWithoutBall: number;
   tacklesCounterAttack: number;
   transitionErrors: number;
+  yellowCards?: number;
+  redCards?: number;
 }
 
 export interface WeeklySchedule {

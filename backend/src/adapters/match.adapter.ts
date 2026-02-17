@@ -89,6 +89,8 @@ function transformStatsToMatchStats(stat: JogoEstatisticaJogadorDB | JogoEstatis
     tacklesWithoutBall: stat.desarmesSemBola,
     tacklesCounterAttack: stat.desarmesContraAtaque,
     transitionErrors: stat.passesErradosTransicao,
+    yellowCards: stat.cartoesAmarelos,
+    redCards: stat.cartoesVermelhos,
   };
 }
 
