@@ -32,7 +32,18 @@ export const playersController = {
       
       const players = await playersService.getAll(req.tenantInfo!);
       console.log('[PLAYERS_CONTROLLER] getAll - Jogadores retornados:', players.length);
-      return res.json({ success: true, data: players });
+
+      const equipeIds = req.tenantInfo!.equipe_ids ?? [];
+      let reason: string | undefined;
+      if (equipeIds.length === 0) {
+        console.warn('[PLAYERS] equipe_ids vazio - tenant sem equipes');
+        reason = 'no_teams';
+      } else if (players.length === 0) {
+        console.warn('[PLAYERS] equipe_ids presentes mas nenhum jogador vinculado em equipes_jogadores');
+        reason = 'no_players_linked';
+      }
+
+      return res.json({ success: true, data: players, ...(reason && { reason }) });
     } catch (error) {
       if (error instanceof AppError) {
         return res.status(error.statusCode).json({
