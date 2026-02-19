@@ -161,6 +161,12 @@ export interface PostMatchEvent {
   recordedByUserId?: string;
   /** Nome do usuário que registrou a ação (auditoria) */
   recordedByName?: string;
+  /** Método do gol (ex.: Ataque, Contra-ataque) – usado na análise de quartetos */
+  goalMethod?: string;
+  /** true se for gol do adversário */
+  isOpponentGoal?: boolean;
+  /** Falta cometida por nossa equipe ('for') ou pelo adversário ('against') */
+  foulTeam?: 'for' | 'against';
 }
 
 export interface MatchRecord {

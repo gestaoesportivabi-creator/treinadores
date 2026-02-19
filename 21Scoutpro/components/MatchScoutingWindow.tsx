@@ -658,6 +658,11 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
         postEvent.recordedByUserId = recordedByUser.id;
         postEvent.recordedByName = recordedByUser.name;
       }
+      if (action === 'goal') {
+        postEvent.goalMethod = e.goalMethod ?? e.subtipo;
+        postEvent.isOpponentGoal = e.isOpponentGoal;
+      }
+      if (action === 'falta') postEvent.foulTeam = e.foulTeam;
       postMatchEventLog.push(postEvent);
     }
 
