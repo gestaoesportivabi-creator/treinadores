@@ -29,7 +29,7 @@ import { DashboardSquadAvailability } from './components/DashboardSquadAvailabil
 import { DashboardNextGameCard } from './components/DashboardNextGameCard';
 import { DashboardConditionCard } from './components/DashboardConditionCard';
 import { SPORT_CONFIGS } from './constants';
-import { BarChart3, FileText, Clock, Trophy, Ambulance, UserX, UserCheck } from 'lucide-react';
+import { BarChart3, FileText, Clock, Trophy, Ambulance, UserX, UserCheck, Menu } from 'lucide-react';
 import { User, MatchRecord, Player, PhysicalAssessment, WeeklySchedule, StatTargets, PlayerTimeControl, Team, Championship } from './types';
 import { playersApi, matchesApi, assessmentsApi, schedulesApi, competitionsApi, statTargetsApi, timeControlsApi, championshipMatchesApi, teamsApi } from './services/api';
 import { normalizeScheduleDays } from './utils/scheduleUtils';
@@ -78,6 +78,24 @@ const SLIDES = [
     }
 ];
 
+const TAB_LABELS: Record<string, string> = {
+  dashboard: 'Visão Geral',
+  team: 'Elenco',
+  schedule: 'Programação',
+  championship: 'Tabela de Campeonato',
+  table: 'Dados do Jogo',
+  general: 'Scout Coletivo',
+  individual: 'Scout Individual',
+  ranking: 'Ranking',
+  physical: 'Monitoramento Fisiológico',
+  pse: 'PSE',
+  psr: 'PSR',
+  'qualidade-sono': 'Qualidade de sono',
+  assessment: 'Avaliação Física',
+  academia: 'Musculação',
+  settings: 'Configurações',
+};
+
 export default function App() {
   // Route state: 'landing' | 'login' | 'register' | 'app'
   const [currentRoute, setCurrentRoute] = useState<'landing' | 'login' | 'register' | 'app'>('landing');
@@ -87,6 +105,7 @@ export default function App() {
   
   const [activeTab, setActiveTab] = useState('dashboard');
   const [scoutWindowOpen, setScoutWindowOpen] = useState(false); // true quando a janela Scout da Partida está aberta (para esconder a sidebar)
+  const [sidebarOpen, setSidebarOpen] = useState(false); // drawer da sidebar em mobile
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
@@ -532,6 +551,21 @@ export default function App() {
         return () => clearInterval(interval);
     }
   }, [activeTab]);
+
+  // Reset sidebar drawer when viewport becomes desktop (>= md)
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)');
+    const handler = () => { if (mq.matches) setSidebarOpen(false); };
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
+  // Escape key closes sidebar drawer
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setSidebarOpen(false); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   const handleLogin = (user: User) => {
       console.log('🔐 handleLogin chamado com usuário:', user);
@@ -1373,22 +1407,54 @@ export default function App() {
 
   // Rota 'app' - renderizar com Sidebar (escondida quando a janela Scout da Partida está aberta)
   return (
-    <div className="flex min-h-screen bg-black text-zinc-100 font-sans">
+    <div className="flex min-h-screen bg-black text-zinc-100 font-sans min-w-0">
       {!scoutWindowOpen && (
-        <Sidebar 
-          activeTab={activeTab} 
-          setActiveTab={handleTabChange} 
-          onLogout={() => {
-            console.log('👋 Logout - Voltando para home');
-            localStorage.removeItem('token');
-            setCurrentUser(null);
-            setCurrentRoute('landing');
-          }}
-          currentUser={currentUser}
-        />
+        <>
+          {/* Backdrop do drawer (apenas mobile) */}
+          {sidebarOpen && (
+            <button
+              type="button"
+              className="fixed inset-0 bg-black/60 z-40 md:hidden"
+              onClick={() => setSidebarOpen(false)}
+              aria-label="Fechar menu"
+            />
+          )}
+          <Sidebar
+            activeTab={activeTab}
+            setActiveTab={handleTabChange}
+            onLogout={() => {
+              console.log('👋 Logout - Voltando para home');
+              localStorage.removeItem('token');
+              setCurrentUser(null);
+              setCurrentRoute('landing');
+            }}
+            currentUser={currentUser}
+            open={sidebarOpen}
+            onClose={() => setSidebarOpen(false)}
+            onNavigate={() => setSidebarOpen(false)}
+          />
+        </>
       )}
-      <main className={`flex-1 p-6 overflow-y-auto h-screen scroll-smooth print:ml-0 print:p-0 ${scoutWindowOpen ? 'ml-0' : 'ml-64'}`}>
-        {isLoading ? <LoadingMessage activeTab={activeTab} /> : renderContent()}
+      <main className={`flex-1 flex flex-col overflow-y-auto h-screen scroll-smooth print:ml-0 print:p-0 min-w-0 ${scoutWindowOpen ? 'ml-0' : 'ml-0 md:ml-64'}`}>
+        {!scoutWindowOpen && (
+          <header className="md:hidden shrink-0 flex items-center gap-3 px-4 py-3 bg-black border-b border-zinc-900">
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(true)}
+              className="p-2 -ml-2 text-zinc-400 hover:text-white hover:bg-zinc-900 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[#00f0ff] focus:ring-offset-2 focus:ring-offset-black"
+              aria-label="Abrir menu"
+              aria-expanded={sidebarOpen}
+            >
+              <Menu size={24} />
+            </button>
+            <span className="font-bold text-white truncate text-sm uppercase tracking-wider">
+              {TAB_LABELS[activeTab] ?? activeTab}
+            </span>
+          </header>
+        )}
+        <div className="flex-1 p-6 min-w-0 print:p-0">
+          {isLoading ? <LoadingMessage activeTab={activeTab} /> : renderContent()}
+        </div>
       </main>
     </div>
   );

@@ -177,3 +177,10 @@ html {
   text-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
 }
 
+/* Sidebar drawer: sem animação para quem prefere reduzir movimento */
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-drawer {
+    transition: none;
+  }
+}
+
