@@ -396,13 +396,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
         });
     };
 
-    const openAddForPosition = (pos: Position) => {
-        resetForm();
-        setPosition(pos);
-        setIsFormOpen(true);
-        setEditMode(false);
-    };
-
+    
     const PlayerCard = ({ player }: { player: Player }) => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -629,7 +623,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
                         }}
                         className="flex items-center gap-2 bg-[#10b981] hover:bg-[#34d399] text-white px-6 py-3 font-bold uppercase text-xs rounded-xl transition-colors shadow-[0_0_15px_rgba(16,185,129,0.4)]"
                     >
-                        {isFormOpen ? 'Cancelar' : <><Plus size={16} /> Novo Atleta</>}
+                        {isFormOpen ? 'Cancelar' : <><Plus size={16} /> Novo atleta</>}
                     </button>
                 </div>
             </div>
@@ -1208,19 +1202,12 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
                 return (
                     <div key={`expanded-${pos}`} className="animate-fade-in">
                         <div className={`bg-zinc-950 rounded-3xl border-2 ${style.border} p-6`}>
-                            <div className="flex items-center justify-between mb-6">
+                            <div className="mb-6">
                                 <h3 className="font-black text-white uppercase tracking-tighter flex items-center gap-3 text-2xl">
                                     <Shirt size={28} className="text-[#10b981]" />
                                     {pos}
                                     <span className="text-lg text-white font-normal normal-case">({list.length} atletas)</span>
                                 </h3>
-                                <button
-                                    type="button"
-                                    onClick={() => openAddForPosition(pos as Position)}
-                                    className="flex items-center gap-2 bg-[#10b981] hover:bg-[#34d399] text-white px-6 py-3 font-bold uppercase text-xs rounded-xl transition-colors shadow-[0_0_15px_rgba(16,185,129,0.4)]"
-                                >
-                                    <Plus size={16} /> Cadastrar atleta em {pos}
-                                </button>
                             </div>
                             
                             {list.length > 0 ? (
@@ -1233,7 +1220,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
                                 <div className="text-center py-12">
                                     <Shirt size={64} className="text-zinc-700 mx-auto mb-4" />
                                     <p className="text-zinc-500 text-lg font-bold uppercase mb-2">Nenhum atleta cadastrado em {pos}</p>
-                                    <p className="text-zinc-600 text-sm">Clique no botão acima para cadastrar o primeiro atleta desta posição.</p>
+                                    <p className="text-zinc-600 text-sm">Use o botão &quot;Novo atleta&quot; no topo da página para cadastrar.</p>
                                 </div>
                             )}
                         </div>

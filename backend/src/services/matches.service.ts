@@ -4,6 +4,7 @@
  */
 
 import { TenantInfo } from '../utils/tenant.helper';
+import type { TransactionClient } from '../utils/transactionWithTenant';
 import { matchesRepository } from '../repositories/matches.repository';
 import { playersRepository } from '../repositories/players.repository';
 import { transformMatchToFrontend } from '../adapters/match.adapter';
@@ -11,95 +12,54 @@ import { MatchRecord } from '../types/frontend';
 import { NotFoundError } from '../utils/errors';
 
 export const matchesService = {
-  /**
-   * Buscar todos os jogos do tenant
-   */
-  async getAll(tenantInfo: TenantInfo): Promise<MatchRecord[]> {
-    // Buscar jogos do banco
-    const jogos = await matchesRepository.findAll(tenantInfo);
-    
-    if (jogos.length === 0) {
-      return [];
-    }
+  async getAll(tenantInfo: TenantInfo, tx?: TransactionClient): Promise<MatchRecord[]> {
+    const jogos = await matchesRepository.findAll(tenantInfo, tx);
+    if (jogos.length === 0) return [];
 
-    // Buscar estatísticas para cada jogo
     const matches: MatchRecord[] = [];
-    
     for (const jogo of jogos) {
       const [estatisticasEquipe, estatisticasJogadores] = await Promise.all([
-        matchesRepository.findEstatisticasEquipe(jogo.id),
-        matchesRepository.findEstatisticasJogadores(jogo.id),
+        matchesRepository.findEstatisticasEquipe(jogo.id, tx),
+        matchesRepository.findEstatisticasJogadores(jogo.id, tx),
       ]);
-
       if (estatisticasEquipe) {
         matches.push(
-          transformMatchToFrontend(
-            jogo as any,
-            estatisticasJogadores as any,
-            estatisticasEquipe as any
-          )
+          transformMatchToFrontend(jogo as any, estatisticasJogadores as any, estatisticasEquipe as any)
         );
       }
     }
-
     return matches;
   },
 
-  /**
-   * Buscar jogo por ID
-   */
-  async getById(id: string, tenantInfo: TenantInfo): Promise<MatchRecord> {
-    const jogo = await matchesRepository.findById(id, tenantInfo);
-    
-    if (!jogo) {
-      throw new NotFoundError('Jogo', id);
-    }
+  async getById(id: string, tenantInfo: TenantInfo, tx?: TransactionClient): Promise<MatchRecord> {
+    const jogo = await matchesRepository.findById(id, tenantInfo, tx);
+    if (!jogo) throw new NotFoundError('Jogo', id);
 
-    // Buscar estatísticas
     const [estatisticasEquipe, estatisticasJogadores] = await Promise.all([
-      matchesRepository.findEstatisticasEquipe(id),
-      matchesRepository.findEstatisticasJogadores(id),
+      matchesRepository.findEstatisticasEquipe(id, tx),
+      matchesRepository.findEstatisticasJogadores(id, tx),
     ]);
+    if (!estatisticasEquipe) throw new NotFoundError('Estatísticas do jogo', id);
 
-    if (!estatisticasEquipe) {
-      throw new NotFoundError('Estatísticas do jogo', id);
-    }
-
-    return transformMatchToFrontend(
-      jogo as any,
-      estatisticasJogadores as any,
-      estatisticasEquipe as any
-    );
+    return transformMatchToFrontend(jogo as any, estatisticasJogadores as any, estatisticasEquipe as any);
   },
 
-  /**
-   * Criar novo jogo
-   * Aceita payload do frontend (MatchRecord) ou formato legado (equipeId, adversario, data)
-   */
-  async create(data: any, tenantInfo: TenantInfo): Promise<MatchRecord> {
+  async create(data: any, tenantInfo: TenantInfo, tx?: TransactionClient): Promise<MatchRecord> {
     const equipeIds = tenantInfo.equipe_ids || [];
-    if (equipeIds.length === 0) {
-      throw new NotFoundError('Equipe', 'Nenhuma equipe encontrada para o tenant');
-    }
+    if (equipeIds.length === 0) throw new NotFoundError('Equipe', 'Nenhuma equipe encontrada para o tenant');
 
-    // Adapter: aceitar payload do frontend (opponent, date, goalsFor, goalsAgainst, teamStats, playerStats)
     const equipeId = data.equipeId || equipeIds[0];
     const adversario = data.adversario ?? data.opponent ?? '';
     let dataDate: Date = data.data ?? (typeof data.date === 'string' ? new Date(data.date) : data.date);
-    if (!dataDate || !(dataDate instanceof Date) || isNaN(dataDate.getTime())) {
-      dataDate = new Date();
-    }
+    if (!dataDate || !(dataDate instanceof Date) || isNaN(dataDate.getTime())) dataDate = new Date();
     const golsPro = data.golsPro ?? data.goalsFor ?? 0;
     const golsContra = data.golsContra ?? data.goalsAgainst ?? 0;
 
-    if (!equipeIds.includes(equipeId)) {
-      throw new NotFoundError('Equipe', equipeId);
-    }
+    if (!equipeIds.includes(equipeId)) throw new NotFoundError('Equipe', equipeId);
 
     const teamStats = data.teamStats || {};
     const playerStats = data.playerStats || {};
 
-    // Criar jogo com JSON fields
     const jogo = await matchesRepository.create({
       equipeId,
       adversario,
@@ -115,9 +75,8 @@ export const matchesService = {
       playerRelationships: data.playerRelationships,
       lineup: data.lineup,
       substitutionHistory: data.substitutionHistory,
-    });
+    }, tx);
 
-    // Persistir estatísticas da equipe (teamStats do frontend)
     await matchesRepository.upsertEstatisticasEquipe(jogo.id, {
       minutosJogados: 40,
       gols: teamStats.goals ?? golsPro,
@@ -138,10 +97,9 @@ export const matchesService = {
       golsMarcadosBolaParada: 0,
       golsSofridosJogoAberto: 0,
       golsSofridosBolaParada: 0,
-    });
+    }, tx);
 
-    // Só persistir estatísticas de jogadores que existem no banco e pertencem ao tenant (evita FK violation)
-    const jogadoresTenant = await playersRepository.findAll(tenantInfo);
+    const jogadoresTenant = await playersRepository.findAll(tenantInfo, tx);
     const validJogadorIds = new Set(jogadoresTenant.map((j) => j.id));
     for (const [jogadorId, stats] of Object.entries(playerStats)) {
       if (!validJogadorIds.has(jogadorId.trim())) continue;
@@ -166,12 +124,12 @@ export const matchesService = {
         golsMarcadosBolaParada: 0,
         golsSofridosJogoAberto: 0,
         golsSofridosBolaParada: 0,
-      });
+      }, tx);
     }
 
     const [estatisticasEquipe, estatisticasJogadores] = await Promise.all([
-      matchesRepository.findEstatisticasEquipe(jogo.id),
-      matchesRepository.findEstatisticasJogadores(jogo.id),
+      matchesRepository.findEstatisticasEquipe(jogo.id, tx),
+      matchesRepository.findEstatisticasJogadores(jogo.id, tx),
     ]);
 
     return transformMatchToFrontend(
@@ -181,47 +139,24 @@ export const matchesService = {
     );
   },
 
-  /**
-   * Atualizar jogo
-   */
-  async update(id: string, data: Partial<any>, tenantInfo: TenantInfo): Promise<MatchRecord> {
-    // Verificar se jogo existe e pertence ao tenant
-    const existing = await matchesRepository.findById(id, tenantInfo);
-    if (!existing) {
-      throw new NotFoundError('Jogo', id);
-    }
+  async update(id: string, data: Partial<any>, tenantInfo: TenantInfo, tx?: TransactionClient): Promise<MatchRecord> {
+    const existing = await matchesRepository.findById(id, tenantInfo, tx);
+    if (!existing) throw new NotFoundError('Jogo', id);
 
-    // Atualizar
-    const jogo = await matchesRepository.update(id, data);
-
-    // Buscar estatísticas
+    const jogo = await matchesRepository.update(id, data, tx);
     const [estatisticasEquipe, estatisticasJogadores] = await Promise.all([
-      matchesRepository.findEstatisticasEquipe(id),
-      matchesRepository.findEstatisticasJogadores(id),
+      matchesRepository.findEstatisticasEquipe(id, tx),
+      matchesRepository.findEstatisticasJogadores(id, tx),
     ]);
+    if (!estatisticasEquipe) throw new NotFoundError('Estatísticas do jogo', id);
 
-    if (!estatisticasEquipe) {
-      throw new NotFoundError('Estatísticas do jogo', id);
-    }
-
-    return transformMatchToFrontend(
-      jogo as any,
-      estatisticasJogadores as any,
-      estatisticasEquipe as any
-    );
+    return transformMatchToFrontend(jogo as any, estatisticasJogadores as any, estatisticasEquipe as any);
   },
 
-  /**
-   * Deletar jogo
-   */
-  async delete(id: string, tenantInfo: TenantInfo): Promise<boolean> {
-    // Verificar se jogo existe e pertence ao tenant
-    const existing = await matchesRepository.findById(id, tenantInfo);
-    if (!existing) {
-      throw new NotFoundError('Jogo', id);
-    }
-
-    await matchesRepository.delete(id);
+  async delete(id: string, tenantInfo: TenantInfo, tx?: TransactionClient): Promise<boolean> {
+    const existing = await matchesRepository.findById(id, tenantInfo, tx);
+    if (!existing) throw new NotFoundError('Jogo', id);
+    await matchesRepository.delete(id, tx);
     return true;
   },
 };

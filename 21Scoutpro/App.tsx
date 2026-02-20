@@ -96,6 +96,40 @@ const TAB_LABELS: Record<string, string> = {
   settings: 'Configurações',
 };
 
+/** Recursos necessários por aba (carregamento sob demanda) */
+const TAB_REQUIRED_RESOURCES: Record<string, string[]> = {
+  dashboard: ['players', 'matches', 'schedules', 'championshipMatches', 'championships'],
+  team: ['players'],
+  schedule: ['schedules'],
+  championship: ['championshipMatches', 'competitions', 'championships', 'matches'],
+  table: ['players', 'competitions', 'matches', 'championshipMatches', 'schedules', 'teams'],
+  general: ['matches', 'players'],
+  individual: ['matches', 'players', 'timeControls'],
+  ranking: ['players', 'matches'],
+  physical: ['matches', 'players', 'schedules', 'championshipMatches'],
+  assessment: ['players', 'assessments'],
+  video: ['matches', 'players'],
+  pse: ['schedules', 'championshipMatches', 'players'],
+  psr: ['schedules', 'championshipMatches', 'players'],
+  'qualidade-sono': ['schedules', 'championshipMatches', 'players'],
+  academia: ['schedules', 'players'],
+  'management-report': ['players', 'matches', 'assessments', 'timeControls'],
+  settings: ['statTargets'],
+};
+
+const INITIAL_LOADED_RESOURCES: Record<string, boolean> = {
+  players: false,
+  matches: false,
+  teams: false,
+  schedules: false,
+  competitions: false,
+  championshipMatches: false,
+  championships: false,
+  assessments: false,
+  statTargets: false,
+  timeControls: false,
+};
+
 export default function App() {
   // Route state: 'landing' | 'login' | 'register' | 'app'
   const [currentRoute, setCurrentRoute] = useState<'landing' | 'login' | 'register' | 'app'>('landing');
@@ -120,6 +154,9 @@ export default function App() {
   const [championshipMatches, setChampionshipMatches] = useState<ChampionshipMatch[]>([]);
   const [championships, setChampionships] = useState<Championship[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
+
+  /** Rastreia quais recursos já foram carregados (evita recarregar ao trocar de aba) */
+  const [loadedResources, setLoadedResources] = useState<Record<string, boolean>>(() => ({ ...INITIAL_LOADED_RESOURCES }));
   
   // Stats Targets State
   const [statTargets, setStatTargets] = useState<StatTargets>({
@@ -385,162 +422,204 @@ export default function App() {
     return `${dateLabel} • ${timeLabel}`;
   };
 
-  // Carregar dados da API quando o componente monta E quando o usuário faz login
+  // --- Funções de carregamento por recurso (sob demanda) ---
+  const loadPlayers = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      const apiPlayers = await playersApi.getAll().catch(err => { console.error('❌ Erro ao carregar players:', err); return []; });
+      const localPlayers = JSON.parse(localStorage.getItem('scout21_players_local') || '[]');
+      const apiIds = new Set(apiPlayers.map(p => p.id));
+      const localOnly = localPlayers.filter((p: Player) => !apiIds.has(p.id));
+      setPlayers([...apiPlayers, ...localOnly]);
+      setLoadedResources(prev => ({ ...prev, players: true }));
+    } catch {
+      const localPlayers = JSON.parse(localStorage.getItem('scout21_players_local') || '[]');
+      setPlayers(localPlayers);
+      setLoadedResources(prev => ({ ...prev, players: true }));
+    }
+  };
+
+  const loadMatches = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      const matchesData = await matchesApi.getAll().catch(err => { console.error('❌ Erro ao carregar matches:', err); return []; });
+      const validMatches = (matchesData as MatchRecord[]).filter(m => m && m.teamStats);
+      setMatches(validMatches);
+      setLoadedResources(prev => ({ ...prev, matches: true }));
+    } catch {
+      setMatches([]);
+      setLoadedResources(prev => ({ ...prev, matches: true }));
+    }
+  };
+
+  const loadTeams = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      const teamsData = await teamsApi.getAll().catch(err => { console.error('❌ Erro ao carregar teams:', err); return []; });
+      setTeams(teamsData as Team[]);
+      setLoadedResources(prev => ({ ...prev, teams: true }));
+    } catch {
+      setTeams([]);
+      setLoadedResources(prev => ({ ...prev, teams: true }));
+    }
+  };
+
+  const loadSchedules = () => {
+    try {
+      const localSchedules = JSON.parse(localStorage.getItem('scout21_schedules_local') || '[]');
+      const validSchedules = localSchedules
+        .filter((s: WeeklySchedule) => s && s.id)
+        .map((s: WeeklySchedule) => ({
+          ...s,
+          days: Array.isArray(s.days) ? s.days : (s.days ? [s.days] : []),
+          isActive: s.isActive === true || s.isActive === 'TRUE' || s.isActive === 'true'
+        }))
+        .sort((a: WeeklySchedule, b: WeeklySchedule) => {
+          if (a.isActive && !b.isActive) return -1;
+          if (!a.isActive && b.isActive) return 1;
+          return (b.createdAt || 0) - (a.createdAt || 0);
+        });
+      setSchedules(validSchedules);
+      setLoadedResources(prev => ({ ...prev, schedules: true }));
+    } catch {
+      setSchedules([]);
+      setLoadedResources(prev => ({ ...prev, schedules: true }));
+    }
+  };
+
+  const loadCompetitions = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      const data = await competitionsApi.getAll().catch(err => { console.error('❌ Erro ao carregar competitions:', err); return []; });
+      setCompetitions(Array.isArray(data) && data.length > 0 ? data : []);
+      setLoadedResources(prev => ({ ...prev, competitions: true }));
+    } catch {
+      setCompetitions([]);
+      setLoadedResources(prev => ({ ...prev, competitions: true }));
+    }
+  };
+
+  const loadChampionshipMatches = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      const data = await championshipMatchesApi.getAll().catch(err => { console.error('❌ Erro ao carregar championshipMatches:', err); return []; });
+      setChampionshipMatches(Array.isArray(data) && data.length > 0 ? data : []);
+      setLoadedResources(prev => ({ ...prev, championshipMatches: true }));
+    } catch {
+      setChampionshipMatches([]);
+      setLoadedResources(prev => ({ ...prev, championshipMatches: true }));
+    }
+  };
+
+  const loadChampionships = () => {
+    const saved = JSON.parse(localStorage.getItem('championships') || '[]');
+    setChampionships(saved);
+    setLoadedResources(prev => ({ ...prev, championships: true }));
+  };
+
+  const loadAssessments = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      const data = await assessmentsApi.getAll().catch(err => { console.error('❌ Erro ao carregar assessments:', err); return []; });
+      setAssessments(data as PhysicalAssessment[]);
+      setLoadedResources(prev => ({ ...prev, assessments: true }));
+    } catch {
+      setAssessments([]);
+      setLoadedResources(prev => ({ ...prev, assessments: true }));
+    }
+  };
+
+  const loadStatTargets = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      const data = await statTargetsApi.getAll().catch(err => { console.error('❌ Erro ao carregar statTargets:', err); return []; });
+      if (Array.isArray(data) && data.length > 0 && data[0]) setStatTargets(data[0] as StatTargets);
+      setLoadedResources(prev => ({ ...prev, statTargets: true }));
+    } catch {
+      setLoadedResources(prev => ({ ...prev, statTargets: true }));
+    }
+  };
+
+  const loadTimeControls = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setTimeControls([]);
+        setLoadedResources(prev => ({ ...prev, timeControls: true }));
+        return;
+      }
+      const data = await timeControlsApi.getAll().catch(() => []);
+      setTimeControls(Array.isArray(data) ? data : []);
+      setLoadedResources(prev => ({ ...prev, timeControls: true }));
+    } catch {
+      setTimeControls([]);
+      setLoadedResources(prev => ({ ...prev, timeControls: true }));
+    }
+  };
+
+  const loadResource = (resource: string): Promise<void> | void => {
+    switch (resource) {
+      case 'players': return loadPlayers();
+      case 'matches': return loadMatches();
+      case 'teams': return loadTeams();
+      case 'schedules': return loadSchedules();
+      case 'competitions': return loadCompetitions();
+      case 'championshipMatches': return loadChampionshipMatches();
+      case 'championships': return loadChampionships();
+      case 'assessments': return loadAssessments();
+      case 'statTargets': return loadStatTargets();
+      case 'timeControls': return loadTimeControls();
+      default: return undefined;
+    }
+  };
+
+  // Carregamento inicial: apenas dados do dashboard (ao fazer login)
   useEffect(() => {
-    // Só carregar dados se o usuário estiver logado
     if (!currentUser) {
       console.log('⏸️ Usuário não logado, pulando carregamento de dados');
-      // NÃO setar isInitializing(false) aqui — o efeito de restauração de sessão cuida disso.
-      // Setar aqui causava uma corrida: isInitializing ficava false antes do fetch do profile completar,
-      // fazendo o efeito de URL empurrar "/" antes da sessão ser restaurada.
       return;
     }
-    
-    const loadData = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        console.log('🔄 Carregando dados da API...');
-        console.log('👤 Usuário logado:', currentUser?.email);
-        console.log('🔑 Token presente:', token ? 'SIM' : 'NÃO');
-        
-        if (!token) {
-          console.error('❌ Token não encontrado no localStorage!');
-          return;
-        }
-        
-        // FASE 1: Carregar dados críticos primeiro (players, matches, teams)
-        console.log('🚀 Fase 1: Carregando dados críticos...');
-        const [playersData, matchesData, teamsData] = await Promise.allSettled([
-          playersApi.getAll().catch(err => { console.error('❌ Erro ao carregar players:', err); return []; }),
-          matchesApi.getAll().catch(err => { console.error('❌ Erro ao carregar matches:', err); return []; }),
-          teamsApi.getAll().catch(err => { console.error('❌ Erro ao carregar teams:', err); return []; })
-        ]).then(results => results.map(r => r.status === 'fulfilled' ? r.value : []));
-
-        // Atualizar UI: merge players da API com players salvos localmente (fallback)
-        const apiPlayers = playersData as Player[];
-        const localPlayers = JSON.parse(localStorage.getItem('scout21_players_local') || '[]');
-        const apiIds = new Set(apiPlayers.map(p => p.id));
-        const localOnly = localPlayers.filter((p: Player) => !apiIds.has(p.id));
-        setPlayers([...apiPlayers, ...localOnly]);
-        
-        // Validar matches antes de definir - garantir que todos tenham teamStats válido
-        const validMatches = (matchesData as MatchRecord[]).filter(m => {
-          if (!m || !m.teamStats) {
-            console.warn('⚠️ Match inválido removido ao carregar:', m);
-            return false;
-          }
-          return true;
-        });
-        setMatches(validMatches);
-        setTeams(teamsData as Team[]);
-        
-        console.log('✅ Fase 1 concluída:', {
-          players: playersData.length,
-          matches: validMatches.length,
-          teams: teamsData.length,
-        });
-
-        // FASE 2: Carregar dados importantes em background (não bloqueia UI)
-        // Programação: carregar apenas do localStorage (salvamento local)
-        setTimeout(async () => {
-          console.log('🚀 Fase 2: Carregando dados importantes...');
-          const localSchedules = JSON.parse(localStorage.getItem('scout21_schedules_local') || '[]');
-          const validSchedules = localSchedules
-            .filter((s: WeeklySchedule) => s && s.id)
-            .map((s: WeeklySchedule) => ({
-              ...s,
-              days: Array.isArray(s.days) ? s.days : (s.days ? [s.days] : []),
-              isActive: s.isActive === true || s.isActive === 'TRUE' || s.isActive === 'true'
-            }))
-            .sort((a: WeeklySchedule, b: WeeklySchedule) => {
-              if (a.isActive && !b.isActive) return -1;
-              if (!a.isActive && b.isActive) return 1;
-              const aCreated = a.createdAt || 0;
-              const bCreated = b.createdAt || 0;
-              return bCreated - aCreated;
-            });
-          setSchedules(validSchedules);
-
-          const [competitionsData, championshipMatchesData] = await Promise.allSettled([
-            competitionsApi.getAll().catch(err => { console.error('❌ Erro ao carregar competitions:', err); return []; }),
-            championshipMatchesApi.getAll().catch(err => { console.error('❌ Erro ao carregar championshipMatches:', err); return []; })
-          ]).then(results => results.map(r => r.status === 'fulfilled' ? r.value : []));
-          
-          setCompetitions((competitionsData as string[]).length > 0 ? (competitionsData as string[]) : []);
-          setChampionshipMatches((championshipMatchesData as ChampionshipMatch[]).length > 0 ? (championshipMatchesData as ChampionshipMatch[]) : []);
-          
-          console.log('✅ Fase 2 concluída:', {
-            schedules: validSchedules.length,
-            competitions: (competitionsData as string[]).length,
-            championshipMatches: (championshipMatchesData as ChampionshipMatch[]).length,
-          });
-        }, 100);
-
-        // FASE 3: Carregar dados secundários em background
-        setTimeout(async () => {
-          console.log('🚀 Fase 3: Carregando dados secundários...');
-          const [assessmentsData, statTargetsData] = await Promise.allSettled([
-            assessmentsApi.getAll().catch(err => { console.error('❌ Erro ao carregar assessments:', err); return []; }),
-            statTargetsApi.getAll().catch(err => { console.error('❌ Erro ao carregar statTargets:', err); return []; })
-          ]).then(results => results.map(r => r.status === 'fulfilled' ? r.value : []));
-
-          setAssessments(assessmentsData as PhysicalAssessment[]);
-          
-          if ((statTargetsData as StatTargets[]).length > 0 && (statTargetsData as StatTargets[])[0]) {
-            setStatTargets((statTargetsData as StatTargets[])[0]);
-          }
-          
-          console.log('✅ Fase 3 concluída:', {
-            assessments: assessmentsData.length,
-            statTargets: statTargetsData.length,
-          });
-        }, 300);
-        
-        // TimeControls não tem getAll(), será carregado por jogo quando necessário
-        setTimeControls([]);
-        
-        // Campeonatos: carregar do localStorage
-        const savedChampionships = JSON.parse(localStorage.getItem('championships') || '[]');
-        setChampionships(savedChampionships);
-        
-        console.log('✅ Dados críticos carregados com sucesso!');
-      } catch (error) {
-        console.error('❌ Erro ao carregar dados da API:', error);
-        // Fallback: carregar players e schedules salvos localmente
-        const localPlayers = JSON.parse(localStorage.getItem('scout21_players_local') || '[]');
-        const localSchedules = JSON.parse(localStorage.getItem('scout21_schedules_local') || '[]');
-        setPlayers(localPlayers);
-        setMatches([]);
-        setAssessments([]);
-        setSchedules(localSchedules);
-        setCompetitions([]);
-        setChampionshipMatches([]);
-        console.warn('⚠️ Erro ao carregar dados da API. Sistema iniciado sem dados.');
-      }
+    const token = localStorage.getItem('token');
+    if (!token) {
+      console.error('❌ Token não encontrado no localStorage!');
+      return;
+    }
+    console.log('🔄 Carregando dados do dashboard...');
+    const loadDashboard = async () => {
+      await Promise.all([
+        loadPlayers(),
+        loadMatches(),
+        loadChampionshipMatches(),
+      ]);
+      loadSchedules();
+      loadChampionships();
     };
+    loadDashboard();
+  }, [currentUser]);
 
-    loadData();
-  }, [currentUser]); // Executar quando o usuário fizer login ou mudar
-
-  // Clean up old schedules (older than 30 days) on mount
+  // Clean up old schedules (older than 30 days) when schedules have been loaded
   useEffect(() => {
+    if (!loadedResources.schedules) return;
     const thirtyDaysInMs = 30 * 24 * 60 * 60 * 1000;
     const now = Date.now();
-    
     setSchedules(prev => {
         const validSchedules = prev.filter(s => {
-            // If legacy schedule without createdAt, keep it or default to now (let's keep it to be safe)
-            const created = s.createdAt || now; 
+            const created = s.createdAt || now;
             return (now - created) < thirtyDaysInMs;
         });
-        
-        // Update local storage if items were removed
         if (validSchedules.length !== prev.length) {
             console.log("Auto-deleted expired schedules");
         }
         return validSchedules;
     });
-  }, []);
+  }, [loadedResources.schedules]);
 
   // Carousel Timer
   useEffect(() => {
@@ -576,12 +655,12 @@ export default function App() {
   };
 
   const handleTabChange = (tab: string) => {
-      setIsLoading(true);
+      const resources = TAB_REQUIRED_RESOURCES[tab] ?? [];
+      const missing = resources.filter(r => !loadedResources[r]);
       setActiveTab(tab);
-      // Simulate loading time
-      setTimeout(() => {
-          setIsLoading(false);
-      }, 500);
+      if (missing.length === 0) return;
+      setIsLoading(true);
+      Promise.all(missing.map(r => Promise.resolve(loadResource(r)))).then(() => setIsLoading(false));
   };
 
   const handleUpdateUser = async (updatedData: Partial<User>) => {
@@ -1299,10 +1378,6 @@ export default function App() {
               countdown: nextCommitment.countdown,
             }
           : null;
-        const activeAlertsForToday: import('./components/DashboardTodayBlock').ActiveAlert[] = [];
-        if (dashboardAlertCounts.injuredCount > 0) activeAlertsForToday.push({ kind: 'lesão', count: dashboardAlertCounts.injuredCount });
-        if (dashboardAlertCounts.suspendedCount > 0) activeAlertsForToday.push({ kind: 'suspenso', count: dashboardAlertCounts.suspendedCount });
-        if (dashboardAlertCounts.penduradosCount > 0) activeAlertsForToday.push({ kind: 'pendurado', count: dashboardAlertCounts.penduradosCount });
 
         return (
           <div className="h-full w-full rounded-lg border border-zinc-800 bg-zinc-950 p-6 md:p-8 shadow-sm animate-fade-in">
@@ -1318,11 +1393,11 @@ export default function App() {
                 <p className="text-zinc-500 text-sm mt-1">Indicadores e status operacional do clube.</p>
               </header>
 
-              {/* 1. Bloco fixo HOJE NO CLUBE */}
+              {/* Bloco Status operacional do dia (compromisso, tempo, foco, resultado últimas partidas) */}
               <DashboardTodayBlock
                 nextCommitment={nextCommitmentForToday}
                 focusOfDay={focusOfDay}
-                activeAlerts={activeAlertsForToday}
+                activeAlerts={[]}
                 lastMatchResults={lastMatchResults}
               />
 
