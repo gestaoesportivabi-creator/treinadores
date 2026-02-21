@@ -413,32 +413,35 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
 
     return (
         <div className="space-y-6 animate-fade-in pb-12">
-            <div className="bg-black p-6 rounded-3xl border border-zinc-900 shadow-lg">
-                <div className="flex items-center justify-between mb-6">
-                    <div>
-                        <h2 className="text-2xl font-black text-white flex items-center gap-2 uppercase tracking-wide">
-                            <Trophy className="text-[#10b981]" /> Tabela de Campeonato
+            <div className="bg-black p-4 md:p-6 rounded-3xl border border-zinc-900 shadow-lg">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                    <div className="min-w-0">
+                        <h2 className="text-xl md:text-2xl font-black text-white flex items-center gap-2 uppercase tracking-wide">
+                            <Trophy className="text-[#10b981] shrink-0" /> Tabela de Campeonato
                         </h2>
-                        <p className="text-zinc-500 text-xs font-bold mt-1">
+                        <p className="text-zinc-500 text-xs font-bold mt-1 hidden sm:block">
                             Gerencie os jogos da temporada e use para preencher automaticamente o Input de Dados
                         </p>
                     </div>
                     {!isCreating && (
-                        <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center gap-2 flex-wrap shrink-0">
                             {onRefresh && (
                                 <button
                                     onClick={onRefresh}
-                                    className="flex items-center justify-center gap-2 w-[176px] bg-zinc-700 hover:bg-zinc-600 text-white px-4 py-2 font-bold uppercase text-xs rounded-xl transition-colors"
+                                    className="flex items-center justify-center w-10 h-10 md:w-[176px] md:h-auto md:gap-2 bg-zinc-700 hover:bg-zinc-600 text-white md:px-4 md:py-2 font-bold uppercase text-xs rounded-xl transition-colors"
                                     title="Recarregar dados da planilha"
                                 >
-                                    <RefreshCw size={16} /> Recarregar
+                                    <RefreshCw size={18} />
+                                    <span className="hidden md:inline">Recarregar</span>
                                 </button>
                             )}
                             <button
                                 onClick={() => setShowImportModal(true)}
-                                className="flex items-center justify-center gap-2 w-[176px] bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 font-bold uppercase text-xs rounded-xl transition-colors shadow-[0_0_15px_rgba(37,99,235,0.3)]"
+                                className="flex items-center justify-center w-10 h-10 md:w-[176px] md:h-auto md:gap-2 bg-blue-600 hover:bg-blue-500 text-white md:px-4 md:py-2 font-bold uppercase text-xs rounded-xl transition-colors shadow-[0_0_15px_rgba(37,99,235,0.3)]"
+                                title="Importar Tabela"
                             >
-                                <Upload size={16} /> Importar Tabela
+                                <Upload size={18} />
+                                <span className="hidden md:inline">Importar Tabela</span>
                             </button>
                             <button
                                 onClick={() => {
@@ -459,9 +462,11 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
                                     });
                                     setShowChampionshipModal(true);
                                 }}
-                                className="flex items-center justify-center gap-2 w-[176px] bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 font-bold uppercase text-xs rounded-xl transition-colors shadow-[0_0_15px_rgba(147,51,234,0.3)]"
+                                className="flex items-center justify-center w-10 h-10 md:w-[176px] md:h-auto md:gap-2 bg-purple-600 hover:bg-purple-500 text-white md:px-4 md:py-2 font-bold uppercase text-xs rounded-xl transition-colors shadow-[0_0_15px_rgba(147,51,234,0.3)]"
+                                title="Novo campeonato"
                             >
-                                <Trophy size={16} /> Novo campeonato
+                                <Trophy size={18} />
+                                <span className="hidden md:inline">Novo campeonato</span>
                             </button>
                             <button
                                 onClick={() => {
@@ -477,9 +482,11 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
                                     });
                                     setIsCreating(true);
                                 }}
-                                className="flex items-center justify-center gap-2 w-[176px] bg-[#10b981] hover:bg-[#34d399] text-white px-4 py-2 font-bold uppercase text-xs rounded-xl transition-colors shadow-[0_0_15px_rgba(16,185,129,0.3)]"
+                                className="flex items-center justify-center w-10 h-10 md:w-[176px] md:h-auto md:gap-2 bg-[#10b981] hover:bg-[#34d399] text-white md:px-4 md:py-2 font-bold uppercase text-xs rounded-xl transition-colors shadow-[0_0_15px_rgba(16,185,129,0.3)]"
+                                title="Nova Partida"
                             >
-                                <Plus size={16} /> Nova Partida
+                                <Plus size={18} />
+                                <span className="hidden md:inline">Nova Partida</span>
                             </button>
                         </div>
                     )}
@@ -757,16 +764,16 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
                     )}
                 </div>
 
-                {/* Tabela de partidas */}
-                <div className="overflow-x-auto min-w-0">
+                {/* Tabela de partidas — ocupa mais largura em telas pequenas */}
+                <div className="overflow-x-auto min-w-0 -mx-4 md:mx-0 px-2 md:px-0">
                     <table className="w-full min-w-0 table-fixed text-left border-collapse">
                         <thead>
                             <tr className="bg-zinc-950 text-[10px] text-zinc-400 uppercase tracking-wider font-bold border-b border-zinc-800">
-                                <th className="w-[90px] lg:w-1/5 p-2 border-r border-zinc-900">Data</th>
-                                <th className="w-[60px] lg:w-1/5 p-2 border-r border-zinc-900">Hora</th>
-                                <th className="min-w-0 lg:w-1/5 p-2 border-r border-zinc-900">Adversário</th>
-                                <th className="w-[100px] max-w-[100px] lg:w-1/5 lg:max-w-none p-2 border-r border-zinc-900">Competição</th>
-                                <th className="w-[90px] max-w-[90px] lg:w-1/5 lg:max-w-none p-2 text-center">Ações</th>
+                                <th className="w-[90px] lg:w-1/5 p-1.5 md:p-2 border-r border-zinc-900">Data</th>
+                                <th className="w-[60px] lg:w-1/5 p-1.5 md:p-2 border-r border-zinc-900">Hora</th>
+                                <th className="min-w-0 lg:w-1/5 p-1.5 md:p-2 border-r border-zinc-900">Adversário</th>
+                                <th className="w-[100px] max-w-[100px] lg:w-1/5 lg:max-w-none p-1.5 md:p-2 border-r border-zinc-900">Competição</th>
+                                <th className="w-[90px] max-w-[90px] lg:w-1/5 lg:max-w-none p-1.5 md:p-2 text-center">Ações</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -793,23 +800,23 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
                                     
                                     return (
                                         <tr key={match.id} className="border-b border-zinc-900 hover:bg-zinc-950">
-                                            <td className="p-2 border-r border-zinc-900 text-white text-xs whitespace-nowrap">
+                                            <td className="p-1.5 md:p-2 border-r border-zinc-900 text-white text-xs whitespace-nowrap">
                                                 {dateDisplay}
                                             </td>
-                                            <td className="p-2 border-r border-zinc-900 text-white text-xs whitespace-nowrap">
+                                            <td className="p-1.5 md:p-2 border-r border-zinc-900 text-white text-xs whitespace-nowrap">
                                                 {formatTime(match.time)}
                                             </td>
-                                            <td className="p-2 border-r border-zinc-900 text-white text-xs font-bold min-w-0 truncate" title={match.opponent || '-'}>
+                                            <td className="p-1.5 md:p-2 border-r border-zinc-900 text-white text-xs font-bold min-w-0 truncate" title={match.opponent || '-'}>
                                                 {match.opponent || '-'}
                                             </td>
-                                            <td className="p-2 border-r border-zinc-900 text-white text-xs max-w-0 truncate" title={match.competition || '-'}>
+                                            <td className="p-1.5 md:p-2 border-r border-zinc-900 text-white text-xs max-w-0 truncate" title={match.competition || '-'}>
                                                 {match.competition || '-'}
                                             </td>
-                                            <td className="p-2 w-[90px]">
-                                                <div className="flex items-center justify-center gap-1">
+                                            <td className="p-1.5 md:p-2 w-[90px]">
+                                                <div className="flex items-center justify-center gap-0.5 md:gap-1">
                                                     <button
                                                         onClick={() => handleEdit(match)}
-                                                        className="p-1.5 text-blue-400 hover:bg-zinc-900 rounded-lg transition-colors"
+                                                        className="p-1 md:p-1.5 text-blue-400 hover:bg-zinc-900 rounded-lg transition-colors"
                                                         title="Editar"
                                                     >
                                                         <Edit2 size={14} />
@@ -821,7 +828,7 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
                                                                     onDelete(match.id);
                                                                 }
                                                             }}
-                                                            className="p-1.5 text-red-400 hover:bg-zinc-900 rounded-lg transition-colors"
+                                                            className="p-1 md:p-1.5 text-red-400 hover:bg-zinc-900 rounded-lg transition-colors"
                                                             title="Excluir"
                                                         >
                                                             <Trash2 size={14} />
