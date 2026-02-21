@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Text } from 'recharts';
-import { User as UserIcon, Info, X, Plus, Users, Lock, Maximize2, Minimize2 } from 'lucide-react';
+import { User as UserIcon, Info, X, Users, Lock, Maximize2, Minimize2 } from 'lucide-react';
 import { Player, SportConfig, User, MatchRecord, PlayerTimeControl } from '../types';
 
 interface IndividualScoutProps {
@@ -428,26 +428,6 @@ export const IndividualScout: React.FC<IndividualScoutProps> = ({ config, curren
 
         </div>
 
-        {!isAthlete && selectedPlayerIds.length < 4 && (
-            <div className="mt-4 flex justify-end">
-                <div className="relative group w-full md:w-auto">
-                    <select
-                        onChange={(e) => {
-                            handleAddPlayer(e.target.value);
-                            e.target.value = ''; 
-                        }}
-                        className="w-full md:w-auto appearance-none bg-[#10b981] hover:bg-[#34d399] text-white font-bold pl-4 pr-10 py-2 rounded-lg cursor-pointer outline-none transition-all text-xs uppercase tracking-wide"
-                        value=""
-                    >
-                        <option value="" disabled>+ Adicionar Atleta Manualmente</option>
-                        {availablePlayers.map(p => (
-                            <option key={p.id} value={p.id}>{p.name} ({p.position})</option>
-                        ))}
-                    </select>
-                    <Plus size={14} className="absolute right-3 top-2.5 text-black pointer-events-none" />
-                </div>
-            </div>
-        )}
       </div>
 
       <div className={`
