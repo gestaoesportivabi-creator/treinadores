@@ -764,16 +764,16 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
                     )}
                 </div>
 
-                {/* Tabela de partidas — ocupa mais largura em telas pequenas */}
-                <div className="overflow-x-auto min-w-0 -mx-4 md:mx-0 px-2 md:px-0">
-                    <table className="w-full min-w-0 table-fixed text-left border-collapse">
+                {/* Tabela de partidas — colunas com largura mínima, sem comprimir */}
+                <div className="overflow-x-auto -mx-4 md:mx-0 px-2 md:px-0">
+                    <table className="w-full min-w-[580px] table-auto text-left border-collapse">
                         <thead>
                             <tr className="bg-zinc-950 text-[10px] text-zinc-400 uppercase tracking-wider font-bold border-b border-zinc-800">
-                                <th className="w-[90px] lg:w-1/5 p-1.5 md:p-2 border-r border-zinc-900">Data</th>
-                                <th className="w-[60px] lg:w-1/5 p-1.5 md:p-2 border-r border-zinc-900">Hora</th>
-                                <th className="min-w-0 lg:w-1/5 p-1.5 md:p-2 border-r border-zinc-900">Adversário</th>
-                                <th className="w-[100px] max-w-[100px] lg:w-1/5 lg:max-w-none p-1.5 md:p-2 border-r border-zinc-900">Competição</th>
-                                <th className="w-[90px] max-w-[90px] lg:w-1/5 lg:max-w-none p-1.5 md:p-2 text-center">Ações</th>
+                                <th className="min-w-[100px] p-1.5 md:p-2 border-r border-zinc-900">Data</th>
+                                <th className="min-w-[70px] p-1.5 md:p-2 border-r border-zinc-900">Hora</th>
+                                <th className="min-w-[140px] p-1.5 md:p-2 border-r border-zinc-900">Adversário</th>
+                                <th className="min-w-[160px] p-1.5 md:p-2 border-r border-zinc-900">Competição</th>
+                                <th className="min-w-[90px] p-1.5 md:p-2 text-center">Ações</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -806,13 +806,13 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
                                             <td className="p-1.5 md:p-2 border-r border-zinc-900 text-white text-xs whitespace-nowrap">
                                                 {formatTime(match.time)}
                                             </td>
-                                            <td className="p-1.5 md:p-2 border-r border-zinc-900 text-white text-xs font-bold min-w-0 truncate" title={match.opponent || '-'}>
+                                            <td className="p-1.5 md:p-2 border-r border-zinc-900 text-white text-xs font-bold whitespace-nowrap">
                                                 {match.opponent || '-'}
                                             </td>
-                                            <td className="p-1.5 md:p-2 border-r border-zinc-900 text-white text-xs max-w-0 truncate" title={match.competition || '-'}>
+                                            <td className="p-1.5 md:p-2 border-r border-zinc-900 text-white text-xs whitespace-nowrap">
                                                 {match.competition || '-'}
                                             </td>
-                                            <td className="p-1.5 md:p-2 w-[90px]">
+                                            <td className="p-1.5 md:p-2 whitespace-nowrap">
                                                 <div className="flex items-center justify-center gap-0.5 md:gap-1">
                                                     <button
                                                         onClick={() => handleEdit(match)}
