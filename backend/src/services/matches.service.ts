@@ -75,6 +75,8 @@ export const matchesService = {
       playerRelationships: data.playerRelationships,
       lineup: data.lineup,
       substitutionHistory: data.substitutionHistory,
+      possessionSecondsWith: data.possessionSecondsWith ?? 0,
+      possessionSecondsWithout: data.possessionSecondsWithout ?? 0,
     }, tx);
 
     await matchesRepository.upsertEstatisticasEquipe(jogo.id, {
@@ -143,7 +145,13 @@ export const matchesService = {
     const existing = await matchesRepository.findById(id, tenantInfo, tx);
     if (!existing) throw new NotFoundError('Jogo', id);
 
-    const jogo = await matchesRepository.update(id, data, tx);
+    const updatePayload: Record<string, unknown> = { ...data };
+    if (data.goalsFor !== undefined) updatePayload.golsPro = data.goalsFor;
+    if (data.goalsAgainst !== undefined) updatePayload.golsContra = data.goalsAgainst;
+    if (data.possessionSecondsWith !== undefined) updatePayload.possessionSecondsWith = data.possessionSecondsWith;
+    if (data.possessionSecondsWithout !== undefined) updatePayload.possessionSecondsWithout = data.possessionSecondsWithout;
+
+    const jogo = await matchesRepository.update(id, updatePayload as any, tx);
     const [estatisticasEquipe, estatisticasJogadores] = await Promise.all([
       matchesRepository.findEstatisticasEquipe(id, tx),
       matchesRepository.findEstatisticasJogadores(id, tx),

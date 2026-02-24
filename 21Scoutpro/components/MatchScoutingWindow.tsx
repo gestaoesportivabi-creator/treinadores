@@ -213,9 +213,6 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
   const [showFoulConfirmation, setShowFoulConfirmation] = useState<boolean>(false);
   const [pendingFoulZone, setPendingFoulZone] = useState<'ataque' | 'defesa' | null>(null);
 
-  // Estado para setor da bola (Ataque/Defesa - Esquerda/Direita) - usado por Falta, Lateral, Escanteio
-  const [ballSector, setBallSector] = useState<LateralResult | null>(null);
-
   // Tela de logs (eventos em tabela editável)
   const [showLogsView, setShowLogsView] = useState<boolean>(false);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
@@ -1064,12 +1061,12 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
     setSelectedAction(null);
   };
 
-  // Registrar lateral (cronômetro já parado ao clicar em LATERAL)
-  const handleRegisterLateral = (subtipo: LateralResult) => {
+  // Registrar lateral (cronômetro já parado ao clicar em LATERAL); zona opcional (preenchida em outro momento)
+  const handleRegisterLateral = (zone?: LateralResult) => {
     if (!selectedPlayerId) return;
 
     const player = activePlayers.find(p => String(p.id).trim() === selectedPlayerId);
-    const { tipo, subtipo: subtipoText } = getTipoSubtipo('lateral', subtipo);
+    const { tipo, subtipo: subtipoText } = getTipoSubtipo('lateral', zone);
     const newEvent: MatchEvent = {
       id: `lateral-${Date.now()}`,
       type: 'lateral',
@@ -1077,7 +1074,7 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
       playerName: player?.name || '',
       time: (getTimeForEvent() ?? matchTime),
       period: currentPeriod,
-      result: subtipo,
+      ...(zone && { result: zone }),
       tipo,
       subtipo: subtipoText,
     };
@@ -1532,12 +1529,12 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
   const useFullViewport = isRealtimePage || takeFullWidth;
   return (
     <div className={`fixed z-[100] bg-black/95 backdrop-blur-md flex items-center justify-center animate-fade-in overflow-hidden p-0 ${
-      useFullViewport ? 'inset-0' : 'left-[16rem] top-0 right-0 bottom-0'
+      useFullViewport ? 'inset-0 h-dvh min-h-dvh' : 'left-[16rem] top-0 right-0 bottom-0'
     }`}>
-      <div className="w-full h-full bg-black flex flex-col relative overflow-hidden">
+      <div className="w-full h-full min-h-0 bg-black flex flex-col relative overflow-hidden">
         
         {/* Header com fechar */}
-        <div className="p-4 border-b border-zinc-800 flex items-center justify-between bg-black">
+        <div className="p-2 sm:p-4 border-b border-zinc-800 flex items-center justify-between bg-black shrink-0">
           <h2 className="text-xl font-black text-white uppercase tracking-wide">
             Scout da Partida
           </h2>
@@ -1551,7 +1548,7 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
         </div>
 
         {/* DADOS DA PARTIDA - placar centralizado: nome, placar e faltas alinhados ao centro */}
-        <div className="bg-zinc-950 border-b border-zinc-800 p-2">
+        <div className="bg-zinc-950 border-b border-zinc-800 p-2 shrink-0">
           <p className="text-zinc-500 text-[10px] font-bold uppercase mb-2 text-center">DADOS DA PARTIDA</p>
           <div className="flex flex-col items-center gap-3">
             {/* Placar: nome na mesma linha dos gols (nomes pro lado de fora), gols centralizados, faltas abaixo */}
@@ -1849,7 +1846,7 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
               {goalStep === 'author' && !pendingGoalIsOpponent ? 'SELECIONAR AUTOR DO GOL' : 'SELECIONAR JOGADOR'}
             </h3>
             
-            <div className="flex-1 space-y-3 overflow-y-auto">
+            <div className="flex-1 space-y-3 overflow-y-auto min-h-0 max-h-[50vh]">
               {!isMatchStarted ? (
                 <div className="bg-yellow-500/20 border-2 border-yellow-500 rounded-xl p-3 text-center">
                   <p className="text-yellow-400 text-xs font-bold">Complete a escalação para iniciar</p>
@@ -2285,62 +2282,6 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
                 </div>
               )}
 
-              {/* Opções para Lateral/Escanteio - 2 botões compostos (Ataque Esq|Dir, Defesa Esq|Dir) */}
-              {(selectedAction === 'lateral' || selectedAction === 'corner') && selectedPlayerId && (
-                <div className="mb-3 p-3 bg-zinc-950 rounded-lg border border-zinc-800">
-                  <p className="text-zinc-400 text-xs mb-2 font-bold uppercase">
-                    {selectedAction === 'lateral' ? 'Tipo de Lateral' : 'Tipo de Escanteio'}
-                  </p>
-                  <div className="flex gap-2">
-                    <div className="flex-1 flex rounded-lg overflow-hidden border-2 border-green-500">
-                      <button
-                        onClick={() => {
-                          const zone: LateralResult = 'ataqueEsquerda';
-                          if (selectedAction === 'lateral') handleRegisterLateral(zone);
-                          else handleRegisterCorner(zone);
-                        }}
-                        className="flex-1 px-2 py-3 bg-green-500/20 text-green-400 font-bold uppercase text-[10px] hover:bg-green-500/30 transition-colors border-r border-green-500/50"
-                      >
-                        Esq
-                      </button>
-                      <button
-                        onClick={() => {
-                          const zone: LateralResult = 'ataqueDireita';
-                          if (selectedAction === 'lateral') handleRegisterLateral(zone);
-                          else handleRegisterCorner(zone);
-                        }}
-                        className="flex-1 px-2 py-3 bg-green-500/20 text-green-400 font-bold uppercase text-[10px] hover:bg-green-500/30 transition-colors"
-                      >
-                        Dir
-                      </button>
-                    </div>
-                    <div className="flex-1 flex rounded-lg overflow-hidden border-2 border-zinc-500">
-                      <button
-                        onClick={() => {
-                          const zone: LateralResult = 'defesaEsquerda';
-                          if (selectedAction === 'lateral') handleRegisterLateral(zone);
-                          else handleRegisterCorner(zone);
-                        }}
-                        className="flex-1 px-2 py-3 bg-zinc-500/20 text-zinc-400 font-bold uppercase text-[10px] hover:bg-zinc-500/30 transition-colors border-r border-zinc-500/50"
-                      >
-                        Esq
-                      </button>
-                      <button
-                        onClick={() => {
-                          const zone: LateralResult = 'defesaDireita';
-                          if (selectedAction === 'lateral') handleRegisterLateral(zone);
-                          else handleRegisterCorner(zone);
-                        }}
-                        className="flex-1 px-2 py-3 bg-zinc-500/20 text-zinc-400 font-bold uppercase text-[10px] hover:bg-zinc-500/30 transition-colors"
-                      >
-                        Dir
-                      </button>
-                    </div>
-                  </div>
-                  <p className="text-zinc-500 text-[9px] mt-1 text-center">Ataque | Defesa</p>
-                </div>
-              )}
-
               {/* Opções para Cartão - inline (amarelo, 2º amarelo, vermelho) */}
               {selectedAction === 'card' && selectedPlayerId && (
                 <div className="mb-4 p-4 bg-zinc-950 rounded-lg border border-zinc-800">
@@ -2739,52 +2680,12 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
                 </div>
               ) : (
                 <div className="flex-[8] flex flex-col gap-2 min-h-0 flex-1">
-                  {/* Setor da bola: AT ESQ | AT DIR e DF ESQ | DF DIR */}
-                  <div className="flex gap-3 flex-1 min-h-0">
-                    <div className="flex-1 flex rounded-lg overflow-hidden border-2 border-green-500 min-h-0">
-                      <button
-                        onClick={() => setBallSector('ataqueEsquerda')}
-                        className={`flex-1 min-h-0 px-3 py-4 text-xs font-bold uppercase transition-colors border-r border-green-500/50 ${
-                          ballSector === 'ataqueEsquerda' ? 'bg-green-500/30 text-green-400' : 'bg-green-500/10 text-green-400/80 hover:bg-green-500/20'
-                        }`}
-                      >
-                        AT ESQ
-                      </button>
-                      <button
-                        onClick={() => setBallSector('ataqueDireita')}
-                        className={`flex-1 min-h-0 px-3 py-4 text-xs font-bold uppercase transition-colors ${
-                          ballSector === 'ataqueDireita' ? 'bg-green-500/30 text-green-400' : 'bg-green-500/10 text-green-400/80 hover:bg-green-500/20'
-                        }`}
-                      >
-                        AT DIR
-                      </button>
-                    </div>
-                    <div className="flex-1 flex rounded-lg overflow-hidden border-2 border-zinc-500 min-h-0">
-                      <button
-                        onClick={() => setBallSector('defesaEsquerda')}
-                        className={`flex-1 min-h-0 px-3 py-4 text-xs font-bold uppercase transition-colors border-r border-zinc-500/50 ${
-                          ballSector === 'defesaEsquerda' ? 'bg-zinc-500/30 text-zinc-300' : 'bg-zinc-500/10 text-zinc-400 hover:bg-zinc-500/20'
-                        }`}
-                      >
-                        DF ESQ
-                      </button>
-                      <button
-                        onClick={() => setBallSector('defesaDireita')}
-                        className={`flex-1 min-h-0 px-3 py-4 text-xs font-bold uppercase transition-colors ${
-                          ballSector === 'defesaDireita' ? 'bg-zinc-500/30 text-zinc-300' : 'bg-zinc-500/10 text-zinc-400 hover:bg-zinc-500/20'
-                        }`}
-                      >
-                        DF DIR
-                      </button>
-                    </div>
-                  </div>
-
                   {/* Sem posse | GOL | Com posse - três botões iguais em uma linha */}
                   <div className="flex gap-3 flex-1 min-h-0">
                     <button
                       onClick={() => setBallPossessionNow('sem')}
                       disabled={isBlockedByPenalty}
-                      className={`flex-1 min-h-0 px-4 py-4 rounded-xl border-2 font-black uppercase text-base transition-all ${
+                      className={`flex-1 min-h-[48px] px-4 py-4 rounded-xl border-2 font-black uppercase text-base transition-all ${
                         isBlockedByPenalty
                           ? 'bg-zinc-900 border-zinc-800 text-zinc-600 cursor-not-allowed'
                           : ballPossessionNow === 'sem'
@@ -2810,7 +2711,7 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
                         setPendingGoalPlayerId(null);
                       }}
                       disabled={!isMatchStarted || isBlockedByPenalty}
-                      className={`flex-1 min-h-0 px-4 py-4 rounded-xl border-2 font-black uppercase text-base transition-all flex items-center justify-center gap-1 active:scale-95 ${
+                      className={`flex-1 min-h-[48px] px-4 py-4 rounded-xl border-2 font-black uppercase text-base transition-all flex items-center justify-center gap-1 active:scale-95 ${
                         isMatchStarted && !isBlockedByPenalty
                           ? 'bg-green-500/20 text-green-400 border-green-500 hover:bg-green-500/30 shadow-[0_0_10px_rgba(34,197,94,0.3)]'
                           : 'bg-zinc-800 text-zinc-600 cursor-not-allowed border-zinc-700'
@@ -2822,7 +2723,7 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
                     <button
                       onClick={() => setBallPossessionNow('com')}
                       disabled={isBlockedByPenalty}
-                      className={`flex-1 min-h-0 px-4 py-4 rounded-xl border-2 font-black uppercase text-base transition-all ${
+                      className={`flex-1 min-h-[48px] px-4 py-4 rounded-xl border-2 font-black uppercase text-base transition-all ${
                         isBlockedByPenalty
                           ? 'bg-zinc-900 border-zinc-800 text-zinc-600 cursor-not-allowed'
                           : ballPossessionNow === 'com'
@@ -2879,18 +2780,12 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
                               alert('Por favor, selecione um jogador primeiro.');
                               return;
                             }
-                            if (ballSector) {
-                              handleRegisterCorner(ballSector);
-                            } else {
-                              setSelectedAction(selectedAction === 'corner' ? null : 'corner');
-                            }
+                            handleRegisterCorner();
                           }}
                           disabled={!selectedPlayerId || (!isPostmatch && !isRunning) || isBlockedByPenalty}
-                          className={`flex-1 min-h-0 w-full flex items-center justify-center rounded-xl border-2 font-bold uppercase text-sm transition-colors ${
+                          className={`flex-1 min-h-[44px] w-full flex items-center justify-center rounded-xl border-2 font-bold uppercase text-sm transition-colors ${
                             !selectedPlayerId || (!isPostmatch && !isRunning) || isBlockedByPenalty
                               ? 'bg-zinc-900 border-zinc-800 text-zinc-600 cursor-not-allowed'
-                              : selectedAction === 'corner'
-                              ? 'bg-cyan-500/30 border-cyan-500 text-cyan-400'
                               : 'bg-cyan-500/20 border-cyan-500 text-cyan-400 hover:bg-cyan-500/30'
                           }`}
                         >
@@ -3067,19 +2962,13 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
                             alert('Informe o tempo (ex.: 0100 para 01:00).');
                             return;
                           }
-                          if (!isPostmatch && selectedAction !== 'lateral') setIsRunning(false);
-                          if (ballSector) {
-                            handleRegisterLateral(ballSector);
-                          } else {
-                            setSelectedAction(selectedAction === 'lateral' ? null : 'lateral');
-                          }
+                          if (!isPostmatch) setIsRunning(false);
+                          handleRegisterLateral();
                         }}
                         disabled={!isMatchStarted || !selectedPlayerId || (!isPostmatch && !isRunning) || isBlockedByPenalty}
-                        className={`min-h-[56px] w-full flex items-center justify-center rounded-xl border-2 font-bold uppercase text-sm transition-colors ${
+                        className={`min-h-[48px] w-full flex items-center justify-center rounded-xl border-2 font-bold uppercase text-sm transition-colors ${
                           !isMatchStarted || !selectedPlayerId || (!isPostmatch && !isRunning) || isBlockedByPenalty
                             ? 'bg-zinc-900 border-zinc-800 text-zinc-600 cursor-not-allowed'
-                            : selectedAction === 'lateral'
-                            ? 'bg-cyan-500/30 border-cyan-500 text-cyan-400'
                             : 'bg-cyan-500/20 border-cyan-500 text-cyan-400 hover:bg-cyan-500/30'
                         }`}
                       >

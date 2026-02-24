@@ -67,6 +67,8 @@ export interface MatchRecord {
   postMatchEventLog?: Array<{ id: string; time: string; period: string; playerId: string; action: string; tipo: string; subtipo: string; passToPlayerId?: string; playerName?: string; passToPlayerName?: string; zone?: 'AT_ESQ' | 'AT_DIR' | 'DF_ESQ' | 'DF_DIR'; recordedByUserId?: string; recordedByName?: string }>;
   lineup?: { players: string[]; bench: string[]; ballPossessionStart: string };
   substitutionHistory?: Array<{ playerOutId: string; playerInId: string; time: number; period: string }>;
+  possessionSecondsWith?: number;
+  possessionSecondsWithout?: number;
 }
 
 export interface MatchStats {
