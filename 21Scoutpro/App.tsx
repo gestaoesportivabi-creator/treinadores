@@ -1073,8 +1073,10 @@ export default function App() {
   }, []);
 
   // Update URL when route changes (skip while initializing to avoid overwriting the current URL before session restore)
+  // Nunca alterar a URL quando estiver em /scout-realtime: a aba deve permanecer nessa URL e não ir para /dashboard
   useEffect(() => {
     if (isInitializing) return;
+    if (window.location.pathname === '/scout-realtime') return;
     if (currentRoute === 'register') {
       window.history.pushState({}, '', '/registro');
     } else if (currentRoute === 'login') {

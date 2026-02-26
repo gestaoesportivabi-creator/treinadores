@@ -69,6 +69,20 @@ export const RealtimeScoutPage: React.FC = () => {
     }
   }, []);
 
+  // Manter URL sempre em /scout-realtime: não permitir voltar para /dashboard nesta aba
+  useEffect(() => {
+    if (window.location.pathname !== '/scout-realtime') {
+      window.history.replaceState({}, '', '/scout-realtime');
+    }
+    const handlePopState = () => {
+      if (window.location.pathname !== '/scout-realtime') {
+        window.history.replaceState({}, '', '/scout-realtime');
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   const handleSave = async (savedMatch: MatchRecord) => {
     try {
       if (!savedMatch || !savedMatch.teamStats) {
