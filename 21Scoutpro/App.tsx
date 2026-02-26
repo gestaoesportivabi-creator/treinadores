@@ -1111,6 +1111,11 @@ export default function App() {
     );
   }
 
+  // Rota dedicada à coleta em tempo real (dados em localStorage; save via API)
+  if (window.location.pathname === '/scout-realtime') {
+    return <RealtimeScoutPage />;
+  }
+
   // Mostrar landing page
   if (currentRoute === 'landing') {
     return <LandingPage 

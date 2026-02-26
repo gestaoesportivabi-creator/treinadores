@@ -121,6 +121,26 @@ export interface MatchStats {
   redCards?: number;
   /** PSE média da partida (0-10) – Evolução PSE (Jogos) */
   rpeMatch?: number;
+  /** Minutos jogados (Input de Dados / TimeControl) */
+  minutesPlayed?: number;
+  /** Gols tomados (equipe; Input de Dados) */
+  goalsConceded?: number;
+  /** Métodos dos gols feitos por método (Input de Dados) */
+  goalMethodsScored?: Record<string, number>;
+  /** Métodos dos gols tomados por método (Input de Dados) */
+  goalMethodsConceded?: Record<string, number>;
+  /** Tempos reais dos gols feitos (Input de Dados) */
+  goalTimes?: Array<{ time: string; method?: string }>;
+  /** Tempos reais dos gols tomados (Input de Dados) */
+  goalsConcededTimes?: Array<{ time: string; method?: string }>;
+  /** Gols em jogo aberto (Input de Dados) */
+  goalsScoredOpenPlay?: number;
+  /** Gols tomados em jogo aberto (Input de Dados) */
+  goalsConcededOpenPlay?: number;
+  /** Gols em bola parada (Input de Dados) */
+  goalsScoredSetPiece?: number;
+  /** Gols tomados em bola parada (Input de Dados) */
+  goalsConcededSetPiece?: number;
 }
 
 export type PostMatchAction =

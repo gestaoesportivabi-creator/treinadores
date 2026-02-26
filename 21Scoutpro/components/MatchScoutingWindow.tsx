@@ -582,6 +582,22 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
     let goalsAgainst = 0;
 
     for (const e of events) {
+      // Cartões: atualizar yellowCards/redCards em playerStats (não têm PostMatchAction)
+      if (e.type === 'card' && e.playerId) {
+        const playerId = String(e.playerId).trim();
+        if (!playerStats[playerId]) playerStats[playerId] = emptyStats();
+        const ps = playerStats[playerId];
+        if (e.cardType === 'yellow') {
+          ps.yellowCards = (ps.yellowCards ?? 0) + 1;
+        } else if (e.cardType === 'secondYellow') {
+          ps.yellowCards = (ps.yellowCards ?? 0) + 1;
+          ps.redCards = (ps.redCards ?? 0) + 1;
+        } else if (e.cardType === 'red') {
+          ps.redCards = (ps.redCards ?? 0) + 1;
+        }
+        continue;
+      }
+
       const action = matchEventToPostMatchAction(e);
       if (!action || !e.playerId) continue;
 
@@ -1532,46 +1548,41 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
       useFullViewport ? 'inset-0 h-dvh min-h-dvh' : 'left-[16rem] top-0 right-0 bottom-0'
     }`}>
       <div className="w-full h-full min-h-0 bg-black flex flex-col relative overflow-hidden">
-        
-        {/* Header com fechar */}
-        <div className="p-2 sm:p-4 border-b border-zinc-800 flex items-center justify-between bg-black shrink-0">
-          <h2 className="text-xl font-black text-white uppercase tracking-wide">
-            Scout da Partida
-          </h2>
-          <button
-            onClick={onClose}
-            className="bg-zinc-900 hover:bg-zinc-800 text-white p-2 rounded-full transition-colors border border-zinc-700"
-            title="Fechar"
-          >
-            <X size={20} />
-          </button>
-        </div>
 
-        {/* DADOS DA PARTIDA - placar centralizado: nome, placar e faltas alinhados ao centro */}
-        <div className="bg-zinc-950 border-b border-zinc-800 p-2 shrink-0">
-          <p className="text-zinc-500 text-[10px] font-bold uppercase mb-2 text-center">DADOS DA PARTIDA</p>
-          <div className="flex flex-col items-center gap-3">
+        {/* DADOS DA PARTIDA - placar centralizado e botão sair na mesma box */}
+        <div className="bg-zinc-950 border-b border-zinc-800 p-1.5 shrink-0">
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-zinc-500 text-[10px] font-bold uppercase">DADOS DA PARTIDA</p>
+            <button
+              onClick={onClose}
+              className="bg-zinc-900 hover:bg-zinc-800 text-white p-1.5 rounded-full transition-colors border border-zinc-700"
+              title="Fechar"
+            >
+              <X size={18} />
+            </button>
+          </div>
+          <div className="flex flex-col items-center gap-1.5">
             {/* Placar: nome na mesma linha dos gols (nomes pro lado de fora), gols centralizados, faltas abaixo */}
             <div className="flex flex-col items-center gap-1 w-full">
               {/* Linha 1: Nome (fora) | Gols centralizados | Nome (fora) */}
               <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 w-full max-w-md">
-                <p className="text-zinc-300 text-sm font-normal uppercase truncate text-right">{(teamName || 'Nossa equipe').toUpperCase()}</p>
+                <p className="text-zinc-300 text-xs font-normal uppercase truncate text-right">{(teamName || 'Nossa equipe').toUpperCase()}</p>
                 <div className="flex items-center justify-center gap-3">
-                  <p className="text-[#00f0ff] text-3xl font-black font-mono min-w-[1.5rem] text-center">{goalsFor}</p>
-                  <span className="text-zinc-600 text-2xl font-black">x</span>
-                  <p className="text-red-400 text-3xl font-black font-mono min-w-[1.5rem] text-center">{goalsAgainst}</p>
+                  <p className="text-[#00f0ff] text-2xl font-black font-mono min-w-[1.5rem] text-center">{goalsFor}</p>
+                  <span className="text-zinc-600 text-xl font-black">x</span>
+                  <p className="text-red-400 text-2xl font-black font-mono min-w-[1.5rem] text-center">{goalsAgainst}</p>
                 </div>
-                <p className="text-zinc-300 text-sm font-normal uppercase truncate text-left">{(match.opponent || 'Adversário').toUpperCase()}</p>
+                <p className="text-zinc-300 text-xs font-normal uppercase truncate text-left">{(match.opponent || 'Adversário').toUpperCase()}</p>
               </div>
               {/* Linha 2: faltas abaixo (uma de cada lado, alinhadas aos blocos) */}
               <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 w-full max-w-md">
-                <div className={`rounded px-2 py-1 border text-sm font-bold flex justify-center ${
+                <div className={`rounded px-1.5 py-0.5 border text-xs font-bold flex justify-center ${
                   foulsForCount >= 5 ? 'bg-red-500/20 border-red-500 text-red-400' : 'border-orange-500/50 text-orange-400'
                 }`}>
                   {foulsForCount} F
                 </div>
                 <div />
-                <div className={`rounded px-2 py-1 border text-sm font-bold flex justify-center ${
+                <div className={`rounded px-1.5 py-0.5 border text-xs font-bold flex justify-center ${
                   foulsAgainstCount >= 5 ? 'bg-red-500/20 border-red-500 text-red-400' : 'border-orange-500/50 text-orange-400'
                 }`}>
                   {foulsAgainstCount} F
@@ -1584,14 +1595,14 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
               <button
                 type="button"
                 onClick={() => setShowLogsView(true)}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[#00f0ff]/50 bg-[#00f0ff]/10 text-[#00f0ff] hover:bg-[#00f0ff]/20 text-[10px] uppercase font-normal transition-colors"
+                className="flex items-center gap-1.5 px-2 py-1 rounded-lg border border-[#00f0ff]/50 bg-[#00f0ff]/10 text-[#00f0ff] hover:bg-[#00f0ff]/20 text-[10px] uppercase font-normal transition-colors"
               >
                 <List size={14} /> Logs
               </button>
               <button
                 onClick={handleEndCollection}
                 disabled={isPostmatch ? matchEvents.length < 1 : !isMatchEnded}
-                className={`px-3 py-2 rounded-lg border text-[10px] uppercase font-normal transition-colors ${
+                className={`px-2 py-1 rounded-lg border text-[10px] uppercase font-normal transition-colors ${
                   (isPostmatch && matchEvents.length >= 1) || isMatchEnded
                     ? 'bg-red-500/20 hover:bg-red-500/30 border-red-500 text-red-400 cursor-pointer'
                     : 'bg-zinc-800 border-zinc-700 text-zinc-600 cursor-not-allowed'
@@ -1603,7 +1614,7 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
           </div>
           {/* Tempo com posse e porcentagem (apenas tempo real com cronômetro) */}
           {!isPostmatch && (
-            <div className="mt-2 pt-2 border-t border-zinc-800 flex flex-wrap items-center justify-center gap-4 text-[10px]">
+            <div className="mt-1 pt-1 border-t border-zinc-800 flex flex-wrap items-center justify-center gap-2 text-[10px]">
               <div className="flex items-center gap-1.5">
                 <span className="text-zinc-500 font-bold uppercase">Com posse:</span>
                 <span className="text-green-400 font-mono font-bold">{formatTime(possessionSecondsWith)}</span>
@@ -1834,21 +1845,21 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
           </div>
         ) : (
         <>
-        {/* Corpo Principal - Painéis Esquerdo e Direito */}
-        <div className="flex-1 flex gap-4 p-4 overflow-hidden">
-          {/* Painel Esquerdo - Seleção de Jogador */}
-          <div className={`w-56 rounded-2xl p-3 flex flex-col border-2 shrink-0 ${
+        {/* Corpo Principal - Painéis Esquerdo e Direito (responsivo: celular horizontal mantém proporções) */}
+        <div className="flex-1 flex gap-2 p-2 overflow-hidden min-h-0 min-w-0">
+          {/* Painel Esquerdo - Seleção de Jogador (ocupa toda a altura; lista + substituição preenchem o card) */}
+          <div className={`w-52 min-w-[7rem] max-w-[14rem] rounded-lg p-2 flex flex-col border-2 shrink-0 min-h-0 ${
             goalStep === 'author' && !pendingGoalIsOpponent
               ? 'bg-green-500/10 border-green-500'
               : 'bg-black border-zinc-800'
           }`}>
-            <h3 className="text-white font-bold uppercase text-sm mb-4 text-center">
+            <h3 className="text-white font-bold uppercase text-sm mb-2 text-center shrink-0">
               {goalStep === 'author' && !pendingGoalIsOpponent ? 'SELECIONAR AUTOR DO GOL' : 'SELECIONAR JOGADOR'}
             </h3>
             
-            <div className="flex-1 space-y-3 overflow-y-auto min-h-0 max-h-[50vh]">
+            <div className="flex-1 min-h-0 overflow-y-auto space-y-1">
               {!isMatchStarted ? (
-                <div className="bg-yellow-500/20 border-2 border-yellow-500 rounded-xl p-3 text-center">
+                <div className="bg-yellow-500/20 border-2 border-yellow-500 rounded-lg p-2 text-center">
                   <p className="text-yellow-400 text-xs font-bold">Complete a escalação para iniciar</p>
                 </div>
               ) : showSubstitutions ? (
@@ -1857,7 +1868,7 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
                   <p className="text-zinc-400 text-xs font-bold uppercase mb-3 text-center">
                     {selectedPlayerId ? 'Selecione jogador do banco para entrar' : 'Clique no jogador em quadra para sair'}
                   </p>
-                  <div className="space-y-2 flex-1 overflow-y-auto">
+                  <div className="space-y-1 flex-1 overflow-y-auto">
                     {/* Jogadores do banco (primeiro) - ordenados por frequência */}
                     {sortedBenchPlayers.map((playerId) => {
                       const player = players.find(p => String(p.id).trim() === playerId);
@@ -1911,7 +1922,7 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
                               alert('Selecione primeiro um jogador em quadra para sair.');
                             }
                           }}
-                          className={`w-full rounded-xl p-3 text-left transition-all ${
+                          className={`w-full rounded-lg p-2 text-left transition-all ${
                             selectedPlayerId && lineupPlayers.includes(selectedPlayerId)
                               ? 'bg-green-500/20 border border-green-500/90 hover:border-green-400'
                               : 'bg-green-500/10 border border-green-500/70 hover:border-green-500'
@@ -1949,7 +1960,7 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
                         <button
                           key={playerId}
                           onClick={() => setSelectedPlayerId(playerId)}
-                          className={`w-full rounded-xl p-3 text-left transition-all flex items-center gap-3 ${
+                          className={`w-full rounded-lg p-2 text-left transition-all flex items-center gap-3 ${
                             selectedPlayerId === playerId
                               ? 'bg-red-500/20 border-4 border-red-500'
                               : 'bg-zinc-900 border-2 border-zinc-700 hover:border-red-500'
@@ -1980,7 +1991,7 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
                       setShowSubstitutions(false);
                       setSelectedPlayerId(null);
                     }}
-                    className="mt-4 w-full bg-zinc-800 hover:bg-zinc-700 border-2 border-zinc-700 text-white font-bold uppercase text-xs rounded-xl p-3 transition-colors"
+                    className="mt-2 w-full bg-zinc-800 hover:bg-zinc-700 border-2 border-zinc-700 text-white font-bold uppercase text-xs rounded-lg p-2 transition-colors"
                   >
                     Cancelar Substituição
                   </button>
@@ -1990,7 +2001,7 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
                   <p className="text-zinc-400 text-xs font-bold uppercase mb-3 text-center">
                     Quem entra no lugar do expulso?
                   </p>
-                  <div className="space-y-2 flex-1 overflow-y-auto">
+                  <div className="space-y-1 flex-1 overflow-y-auto">
                     {sortedBenchPlayers.map((playerId) => {
                       const player = players.find(p => String(p.id).trim() === playerId);
                       if (!player) return null;
@@ -1998,7 +2009,7 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
                         <button
                           key={playerId}
                           onClick={() => handleReplaceExpulsionSlot(playerId)}
-                          className="w-full rounded-xl p-3 text-left bg-green-500/20 border border-green-500/90 hover:border-green-400 transition-all flex items-center gap-3"
+                          className="w-full rounded-lg p-2 text-left bg-green-500/20 border border-green-500/90 hover:border-green-400 transition-all flex items-center gap-3"
                         >
                           <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 border border-zinc-600 bg-zinc-800">
                             {player.photoUrl ? (
@@ -2019,7 +2030,7 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
                   </div>
                   <button
                     onClick={() => setShowExpulsionReplacementSelection(false)}
-                    className="mt-4 w-full bg-zinc-800 hover:bg-zinc-700 border-2 border-zinc-700 text-white font-bold uppercase text-xs rounded-xl p-3 transition-colors"
+                    className="mt-2 w-full bg-zinc-800 hover:bg-zinc-700 border-2 border-zinc-700 text-white font-bold uppercase text-xs rounded-lg p-2 transition-colors"
                   >
                     Cancelar
                   </button>
@@ -2055,7 +2066,7 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
                           }
                         }}
                         disabled={!isMatchStarted}
-                        className={`w-full rounded-xl p-3 text-left transition-all ${
+                        className={`w-full rounded-lg p-2 text-left transition-all ${
                           !isMatchStarted
                             ? 'bg-zinc-800 border border-zinc-700 text-zinc-600 cursor-not-allowed'
                             : goalStep === 'author' && !pendingGoalIsOpponent
@@ -2086,7 +2097,7 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
                       </button>
                     );
                   })}
-                  <div className="rounded-xl p-3 border-2 border-red-500 bg-red-500/10 text-left">
+                  <div className="rounded-lg p-2 border-2 border-red-500 bg-red-500/10 text-left">
                     <p className="text-red-400 font-bold text-sm">
                       🟥 Expulso: {(players.find(p => String(p.id).trim() === expulsionState.expelledPlayerId)?.nickname?.trim() || players.find(p => String(p.id).trim() === expulsionState.expelledPlayerId)?.name) ?? 'Jogador'}
                     </p>
@@ -2107,7 +2118,8 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
                   </div>
                 </>
               ) : activePlayers && activePlayers.length > 0 ? (
-                activePlayers.map((player) => {
+                <div className="flex flex-col min-h-full gap-1">
+                  {activePlayers.map((player) => {
                   const isSelected = selectedPlayerId === String(player.id).trim();
                   const isGoalkeeper = String(player.id).trim() === currentGoalkeeperId;
                   return (
@@ -2142,7 +2154,7 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
                         }
                       }}
                       disabled={!isMatchStarted}
-                      className={`w-full rounded-xl p-3 text-left transition-all ${
+                      className={`w-full rounded-lg p-2 text-left transition-all ${
                         !isMatchStarted
                           ? 'bg-zinc-800 border border-zinc-700 text-zinc-600 cursor-not-allowed'
                           : goalStep === 'author' && !pendingGoalIsOpponent
@@ -2172,29 +2184,30 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
                       </div>
                     </button>
                   );
-                })
+                  })}
+                </div>
               ) : (
-                <div className="bg-green-500/10 border border-green-500/80 rounded-xl p-3 text-center">
+                <div className="bg-green-500/10 border border-green-500/80 rounded-lg p-2 text-center">
                   <p className="text-zinc-500 text-xs">Nenhum jogador ativo</p>
                 </div>
               )}
             </div>
 
-            {/* Botão Substituições - habilitado o tempo todo */}
+            {/* Botão Substituições - ocupa o fim do card à esquerda */}
             <button
               onClick={() => setShowSubstitutions(true)}
-              className="mt-4 w-full rounded-xl p-3 font-bold uppercase text-xs transition-colors flex items-center justify-center gap-2 bg-yellow-500/20 border-2 border-yellow-500 text-yellow-400 hover:bg-yellow-500/30"
+              className="mt-2 w-full rounded-lg p-2 font-bold uppercase text-xs transition-colors flex items-center justify-center gap-2 bg-yellow-500/20 border-2 border-yellow-500 text-yellow-400 hover:bg-yellow-500/30 shrink-0"
             >
               <ArrowRightLeft size={16} />
               SUBSTITUIÇÕES
             </button>
           </div>
 
-          {/* Painel Direito - Ações/Eventos */}
-          <div className="flex-1 bg-black border-2 border-blue-500 rounded-3xl p-4 flex flex-col min-h-0">
+          {/* Painel Direito - Ações/Eventos (flex-1 + min-w-0 para responsivo) */}
+          <div className="flex-1 min-w-0 bg-black border-2 border-blue-500 rounded-lg p-2 flex flex-col min-h-0">
             {/* Mensagem se jogador não selecionado */}
             {!selectedPlayerId && (
-              <div className="mb-4 p-3 bg-yellow-500/20 border border-yellow-500 rounded-lg">
+              <div className="mb-2 p-2 bg-yellow-500/20 border border-yellow-500 rounded-lg">
                 <p className="text-yellow-400 text-xs font-bold text-center">
                   Selecione um jogador no painel esquerdo para registrar ações
                 </p>
@@ -2202,7 +2215,7 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
             )}
 
             {/* Área Principal de Ações */}
-            <div className="flex-1 border-2 border-zinc-800 rounded-xl p-4 flex flex-col min-h-0">
+            <div className="flex-1 border-2 border-zinc-800 rounded-lg p-2 flex flex-col min-h-0">
               {/* Parte superior (~20%): zona reservada para opções de Passe/Chute/Falta/Cartão */}
               <div className="flex-[2] min-h-0 overflow-auto flex-shrink-0">
               {/* Opções para Passe - ACIMA dos botões */}
@@ -2669,7 +2682,7 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
 
               {!isMatchStarted ? (
                 <div className="flex-1 flex items-center justify-center">
-                  <div className="text-center p-6 bg-yellow-500/20 border-2 border-yellow-500 rounded-xl">
+                  <div className="text-center p-6 bg-yellow-500/20 border-2 border-yellow-500 rounded-lg">
                     <p className="text-yellow-400 text-sm font-bold uppercase mb-2">
                       Partida não iniciada
                     </p>
@@ -2679,17 +2692,17 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
                   </div>
                 </div>
               ) : (
-                <div className="flex-[8] flex flex-col gap-2 min-h-0 flex-1">
+                <div className="flex-[8] flex flex-col gap-1 min-h-0 flex-1">
                   {/* Sem posse | GOL | Com posse - três botões iguais em uma linha */}
-                  <div className="flex gap-3 flex-1 min-h-0">
+                  <div className="flex gap-1 flex-1 min-h-0">
                     <button
                       onClick={() => setBallPossessionNow('sem')}
                       disabled={isBlockedByPenalty}
-                      className={`flex-1 min-h-[48px] px-4 py-4 rounded-xl border-2 font-black uppercase text-base transition-all ${
+                      className={`flex-1 min-h-[48px] px-4 py-4 rounded-lg border-2 font-black uppercase text-base transition-all ${
                         isBlockedByPenalty
                           ? 'bg-zinc-900 border-zinc-800 text-zinc-600 cursor-not-allowed'
                           : ballPossessionNow === 'sem'
-                          ? 'bg-red-500/20 border-red-500 text-red-400 shadow-[0_0_10px_rgba(239,68,68,0.3)]'
+                          ? 'bg-red-500/20 border-red-500 text-red-400'
                           : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:border-zinc-700'
                       }`}
                     >
@@ -2711,9 +2724,9 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
                         setPendingGoalPlayerId(null);
                       }}
                       disabled={!isMatchStarted || isBlockedByPenalty}
-                      className={`flex-1 min-h-[48px] px-4 py-4 rounded-xl border-2 font-black uppercase text-base transition-all flex items-center justify-center gap-1 active:scale-95 ${
+                      className={`flex-1 min-h-[48px] px-4 py-4 rounded-lg border-2 font-black uppercase text-base transition-all flex items-center justify-center gap-1 active:scale-95 ${
                         isMatchStarted && !isBlockedByPenalty
-                          ? 'bg-green-500/20 text-green-400 border-green-500 hover:bg-green-500/30 shadow-[0_0_10px_rgba(34,197,94,0.3)]'
+                          ? 'bg-green-500/20 text-green-400 border-green-500 hover:bg-green-500/30'
                           : 'bg-zinc-800 text-zinc-600 cursor-not-allowed border-zinc-700'
                       }`}
                     >
@@ -2723,11 +2736,11 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
                     <button
                       onClick={() => setBallPossessionNow('com')}
                       disabled={isBlockedByPenalty}
-                      className={`flex-1 min-h-[48px] px-4 py-4 rounded-xl border-2 font-black uppercase text-base transition-all ${
+                      className={`flex-1 min-h-[48px] px-4 py-4 rounded-lg border-2 font-black uppercase text-base transition-all ${
                         isBlockedByPenalty
                           ? 'bg-zinc-900 border-zinc-800 text-zinc-600 cursor-not-allowed'
                           : ballPossessionNow === 'com'
-                          ? 'bg-[#00f0ff]/20 border-[#00f0ff] text-[#00f0ff] shadow-[0_0_10px_rgba(0,240,255,0.3)]'
+                          ? 'bg-[#00f0ff]/20 border-[#00f0ff] text-[#00f0ff]'
                           : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:border-zinc-700'
                       }`}
                     >
@@ -2736,11 +2749,11 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
                   </div>
 
                   {/* Layout - FALTA/ESCANTEIO | TEMPO | PASSE/CHUTE - ocupa 80%, tamanhos similares, cronômetro maior */}
-                  <div className="flex-[3] flex flex-col min-h-0 gap-3">
+                  <div className="flex-[3] flex flex-col min-h-0 gap-1">
                     {/* Linha central: FALTA/ESCANTEIO | TEMPO (maior) | PASSE/CHUTE */}
-                    <div className="flex-1 flex items-stretch justify-center gap-3 min-h-0">
+                    <div className="flex-1 flex items-stretch justify-center gap-1 min-h-0">
                       {/* Esquerda - FALTA e ESCANTEIO */}
-                      <div className="flex flex-col gap-2 flex-1 min-w-0 min-h-0">
+                      <div className="flex flex-col gap-1 flex-1 min-w-0 min-h-0">
                         <button
                           onClick={() => {
                             if (!selectedPlayerId || (!isPostmatch && !isRunning) || isBlockedByPenalty) return;
@@ -2752,7 +2765,7 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
                             handleSelectAction('foul');
                           }}
                           disabled={!selectedPlayerId || (!isPostmatch && !isRunning) || isBlockedByPenalty}
-                          className={`flex-1 min-h-0 w-full flex items-center justify-center rounded-xl border-2 font-bold uppercase text-sm transition-colors ${
+                          className={`flex-1 min-h-0 w-full flex items-center justify-center rounded-lg border-2 font-bold uppercase text-sm transition-colors ${
                             !selectedPlayerId || (!isPostmatch && !isRunning) || isBlockedByPenalty
                               ? 'bg-zinc-900 border-zinc-800 text-zinc-600 cursor-not-allowed'
                               : selectedAction === 'foul'
@@ -2783,7 +2796,7 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
                             handleRegisterCorner();
                           }}
                           disabled={!selectedPlayerId || (!isPostmatch && !isRunning) || isBlockedByPenalty}
-                          className={`flex-1 min-h-[44px] w-full flex items-center justify-center rounded-xl border-2 font-bold uppercase text-sm transition-colors ${
+                          className={`flex-1 min-h-[44px] w-full flex items-center justify-center rounded-lg border-2 font-bold uppercase text-sm transition-colors ${
                             !selectedPlayerId || (!isPostmatch && !isRunning) || isBlockedByPenalty
                               ? 'bg-zinc-900 border-zinc-800 text-zinc-600 cursor-not-allowed'
                               : 'bg-cyan-500/20 border-cyan-500 text-cyan-400 hover:bg-cyan-500/30'
@@ -2796,7 +2809,7 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
                       {/* TEMPO - Centro: cronômetro (realtime) - MAIOR que os outros botões */}
                       <div className="flex flex-col items-center justify-center gap-1 flex-[2] min-w-0 min-h-0">
                         {isPostmatch ? (
-                          <div className="w-full h-full min-h-[80px] py-4 px-4 rounded-xl border-2 border-zinc-600 bg-zinc-900/50 flex flex-col items-center justify-center gap-1">
+                          <div className="w-full h-full min-h-[80px] py-4 px-4 rounded-lg border-2 border-zinc-600 bg-zinc-900/50 flex flex-col items-center justify-center gap-1">
                             <label className="text-zinc-400 text-[10px] font-bold uppercase">Tempo (MM:SS)</label>
                             <input
                               type="text"
@@ -2811,7 +2824,7 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
                           <>
                             <button
                               onClick={handleToggleTimer}
-                              className={`w-full h-full min-h-[80px] py-4 px-4 rounded-xl border-2 font-black font-mono text-3xl transition-all flex flex-col items-center justify-center gap-1 active:scale-95 ${
+                              className={`w-full h-full min-h-[80px] py-4 px-4 rounded-lg border-2 font-black font-mono text-3xl transition-all flex flex-col items-center justify-center gap-1 active:scale-95 ${
                                 isRunning
                                   ? 'border-green-500 bg-green-500/20 text-green-400 hover:bg-green-500/30'
                                   : 'border-red-500 bg-red-500/20 text-red-400 hover:bg-red-500/30'
@@ -2833,13 +2846,13 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
                       </div>
 
                       {/* Direita - Vertical: COM posse = PASSE/CHUTE; SEM posse = DESARME/DEFESA - tamanhos similares */}
-                      <div className="flex flex-col gap-2 flex-1 min-w-0 min-h-0">
+                      <div className="flex flex-col gap-1 flex-1 min-w-0 min-h-0">
                         {ballPossessionNow === 'com' ? (
                           <>
                             <button
                               onClick={() => handleSelectAction('pass')}
                               disabled={!selectedPlayerId || (!isPostmatch && !isRunning) || isBlockedByPenalty}
-                              className={`flex-1 min-h-0 w-full flex items-center justify-center rounded-xl border-2 font-bold uppercase text-sm transition-colors ${
+                              className={`flex-1 min-h-0 w-full flex items-center justify-center rounded-lg border-2 font-bold uppercase text-sm transition-colors ${
                                 !selectedPlayerId || (!isPostmatch && !isRunning) || isBlockedByPenalty
                                   ? 'bg-zinc-900 border-zinc-800 text-zinc-600 cursor-not-allowed'
                                   : selectedAction === 'pass'
@@ -2852,7 +2865,7 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
                             <button
                               onClick={() => handleSelectAction('shot')}
                               disabled={!selectedPlayerId || (!isPostmatch && !isRunning) || isBlockedByPenalty}
-                              className={`flex-1 min-h-0 w-full flex items-center justify-center rounded-xl border-2 font-bold uppercase text-sm transition-colors ${
+                              className={`flex-1 min-h-0 w-full flex items-center justify-center rounded-lg border-2 font-bold uppercase text-sm transition-colors ${
                                 !selectedPlayerId || (!isPostmatch && !isRunning) || isBlockedByPenalty
                                   ? 'bg-zinc-900 border-zinc-800 text-zinc-600 cursor-not-allowed'
                                   : selectedAction === 'shot'
@@ -2868,7 +2881,7 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
                             <button
                               onClick={() => handleSelectAction('tackle')}
                               disabled={!selectedPlayerId || (!isPostmatch && !isRunning) || isBlockedByPenalty}
-                              className={`flex-1 min-h-0 w-full flex items-center justify-center rounded-xl border-2 font-bold uppercase text-sm transition-colors ${
+                              className={`flex-1 min-h-0 w-full flex items-center justify-center rounded-lg border-2 font-bold uppercase text-sm transition-colors ${
                                 !selectedPlayerId || (!isPostmatch && !isRunning) || isBlockedByPenalty
                                   ? 'bg-zinc-900 border-zinc-800 text-zinc-600 cursor-not-allowed'
                                   : selectedAction === 'tackle'
@@ -2881,7 +2894,7 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
                             <button
                               onClick={() => handleSelectAction('save')}
                               disabled={!selectedPlayerId || selectedPlayerId !== currentGoalkeeperId || (!isPostmatch && !isRunning) || isBlockedByPenalty}
-                              className={`flex-1 min-h-0 w-full flex items-center justify-center rounded-xl border-2 font-bold uppercase text-sm transition-colors ${
+                              className={`flex-1 min-h-0 w-full flex items-center justify-center rounded-lg border-2 font-bold uppercase text-sm transition-colors ${
                                 !selectedPlayerId || selectedPlayerId !== currentGoalkeeperId || (!isPostmatch && !isRunning) || isBlockedByPenalty
                                   ? 'bg-zinc-900 border-zinc-800 text-zinc-600 cursor-not-allowed'
                                   : selectedAction === 'save'
@@ -2897,7 +2910,7 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
                     </div>
 
                     {/* Linha inferior: PÊNALTI, TIRO LIVRE, LATERAL, CARTÃO - tamanhos similares */}
-                    <div className="grid grid-cols-4 gap-3 shrink-0 min-h-[56px]">
+                    <div className="grid grid-cols-4 gap-1 shrink-0 min-h-[56px]">
                       <button
                         onClick={() => {
                           if ((!isPostmatch && !isRunning) || isBlockedByPenalty) return;
@@ -2912,7 +2925,7 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
                           setSelectedAction(null);
                         }}
                         disabled={(!isPostmatch && !isRunning) || isBlockedByPenalty}
-                        className={`min-h-[56px] w-full flex items-center justify-center rounded-xl border-2 font-bold uppercase text-sm transition-colors ${
+                        className={`min-h-[56px] w-full flex items-center justify-center rounded-lg border-2 font-bold uppercase text-sm transition-colors ${
                           (!isPostmatch && !isRunning) || isBlockedByPenalty
                             ? 'bg-zinc-900 border-zinc-800 text-zinc-600 cursor-not-allowed'
                             : penaltyStep ? 'bg-purple-500/30 border-purple-500 text-purple-400'
@@ -2938,7 +2951,7 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
                           setSelectedAction(null);
                         }}
                         disabled={(!isPostmatch && !isRunning) || isBlockedByPenalty || (foulsForCount < 5 && foulsAgainstCount < 5)}
-                        className={`min-h-[56px] w-full flex items-center justify-center rounded-xl border-2 font-bold uppercase text-sm transition-colors ${
+                        className={`min-h-[56px] w-full flex items-center justify-center rounded-lg border-2 font-bold uppercase text-sm transition-colors ${
                           (!isPostmatch && !isRunning) || isBlockedByPenalty || (foulsForCount < 5 && foulsAgainstCount < 5)
                             ? 'bg-zinc-900 border-zinc-800 text-zinc-600 cursor-not-allowed'
                             : freeKickStep ? 'bg-red-500/30 border-red-500 text-red-400'
@@ -2966,7 +2979,7 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
                           handleRegisterLateral();
                         }}
                         disabled={!isMatchStarted || !selectedPlayerId || (!isPostmatch && !isRunning) || isBlockedByPenalty}
-                        className={`min-h-[48px] w-full flex items-center justify-center rounded-xl border-2 font-bold uppercase text-sm transition-colors ${
+                        className={`min-h-[48px] w-full flex items-center justify-center rounded-lg border-2 font-bold uppercase text-sm transition-colors ${
                           !isMatchStarted || !selectedPlayerId || (!isPostmatch && !isRunning) || isBlockedByPenalty
                             ? 'bg-zinc-900 border-zinc-800 text-zinc-600 cursor-not-allowed'
                             : 'bg-cyan-500/20 border-cyan-500 text-cyan-400 hover:bg-cyan-500/30'
@@ -2988,7 +3001,7 @@ export const MatchScoutingWindow: React.FC<MatchScoutingWindowProps> = ({
                           setSelectedAction(selectedAction === 'card' ? null : 'card');
                         }}
                         disabled={!isMatchStarted || !selectedPlayerId || isBlockedByPenalty}
-                        className={`min-h-[56px] w-full flex items-center justify-center rounded-xl border-2 font-bold uppercase text-sm transition-colors ${
+                        className={`min-h-[56px] w-full flex items-center justify-center rounded-lg border-2 font-bold uppercase text-sm transition-colors ${
                           !isMatchStarted || !selectedPlayerId || isBlockedByPenalty
                             ? 'bg-zinc-900 border-zinc-800 text-zinc-600 cursor-not-allowed'
                             : selectedAction === 'card'
