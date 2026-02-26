@@ -105,6 +105,7 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
     const [showStartScoutConfirmation, setShowStartScoutConfirmation] = useState<boolean>(false); // Modal de confirmação
     const [collectionType, setCollectionType] = useState<'realtime' | 'postmatch' | null>(null); // Tipo de coleta (null = seletor)
     const [showPostMatchSheet, setShowPostMatchSheet] = useState<boolean>(false); // Planilha pós-jogo
+    const [showRealtimePrepForSavedMatch, setShowRealtimePrepForSavedMatch] = useState<boolean>(false); // Preparação tempo real para partida salva (seleção de atletas antes de abrir aba)
 
     // Calendário: filtro de datas (default: mês atual) e modo de visualização
     const [startDate, setStartDate] = useState<string>(() => {
@@ -1958,7 +1959,7 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                             onBack={handleBackToCalendar}
                         />
                     )}
-                    {!isScheduledMatch() && selectedMatch && isMatchNotExecuted(selectedMatch) && !showPostMatchSheet && (
+                    {!isScheduledMatch() && selectedMatch && isMatchNotExecuted(selectedMatch) && !showPostMatchSheet && !showRealtimePrepForSavedMatch && (
                         <CollectionTypeSelector
                             matchContext={{
                                 date: selectedMatch.date,
@@ -1974,6 +1975,125 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                             }}
                             onBack={handleBackToCalendar}
                         />
+                    )}
+
+                    {/* Preparação tempo real — partida salva (não executada): seleção de atletas antes de abrir a nova aba */}
+                    {!isScheduledMatch() && selectedMatch && isMatchNotExecuted(selectedMatch) && showRealtimePrepForSavedMatch && (
+                        <div className="space-y-6 animate-fade-in pb-12">
+                            <div className="flex items-center justify-between mb-6">
+                                <h2 className="text-2xl font-black text-white flex items-center gap-2 uppercase tracking-wide">
+                                    <Target className="text-[#00f0ff]" size={28} /> Preparação da Partida — Tempo Real
+                                </h2>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowRealtimePrepForSavedMatch(false)}
+                                    className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 hover:text-white font-bold uppercase text-xs px-3 py-2 rounded-xl transition-colors"
+                                >
+                                    <ArrowLeft size={16} /> Voltar
+                                </button>
+                            </div>
+
+                            <div className="bg-black rounded-3xl border border-zinc-900 p-6 shadow-lg">
+                                <h3 className="text-white font-bold uppercase text-sm mb-4 flex items-center gap-2">
+                                    <Calendar className="text-[#00f0ff]" size={16} /> Informações da Partida
+                                </h3>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                    <div>
+                                        <span className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Data</span>
+                                        <p className="text-white font-bold text-sm">{formatDate(selectedMatch.date)}</p>
+                                    </div>
+                                    <div>
+                                        <span className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Adversário</span>
+                                        <p className="text-white font-bold text-sm">{selectedMatch.opponent || '-'}</p>
+                                    </div>
+                                    <div>
+                                        <span className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Competição</span>
+                                        <p className="text-white font-bold text-sm">{selectedMatch.competition || '-'}</p>
+                                    </div>
+                                    <div>
+                                        <span className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Tipo de Partida</span>
+                                        <p className="text-white font-bold text-sm">
+                                            {selectedMatchType === 'normal' && 'Partida Normal'}
+                                            {selectedMatchType === 'extraTime' && `Com Acréscimo (${selectedExtraTimeMinutes ?? 5} min)`}
+                                            {selectedMatchType === 'penalties' && 'Direto para Pênaltis'}
+                                            {selectedMatchType === 'extraTimePenalties' && `Acréscimo + Pênaltis (${selectedExtraTimeMinutes ?? 5} min)`}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-black rounded-3xl border border-zinc-900 p-6 shadow-lg">
+                                <h3 className="text-white font-bold uppercase text-sm mb-4 flex items-center gap-2">
+                                    <Users className="text-[#00f0ff]" size={16} /> Selecionar Atletas
+                                </h3>
+                                <p className="text-zinc-400 text-xs mb-3">Selecione os atletas que vão para a partida. Só depois será possível abrir o scout em nova aba.</p>
+                                <div className="max-h-96 overflow-y-auto space-y-2">
+                                    {(players || []).map((player) => {
+                                        const isSelected = selectedPlayersForMatch.has(String(player.id).trim());
+                                        return (
+                                            <label
+                                                key={player.id}
+                                                className="flex items-center gap-3 p-3 bg-zinc-950 border-2 border-zinc-800 rounded-xl cursor-pointer hover:border-[#00f0ff]/50 transition-colors"
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isSelected}
+                                                    onChange={(e) => {
+                                                        const newSet = new Set(selectedPlayersForMatch);
+                                                        if (e.target.checked) {
+                                                            newSet.add(String(player.id).trim());
+                                                        } else {
+                                                            newSet.delete(String(player.id).trim());
+                                                        }
+                                                        setSelectedPlayersForMatch(newSet);
+                                                    }}
+                                                    className="w-5 h-5 text-[#00f0ff] bg-zinc-900 border-zinc-700 rounded focus:ring-[#00f0ff] focus:ring-2"
+                                                />
+                                                <div className="flex-1">
+                                                    <span className="text-white font-bold text-sm">
+                                                        #{player.jerseyNumber} {player.name}
+                                                    </span>
+                                                    <span className="text-zinc-500 text-xs ml-2">({player.position})</span>
+                                                </div>
+                                            </label>
+                                        );
+                                    })}
+                                    {(players || []).length === 0 && (
+                                        <p className="text-zinc-500 text-sm text-center py-4">Nenhum jogador cadastrado</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="flex flex-col sm:flex-row gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (selectedPlayersForMatch.size === 0) return;
+                                        const realtimeScoutData = {
+                                            matchId: selectedMatch.id,
+                                            date: selectedMatch.date,
+                                            opponent: selectedMatch.opponent || '',
+                                            competition: selectedMatch.competition,
+                                            players: players || [],
+                                            teams: teams || [],
+                                            matchType: selectedMatchType,
+                                            extraTimeMinutes: selectedExtraTimeMinutes ?? 5,
+                                            selectedPlayerIds: Array.from(selectedPlayersForMatch),
+                                        };
+                                        localStorage.setItem('realtimeScoutData', JSON.stringify(realtimeScoutData));
+                                        window.open('/scout-realtime', '_blank');
+                                        setShowRealtimePrepForSavedMatch(false);
+                                    }}
+                                    disabled={selectedPlayersForMatch.size === 0}
+                                    className="flex-1 px-6 py-4 bg-[#00f0ff] hover:bg-[#00d9e6] text-black font-black uppercase text-sm rounded-xl transition-colors shadow-[0_0_15px_rgba(0,240,255,0.3)] disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2"
+                                >
+                                    <Target size={20} /> Iniciar Scout da Partida (abre em nova aba)
+                                </button>
+                            </div>
+                            {selectedPlayersForMatch.size === 0 && (
+                                <p className="text-amber-400 text-xs text-center">Selecione pelo menos um atleta para abrir o scout em nova aba.</p>
+                            )}
+                        </div>
                     )}
 
                     {/* Interface de Preparação para Partida Programada — tempo real */}
@@ -2497,6 +2617,7 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                         </button>
                                         <button
                                             onClick={() => {
+                                                if (selectedPlayersForMatch.size === 0) return;
                                                 const realtimeScoutData = {
                                                     matchId: selectedScheduledMatch.id,
                                                     date: selectedScheduledMatch.date,
@@ -2512,11 +2633,15 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                                 window.open('/scout-realtime', '_blank');
                                                 setShowStartScoutConfirmation(false);
                                             }}
-                                            className="flex-1 px-4 py-3 bg-[#00f0ff] hover:bg-[#00d9e6] text-black font-black uppercase text-xs rounded-xl transition-colors shadow-[0_0_15px_rgba(0,240,255,0.3)]"
+                                            disabled={selectedPlayersForMatch.size === 0}
+                                            className="flex-1 px-4 py-3 bg-[#00f0ff] hover:bg-[#00d9e6] text-black font-black uppercase text-xs rounded-xl transition-colors shadow-[0_0_15px_rgba(0,240,255,0.3)] disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
                                         >
                                             Confirmar e Iniciar
                                         </button>
                                     </div>
+                                    {selectedPlayersForMatch.size === 0 && (
+                                        <p className="text-amber-400 text-xs text-center mt-3">Selecione pelo menos um atleta para iniciar o scout.</p>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -3144,26 +3269,15 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                 isOpen={showMatchTypeModal}
                 onClose={() => setShowMatchTypeModal(false)}
                 onConfirm={(matchType, extraTimeMinutes) => {
-                    if (selectedMatch) {
-                        const realtimeScoutData = {
-                            matchId: selectedMatch.id,
-                            date: selectedMatch.date,
-                            opponent: selectedMatch.opponent || '',
-                            competition: selectedMatch.competition,
-                            players: players || [],
-                            teams: teams || [],
-                            matchType,
-                            extraTimeMinutes: extraTimeMinutes ?? selectedExtraTimeMinutes ?? 5,
-                            selectedPlayerIds: selectedMatch.playerStats ? Object.keys(selectedMatch.playerStats) : undefined,
-                        };
-                        localStorage.setItem('realtimeScoutData', JSON.stringify(realtimeScoutData));
-                        window.open('/scout-realtime', '_blank');
-                    }
                     setSelectedMatchType(matchType);
                     if (extraTimeMinutes) {
                         setSelectedExtraTimeMinutes(extraTimeMinutes);
                     }
                     setShowMatchTypeModal(false);
+                    // Partida salva: não abrir aba ainda — exibir tela de seleção de atletas; só depois abrir a nova aba
+                    if (selectedMatch) {
+                        setShowRealtimePrepForSavedMatch(true);
+                    }
                 }}
             />
 
