@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowRight, Users, Target, TrendingUp, Clock, BarChart3, Shield, CheckCircle, Building2, Trophy, Sparkles, Brain } from 'lucide-react';
+import { ArrowRight, Users, Target, TrendingUp, Clock, BarChart3, Shield, CheckCircle, Building2, Trophy, Sparkles, Brain, Rocket } from 'lucide-react';
 
 interface LandingPageProps {
   onGetStarted: () => void;
@@ -494,13 +494,80 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
             Pronto para organizar a gestão<br />
             <span className="text-[#00f0ff]">da sua equipe?</span>
           </h2>
-          <button onClick={handleClick} type="button" className="landing-impact group px-10 py-5 bg-[#00f0ff] hover:bg-[#00d4e6] active:scale-[0.98] text-black text-xl rounded-xl transition-all duration-300 shadow-[0_0_40px_rgba(0,240,255,0.5)] hover:shadow-[0_0_60px_rgba(0,240,255,0.7)] hover:scale-[1.02] flex items-center gap-3 mx-auto cursor-pointer">
-            Criar Conta Grátis
-            <ArrowRight className="group-hover:translate-x-1 transition-transform duration-300" size={28} />
-          </button>
           <p className="landing-body-medium text-sm text-zinc-600">
             ✓ Sem compromisso &nbsp;&nbsp; ✓ Cancele quando quiser &nbsp;&nbsp; ✓ Suporte em português
           </p>
+
+          {/* Cards de planos */}
+          <div className="grid md:grid-cols-3 gap-10 mt-16 w-full max-w-[120rem] mx-auto items-stretch px-4">
+            <div className="bg-black border border-zinc-800 rounded-2xl p-10 min-h-[420px] hover:border-[#00f0ff]/50 transition-all flex flex-col min-w-0">
+              <div className="flex items-center justify-start gap-2 mb-6">
+                <span className="text-2xl leading-none" aria-hidden>📊</span>
+                <h3 className="landing-headline text-sm md:text-base text-white uppercase text-left whitespace-nowrap">Grátis</h3>
+              </div>
+              <p className="text-zinc-400 text-base mb-5">Para começar a organizar seu clube com dados.</p>
+              <ul className="text-zinc-300 text-xs flex flex-wrap gap-x-2 gap-y-2.5 mb-8 flex-1 min-h-0 w-full overflow-hidden list-none pl-0">
+                {['Indicadores do dia a dia', 'Cadastro de atletas', 'Programação liberada', '1 campeonato cadastrado', 'Até 10 jogos registrados', 'Scout coletivo básico', 'Ranking'].map((item, i) => (
+                  <li key={i} className="flex items-center gap-1.5 text-left min-w-0 overflow-hidden">
+                    <CheckCircle className="text-[#00f0ff] shrink-0 flex-shrink-0" size={16} />
+                    <span className="truncate min-w-0 whitespace-nowrap">{item}</span>
+                    {i < 6 ? <span className="text-zinc-500 select-none shrink-0">·</span> : null}
+                  </li>
+                ))}
+              </ul>
+              <button onClick={handleClick} type="button" className="mt-auto w-full py-3.5 bg-[#00f0ff] hover:bg-[#00d4e6] text-black font-semibold text-base rounded-xl transition-all shrink-0">
+                Cadastrar Grátis
+              </button>
+            </div>
+            <div className="bg-black border border-zinc-800 rounded-2xl p-10 min-h-[420px] hover:border-[#00f0ff]/50 transition-all flex flex-col min-w-0">
+              <div className="flex items-center justify-start gap-2 mb-5">
+                <span className="text-2xl leading-none" aria-hidden>🚀</span>
+                <h3 className="landing-headline text-sm md:text-base text-white uppercase text-left whitespace-nowrap">Intermediário</h3>
+              </div>
+              <p className="text-zinc-400 text-base mb-5">Para clubes que querem evoluir na análise.</p>
+              <ul className="text-zinc-300 text-xs flex flex-wrap gap-x-2 gap-y-2.5 mb-8 flex-1 min-h-0 w-full overflow-hidden list-none pl-0">
+                {['Jogos ilimitados', 'Campeonatos ilimitados', 'Scout individual', 'Scout coletivo ampliado', 'Ranking completo', 'Cadastro de lesões', 'Retorno às atividades', 'Comparativo de desempenho'].map((item, i) => (
+                  <li key={i} className="flex items-center gap-1.5 text-left min-w-0 overflow-hidden">
+                    <CheckCircle className="text-[#00f0ff] shrink-0 flex-shrink-0" size={16} />
+                    <span className="truncate min-w-0 whitespace-nowrap">{item}</span>
+                    {i < 7 ? <span className="text-zinc-500 select-none shrink-0">·</span> : null}
+                  </li>
+                ))}
+              </ul>
+              <a href="https://wa.me/5548991486176?text=Olá%2C%20quero%20assinar%20o%20Plano%20Intermediário%20(R%2499%2C00%2Fmês)." target="_blank" rel="noopener noreferrer" className="mt-auto w-full py-3.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white font-semibold text-base rounded-xl transition-all text-center block shrink-0">
+                Assinar agora R$99,00/Mês
+              </a>
+            </div>
+            <div className="bg-black border border-zinc-800 rounded-2xl p-10 min-h-[420px] hover:border-[#00f0ff]/50 transition-all flex flex-col min-w-0">
+              <div className="flex items-center justify-start gap-2 mb-6">
+                <span className="text-2xl leading-none" aria-hidden>🧠</span>
+                <h3 className="landing-headline text-sm md:text-base text-white uppercase text-left whitespace-nowrap">Avançado</h3>
+              </div>
+              <p className="text-zinc-400 text-base mb-5">Gestão e análise profissional.</p>
+              <ul className="text-zinc-300 text-xs flex flex-wrap gap-x-2 gap-y-2.5 mb-8 flex-1 min-h-0 w-full overflow-hidden list-none pl-0">
+                {['Gestão de cartões', 'Scout coletivo completo', 'Performance de quartetos', 'Posse de bola', 'Scout Goleiro Linha', 'Fisiologia completa', 'Relatório gerencial'].map((item, i) => (
+                  <li key={i} className="flex items-center gap-1.5 text-left min-w-0 overflow-hidden">
+                    <CheckCircle className="text-[#00f0ff] shrink-0 flex-shrink-0" size={16} />
+                    <span className="truncate min-w-0 whitespace-nowrap">{item}</span>
+                    {i < 6 ? <span className="text-zinc-500 select-none shrink-0">·</span> : null}
+                  </li>
+                ))}
+              </ul>
+              <a href="https://wa.me/5548991486176?text=Olá%2C%20quero%20assinar%20o%20Plano%20Avançado%20(R%24179%2C00%2Fmês)." target="_blank" rel="noopener noreferrer" className="mt-auto w-full py-3.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white font-semibold text-base rounded-xl transition-all text-center block shrink-0">
+                Assinar agora R$179,00/Mês
+              </a>
+            </div>
+          </div>
+
+          <a
+            href="https://wa.me/5548991486176?text=Olá%2C%20desejo%20um%20plano%20personalizado%20para%20minha%20equipe."
+            target="_blank"
+            rel="noopener noreferrer"
+            className="landing-impact mt-10 inline-flex items-center justify-center gap-2 px-8 py-4 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-[#00f0ff]/50 text-white text-lg rounded-xl transition-all duration-300 hover:scale-[1.02]"
+          >
+            👉 Deseja um plano personalizado para sua equipe? Entre em contato
+          </a>
+
           <div className="pt-16 border-t border-zinc-800 mt-16 text-left">
             <h3 className="landing-headline text-2xl md:text-3xl text-white mb-2">Fale conosco</h3>
             <p className="landing-body-medium text-zinc-400 mb-8">Preencha o formulário ou use o botão do WhatsApp.</p>
