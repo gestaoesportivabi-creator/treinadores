@@ -29,7 +29,7 @@ import { DashboardSquadAvailability } from './components/DashboardSquadAvailabil
 import { DashboardNextGameCard } from './components/DashboardNextGameCard';
 import { DashboardConditionCard } from './components/DashboardConditionCard';
 import { SPORT_CONFIGS } from './constants';
-import { BarChart3, FileText, Clock, Trophy, Ambulance, UserX, UserCheck, Menu } from 'lucide-react';
+import { FileText, Clock, Trophy, Ambulance, UserX, UserCheck, Menu } from 'lucide-react';
 import { User, MatchRecord, Player, PhysicalAssessment, WeeklySchedule, StatTargets, PlayerTimeControl, Team, Championship } from './types';
 import { playersApi, matchesApi, assessmentsApi, schedulesApi, competitionsApi, statTargetsApi, timeControlsApi, championshipMatchesApi, teamsApi } from './services/api';
 import { normalizeScheduleDays } from './utils/scheduleUtils';
@@ -269,6 +269,20 @@ export default function App() {
     return () => clearInterval(t);
   }, []);
 
+  // Nome e escudo do time da aba Configurações (para card Próximo jogo na Visão Geral)
+  const [overviewTeamSettings, setOverviewTeamSettings] = useState<{ teamName: string; teamShieldUrl: string }>({ teamName: '', teamShieldUrl: '' });
+  useEffect(() => {
+    if (activeTab !== 'dashboard') return;
+    try {
+      const raw = localStorage.getItem('scout21_settings_current_team');
+      if (!raw) { setOverviewTeamSettings({ teamName: '', teamShieldUrl: '' }); return; }
+      const d = JSON.parse(raw);
+      setOverviewTeamSettings({ teamName: d.teamName || '', teamShieldUrl: d.shieldUrl || '' });
+    } catch (_) {
+      setOverviewTeamSettings({ teamName: '', teamShieldUrl: '' });
+    }
+  }, [activeTab]);
+
   // Próximo compromisso: o mais próximo entre próximo jogo e próximo treino (hoje/futuro)
   const nextCommitment = useMemo(() => {
     const now = liveNow;
@@ -351,6 +365,14 @@ export default function App() {
     return { injuredCount, suspendedCount, penduradosCount };
   }, [players, overviewStats.nextMatch, championships]);
 
+  const activeAlertsForToday = useMemo(() => {
+    const a: { kind: 'lesão' | 'suspenso' | 'pendurado'; count: number }[] = [];
+    if (dashboardAlertCounts.injuredCount > 0) a.push({ kind: 'lesão', count: dashboardAlertCounts.injuredCount });
+    if (dashboardAlertCounts.suspendedCount > 0) a.push({ kind: 'suspenso', count: dashboardAlertCounts.suspendedCount });
+    if (dashboardAlertCounts.penduradosCount > 0) a.push({ kind: 'pendurado', count: dashboardAlertCounts.penduradosCount });
+    return a;
+  }, [dashboardAlertCounts.injuredCount, dashboardAlertCounts.suspendedCount, dashboardAlertCounts.penduradosCount]);
+
   // Foco do dia: observações da programação (aba Programação) para o dia de hoje
   const focusOfDay = useMemo(() => {
     const todayStr = liveNow.toISOString().split('T')[0];
@@ -375,7 +397,7 @@ export default function App() {
     return 'Dia sem compromisso registrado';
   }, [nextCommitment, overviewStats.nextMatch, schedules, liveNow]);
 
-  // Últimas 3 partidas salvas (Dados do jogo) para o card Resultado últimas partidas
+  // Últimas 3 partidas salvas para o card Resultado últimas partidas (bolinhas V/D/E)
   const lastMatchResults = useMemo((): ('V' | 'D' | 'E')[] => {
     const withResult = (matches || []).filter(m => m && m.teamStats && (m.result === 'V' || m.result === 'D' || m.result === 'E'));
     const sorted = [...withResult].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
@@ -1404,13 +1426,13 @@ export default function App() {
               <DashboardTodayBlock
                 nextCommitment={nextCommitmentForToday}
                 focusOfDay={focusOfDay}
-                activeAlerts={[]}
+                activeAlerts={activeAlertsForToday}
                 lastMatchResults={lastMatchResults}
               />
 
-              {/* 1. Riscos e desfalques */}
-              <section className="space-y-4" aria-label="Riscos e desfalques">
-                <p className="text-[10px] uppercase tracking-[0.35em] text-zinc-500 font-bold">Riscos e desfalques</p>
+              {/* 1. Atletas Suspensos */}
+              <section className="space-y-4" aria-label="Atletas Suspensos">
+                <p className="text-[10px] uppercase tracking-[0.35em] text-zinc-500 font-bold">Atletas Suspensos</p>
                 <div className="flex flex-col gap-3">
                   <InjuredPlayersAlert players={players} />
                   {overviewStats.nextMatch && (
@@ -1445,6 +1467,8 @@ export default function App() {
                     nextMatch={overviewStats.nextMatch}
                     championships={championships}
                     players={players}
+                    teamName={overviewTeamSettings.teamName}
+                    teamShieldUrl={overviewTeamSettings.teamShieldUrl}
                   />
                 </div>
               </section>
@@ -1460,15 +1484,8 @@ export default function App() {
               {/* 7. Ações principais no rodapé */}
               <footer className="flex flex-wrap gap-3 pt-4 border-t border-zinc-700">
                 <button
-                  onClick={() => handleTabChange('general')}
-                  className="flex items-center gap-2 rounded-lg border border-[#10b981]/50 bg-[#10b981]/15 px-4 py-2.5 text-xs font-medium uppercase tracking-wider text-white transition-colors hover:bg-[#10b981]/25"
-                >
-                  <BarChart3 size={14} />
-                  Scout Coletivo
-                </button>
-                <button
                   onClick={() => handleTabChange('management-report')}
-                  className="flex items-center gap-2 rounded-lg border border-[#10b981]/50 bg-[#10b981]/15 px-4 py-2.5 text-xs font-medium uppercase tracking-wider text-white transition-colors hover:bg-[#10b981]/25"
+                  className="flex items-center gap-2 rounded-lg border border-[#0d2137] bg-[#0d2137] px-4 py-2.5 text-xs font-medium uppercase tracking-wider text-white transition-colors hover:bg-[#1e3a5f]"
                 >
                   <FileText size={14} />
                   Relatório Gerencial

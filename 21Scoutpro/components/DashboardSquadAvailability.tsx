@@ -73,7 +73,7 @@ export const DashboardSquadAvailability: React.FC<DashboardSquadAvailabilityProp
         <div className="rounded border border-white/[0.08] bg-zinc-900/30 px-3 py-2.5 border-l-[3px] border-l-amber-500/80">
           <div className="flex items-center gap-1.5 mb-1">
             <UserCog className="text-zinc-500" size={14} />
-            <span className="text-zinc-400 font-medium text-xs">Com restrição</span>
+            <span className="text-zinc-400 font-medium text-xs">Pendurados</span>
           </div>
           <p className="text-base font-semibold text-white">{withRestriction.length}</p>
           <p className="text-[10px] text-zinc-500 mt-0.5 truncate opacity-80">
@@ -85,7 +85,7 @@ export const DashboardSquadAvailability: React.FC<DashboardSquadAvailabilityProp
         <div className="rounded border border-white/[0.08] bg-zinc-900/30 px-3 py-2.5 border-l-[3px] border-l-red-500/80">
           <div className="flex items-center gap-1.5 mb-1">
             <UserX className="text-zinc-500" size={14} />
-            <span className="text-zinc-400 font-medium text-xs">Indisponíveis</span>
+            <span className="text-zinc-400 font-medium text-xs">Desfalques por lesão</span>
           </div>
           <p className="text-base font-semibold text-white">{unavailable.length}</p>
           <p className="text-[10px] text-zinc-500 mt-0.5 truncate opacity-80">

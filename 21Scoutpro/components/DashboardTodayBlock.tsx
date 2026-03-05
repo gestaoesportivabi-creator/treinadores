@@ -22,7 +22,7 @@ interface DashboardTodayBlockProps {
   nextCommitment: NextCommitmentInfo;
   focusOfDay: string;
   activeAlerts: ActiveAlert[];
-  /** Últimas 3 partidas salvas (Dados do jogo) para exibir no card Indicadores */
+  /** Últimas partidas (V/D/E) para bolinhas no card Indicadores */
   lastMatchResults?: LastMatchResults;
 }
 
