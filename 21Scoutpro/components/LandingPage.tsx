@@ -221,8 +221,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
                 Começar Agora
                 <ArrowRight className="group-hover:translate-x-0.5 transition-transform" size={18} />
               </button>
-              <a href="https://wa.me/5548991486176?text=Olá%2C%20gostaria%20de%20agendar%20uma%20apresentação" target="_blank" rel="noopener noreferrer" className="landing-body-medium text-zinc-400 hover:text-white text-sm transition-colors flex items-center gap-1 sm:self-center">
-                Novo: Agende uma apresentação <span aria-hidden>→</span>
+              <a href="https://wa.me/5548991486176?text=Olá%2C%20gostaria%20de%20entrar%20em%20contato" target="_blank" rel="noopener noreferrer" className="landing-body-medium text-zinc-400 hover:text-white text-sm transition-colors flex items-center gap-2 sm:self-center">
+                Novo: Entre em contato <WhatsAppIcon className="w-5 h-5 text-[#25D366]" />
               </a>
             </div>
           </div>
