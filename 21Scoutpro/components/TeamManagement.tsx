@@ -401,29 +401,42 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         
-        // Calcular dias de afastamento ativo (lesão sem retorno real)
+        // Lesões ativas = sem retorno real/alta
         const activeInjuries = player.injuryHistory?.filter(inj => !inj.returnDateActual && !inj.endDate) || [];
+        // Recuperadas: com retorno real ou endDate
+        const recoveredInjuries = player.injuryHistory?.filter(inj => !!(inj.returnDateActual || inj.endDate)) || [];
         let activeDaysOut = 0;
-        let activeDaysColor = 'text-green-400';
+        let withinDeadline = true; // dentro do prazo (retorno previsto não passou)
         
         if (activeInjuries.length > 0) {
-            const activeInjury = activeInjuries[0]; // Pegar a primeira lesão ativa
+            const activeInjury = activeInjuries[0];
             const startDate = new Date(activeInjury.startDate || activeInjury.date || '');
             startDate.setHours(0, 0, 0, 0);
             const diffTime = Math.abs(today.getTime() - startDate.getTime());
             activeDaysOut = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            
-            // Verificar se passou da data prevista
             if (activeInjury.returnDate) {
                 const returnDate = new Date(activeInjury.returnDate);
                 returnDate.setHours(0, 0, 0, 0);
-                if (today > returnDate) {
-                    activeDaysColor = 'text-red-400';
-                } else {
-                    activeDaysColor = 'text-green-400';
-                }
+                withinDeadline = today <= returnDate;
             }
         }
+        
+        // Contar recuperadas dentro do prazo vs fora do prazo (retorno real <= retorno previsto = dentro)
+        let recoveredWithin = 0;
+        let recoveredOutside = 0;
+        recoveredInjuries.forEach((inj) => {
+            const actual = inj.returnDateActual || inj.endDate || '';
+            const expected = inj.returnDate || '';
+            if (!actual) return;
+            const actualDate = new Date(actual);
+            if (expected) {
+                const expectedDate = new Date(expected);
+                if (actualDate <= expectedDate) recoveredWithin++;
+                else recoveredOutside++;
+            } else {
+                recoveredWithin++;
+            }
+        });
         
         const totalDaysOut = player.injuryHistory ? player.injuryHistory.reduce((acc, curr) => acc + (curr.daysOut || 0), 0) : 0;
         return (
@@ -448,7 +461,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
                      
                      <div className="absolute top-4 left-4 flex items-center gap-2">
                          {activeInjuries.length > 0 && (
-                             <div className="bg-red-600 p-1.5 rounded-lg shadow-lg" title="Em recuperação - lesão sem data de retorno">
+                             <div className="bg-red-600 p-1.5 rounded-lg shadow-lg" title="Lesão ativa">
                                  <Ambulance size={18} className="text-white" />
                              </div>
                          )}
@@ -526,9 +539,17 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
                                 </div>
                                 {activeInjuries.length > 0 && (
                                     <div className="flex items-center gap-2 border-t border-zinc-900 pt-1 mt-1">
-                                        <AlertTriangle size={14} className={activeDaysColor === 'text-red-400' ? 'text-red-500' : 'text-green-500'} />
-                                        <span className={`text-[10px] font-bold uppercase ${activeDaysColor}`}>
-                                            {activeDaysOut} Dias em Afastamento {activeDaysColor === 'text-red-400' ? '(Atrasado)' : '(No Prazo)'}
+                                        <AlertTriangle size={14} className={withinDeadline ? 'text-green-500' : 'text-red-500'} />
+                                        <span className={`text-[10px] font-bold uppercase ${withinDeadline ? 'text-green-400' : 'text-red-400'}`}>
+                                            {activeDaysOut} dias {withinDeadline ? '— Dentro do prazo' : '— Fora do prazo'}
+                                        </span>
+                                    </div>
+                                )}
+                                {player.injuryHistory.length > 1 && recoveredInjuries.length > 0 && (
+                                    <div className="flex items-center gap-2 border-t border-zinc-900 pt-1 mt-1 text-[10px] text-zinc-400">
+                                        <span className="font-bold uppercase">
+                                            {recoveredWithin} recuperada{recoveredWithin !== 1 ? 's' : ''} dentro do prazo
+                                            {recoveredOutside > 0 && ` · ${recoveredOutside} fora do prazo`}
                                         </span>
                                     </div>
                                 )}
@@ -834,15 +855,15 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
                                         </select>
                                     </div>
                                     <div>
-                                        <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Data Início</label>
+                                        <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Data da lesão</label>
                                         <input type="date" value={newInjuryStart} onChange={e => setNewInjuryStart(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg p-2 text-white text-xs" />
                                     </div>
                                     <div>
-                                        <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Data Retorno Prevista</label>
+                                        <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Retorno previsto</label>
                                         <input type="date" value={newInjuryReturnDate} onChange={e => setNewInjuryReturnDate(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg p-2 text-white text-xs" />
                                     </div>
                                     <div>
-                                        <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Data Retorno Real / Alta</label>
+                                        <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Retorno real</label>
                                         <input type="date" value={newInjuryReturnDateActual} onChange={e => setNewInjuryReturnDateActual(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg p-2 text-white text-xs" />
                                     </div>
                                     <div className="md:col-span-2 lg:col-span-4">
@@ -888,7 +909,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
                                                         ) : (
                                                             <>
                                                                 <td className="p-3">{inj.returnDate ? new Date(inj.returnDate).toLocaleDateString('pt-BR') : '-'}</td>
-                                                                <td className="p-3">{inj.returnDateActual ? new Date(inj.returnDateActual).toLocaleDateString('pt-BR') : '-'}</td>
+                                                                <td className="p-3">{(inj.returnDateActual || inj.endDate) ? new Date(inj.returnDateActual || inj.endDate || '').toLocaleDateString('pt-BR') : '-'}</td>
                                                                 <td className="p-3 text-center">
                                                                     <button type="button" onClick={() => startEditInjury(inj)} className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white transition-colors" title="Editar data de retorno">
                                                                         <Pencil size={14} />

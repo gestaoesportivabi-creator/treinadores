@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Table, Printer, Trash2, Save, ChevronDown, ChevronUp, X, Minus, Clock, Goal, Shield, Zap, AlertTriangle, ArrowRightLeft, Target, Users, Activity, Gauge, Square, ArrowUpDown, Calendar, ArrowLeft, Play, Pause, RotateCcw } from 'lucide-react';
+import { Table, Printer, Trash2, Save, ChevronDown, ChevronUp, X, Minus, Clock, Goal, Shield, Zap, AlertTriangle, ArrowRightLeft, Target, Users, Activity, Gauge, Square, ArrowUpDown, Calendar, ArrowLeft, Play, Pause, RotateCcw, Ambulance } from 'lucide-react';
 import { MatchRecord, MatchStats, Player, PlayerTimeControl, Team } from '../types';
 import { timeControlsApi } from '../services/api';
 import { TimeSelectionModal } from './TimeSelectionModal';
@@ -1798,15 +1798,10 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
         }]);
     };
     
-    // Funções auxiliares para verificar status do atleta
+    // Lesão ativa = sem data de retorno real nem alta (em recuperação)
     const isPlayerInjured = (player: Player): boolean => {
         if (!player.injuryHistory || player.injuryHistory.length === 0) return false;
-        const now = new Date();
-        return player.injuryHistory.some(injury => {
-            if (!injury.endDate) return true; // Lesão sem data de fim = ativa
-            const endDate = new Date(injury.endDate);
-            return endDate > now; // Lesão com data futura = ativa
-        });
+        return player.injuryHistory.some(injury => !(injury.returnDateActual || injury.endDate));
     };
     
     const isPlayerSuspended = (playerId: string): boolean => {
@@ -2026,19 +2021,22 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                 <h3 className="text-white font-bold uppercase text-sm mb-4 flex items-center gap-2">
                                     <Users className="text-[#00f0ff]" size={16} /> Selecionar Atletas
                                 </h3>
-                                <p className="text-zinc-400 text-xs mb-3">Selecione os atletas que vão para a partida. Só depois será possível abrir o scout em nova aba.</p>
+                                <p className="text-zinc-400 text-xs mb-3">Selecione os atletas que vão para a partida. Atletas com lesão ativa aparecem com ícone de ambulância e não podem ser selecionados.</p>
                                 <div className="max-h-96 overflow-y-auto space-y-2">
                                     {(players || []).map((player) => {
                                         const isSelected = selectedPlayersForMatch.has(String(player.id).trim());
+                                        const injured = isPlayerInjured(player);
                                         return (
                                             <label
                                                 key={player.id}
-                                                className="flex items-center gap-3 p-3 bg-zinc-950 border-2 border-zinc-800 rounded-xl cursor-pointer hover:border-[#00f0ff]/50 transition-colors"
+                                                className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-colors ${injured ? 'bg-zinc-900/80 border-red-900/60 cursor-not-allowed opacity-90' : 'bg-zinc-950 border-zinc-800 cursor-pointer hover:border-[#00f0ff]/50'}`}
                                             >
                                                 <input
                                                     type="checkbox"
                                                     checked={isSelected}
+                                                    disabled={injured}
                                                     onChange={(e) => {
+                                                        if (injured) return;
                                                         const newSet = new Set(selectedPlayersForMatch);
                                                         if (e.target.checked) {
                                                             newSet.add(String(player.id).trim());
@@ -2047,13 +2045,19 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                                         }
                                                         setSelectedPlayersForMatch(newSet);
                                                     }}
-                                                    className="w-5 h-5 text-[#00f0ff] bg-zinc-900 border-zinc-700 rounded focus:ring-[#00f0ff] focus:ring-2"
+                                                    className="w-5 h-5 text-[#00f0ff] bg-zinc-900 border-zinc-700 rounded focus:ring-[#00f0ff] focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                                 />
-                                                <div className="flex-1">
-                                                    <span className="text-white font-bold text-sm">
+                                                {injured && (
+                                                    <span className="flex-shrink-0 bg-red-600/90 p-1 rounded" title="Lesão ativa – não pode ser selecionado">
+                                                        <Ambulance size={16} className="text-white" />
+                                                    </span>
+                                                )}
+                                                <div className="flex-1 min-w-0">
+                                                    <span className={`font-bold text-sm ${injured ? 'text-zinc-400' : 'text-white'}`}>
                                                         #{player.jerseyNumber} {player.name}
                                                     </span>
                                                     <span className="text-zinc-500 text-xs ml-2">({player.position})</span>
+                                                    {injured && <span className="text-red-400 text-[10px] ml-2 block">Lesão ativa</span>}
                                                 </div>
                                             </label>
                                         );
@@ -2142,18 +2146,22 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                 <h3 className="text-white font-bold uppercase text-sm mb-4 flex items-center gap-2">
                                     <Users className="text-[#00f0ff]" size={16} /> Selecionar Atletas
                                 </h3>
+                                <p className="text-zinc-400 text-xs mb-3">Atletas com lesão ativa aparecem com ícone de ambulância e não podem ser selecionados.</p>
                                 <div className="max-h-96 overflow-y-auto space-y-2">
                                     {players.map((player) => {
                                         const isSelected = selectedPlayersForMatch.has(String(player.id).trim());
+                                        const injured = isPlayerInjured(player);
                                         return (
                                             <label
                                                 key={player.id}
-                                                className="flex items-center gap-3 p-3 bg-zinc-950 border-2 border-zinc-800 rounded-xl cursor-pointer hover:border-[#00f0ff]/50 transition-colors"
+                                                className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-colors ${injured ? 'bg-zinc-900/80 border-red-900/60 cursor-not-allowed opacity-90' : 'bg-zinc-950 border-zinc-800 cursor-pointer hover:border-[#00f0ff]/50'}`}
                                             >
                                                 <input
                                                     type="checkbox"
                                                     checked={isSelected}
+                                                    disabled={injured}
                                                     onChange={(e) => {
+                                                        if (injured) return;
                                                         const newSet = new Set(selectedPlayersForMatch);
                                                         if (e.target.checked) {
                                                             newSet.add(String(player.id).trim());
@@ -2162,13 +2170,19 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                                         }
                                                         setSelectedPlayersForMatch(newSet);
                                                     }}
-                                                    className="w-5 h-5 text-[#00f0ff] bg-zinc-900 border-zinc-700 rounded focus:ring-[#00f0ff] focus:ring-2"
+                                                    className="w-5 h-5 text-[#00f0ff] bg-zinc-900 border-zinc-700 rounded focus:ring-[#00f0ff] focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                                 />
-                                                <div className="flex-1">
-                                                    <span className="text-white font-bold text-sm">
+                                                {injured && (
+                                                    <span className="flex-shrink-0 bg-red-600/90 p-1 rounded" title="Lesão ativa – não pode ser selecionado">
+                                                        <Ambulance size={16} className="text-white" />
+                                                    </span>
+                                                )}
+                                                <div className="flex-1 min-w-0">
+                                                    <span className={`font-bold text-sm ${injured ? 'text-zinc-400' : 'text-white'}`}>
                                                         #{player.jerseyNumber} {player.name}
                                                     </span>
                                                     <span className="text-zinc-500 text-xs ml-2">({player.position})</span>
+                                                    {injured && <span className="text-red-400 text-[10px] ml-2 block">Lesão ativa</span>}
                                                 </div>
                                             </label>
                                         );
