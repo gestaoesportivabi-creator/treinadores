@@ -197,16 +197,14 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
         const start = new Date(newInjuryStart);
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        
-        // Calcular dias baseado na data de retorno real (se houver) ou prevista (se houver)
-        const endDate = newInjuryReturnDateActual || newInjuryReturnDate;
-        if (endDate) {
-            const end = new Date(endDate);
+        // Dias de afastamento: usar apenas retorno REAL para fim da lesão (nunca previsto)
+        const dataLiberacao = newInjuryReturnDateActual;
+        if (dataLiberacao) {
+            const end = new Date(dataLiberacao);
             end.setHours(0, 0, 0, 0);
             const diffTime = Math.abs(end.getTime() - start.getTime());
             daysOut = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         } else {
-            // Se não tem data final, calcular dias desde o início até hoje
             start.setHours(0, 0, 0, 0);
             const diffTime = Math.abs(today.getTime() - start.getTime());
             daysOut = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -216,15 +214,16 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
             id: Date.now().toString(),
             playerId: editPlayerId,
             date: newInjuryStart,
-            endDate: newInjuryReturnDateActual || undefined,
+            startDate: newInjuryStart,
+            // Retorno real = data da liberação; nunca gravar previsto em endDate/returnDateActual
+            endDate: newInjuryReturnDateActual ? newInjuryReturnDateActual : undefined,
             returnDate: newInjuryReturnDate || undefined,
-            returnDateActual: newInjuryReturnDateActual || undefined,
+            returnDateActual: newInjuryReturnDateActual ? newInjuryReturnDateActual : undefined,
             type: newInjuryType as any,
             location: newInjuryLocation as any,
             side: newInjurySide,
             severity: newInjurySeverity as any,
             origin: newInjuryOrigin,
-            startDate: newInjuryStart,
             daysOut: daysOut
         };
 
@@ -255,16 +254,15 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
 
     const saveEditInjury = () => {
         if (!editingInjuryId || !editPlayerId) return;
-        const start = new Date();
-        start.setHours(0, 0, 0, 0);
-        const endDate = editInjuryReturnDateActual || editInjuryReturnDate;
         let daysOut = 0;
         const inj = injuryHistory.find(i => i.id === editingInjuryId);
         if (inj) {
             const startDate = new Date(inj.startDate || inj.date || '');
             startDate.setHours(0, 0, 0, 0);
-            if (endDate) {
-                const end = new Date(endDate);
+            // Dias de afastamento: usar apenas retorno REAL (liberação), nunca previsto
+            const dataLiberacao = editInjuryReturnDateActual;
+            if (dataLiberacao) {
+                const end = new Date(dataLiberacao);
                 end.setHours(0, 0, 0, 0);
                 daysOut = Math.ceil(Math.abs(end.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
             } else {
@@ -275,11 +273,14 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
         }
         const updatedInjuryHistory = injuryHistory.map(i => {
             if (i.id !== editingInjuryId) return i;
+            // Retorno previsto e retorno real são campos distintos: nunca gravar previsto em returnDateActual ou endDate
+            const retornoPrevisto = editInjuryReturnDate || undefined;
+            const retornoReal = editInjuryReturnDateActual ? editInjuryReturnDateActual : undefined;
             return {
                 ...i,
-                returnDate: editInjuryReturnDate || undefined,
-                returnDateActual: editInjuryReturnDateActual || undefined,
-                endDate: editInjuryReturnDateActual || i.endDate,
+                returnDate: retornoPrevisto,
+                returnDateActual: retornoReal,
+                endDate: retornoReal !== undefined ? retornoReal : i.endDate,
                 daysOut,
             };
         });
@@ -402,6 +403,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
         today.setHours(0, 0, 0, 0);
         
         // Lesões ativas = sem retorno real/alta
+        // Lesão ativa = sem data de retorno real/liberacao preenchida (ícone ambulância)
         const activeInjuries = player.injuryHistory?.filter(inj => !inj.returnDateActual && !inj.endDate) || [];
         // Recuperadas: com retorno real ou endDate
         const recoveredInjuries = player.injuryHistory?.filter(inj => !!(inj.returnDateActual || inj.endDate)) || [];
@@ -855,16 +857,18 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
                                         </select>
                                     </div>
                                     <div>
-                                        <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Data da lesão</label>
+                                        <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1" title="Data em que a lesão ocorreu">Data da lesão</label>
                                         <input type="date" value={newInjuryStart} onChange={e => setNewInjuryStart(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg p-2 text-white text-xs" />
                                     </div>
                                     <div>
-                                        <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Retorno previsto</label>
-                                        <input type="date" value={newInjuryReturnDate} onChange={e => setNewInjuryReturnDate(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg p-2 text-white text-xs" />
+                                        <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1" title="Data limite para retornar as atividades dentro do prazo">Retorno previsto</label>
+                                        <input type="date" value={newInjuryReturnDate} onChange={e => setNewInjuryReturnDate(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg p-2 text-white text-xs" aria-describedby="help-retorno-previsto" />
+                                        <span id="help-retorno-previsto" className="text-[9px] text-zinc-500 block mt-0.5">Data limite para retorno dentro do prazo</span>
                                     </div>
                                     <div>
-                                        <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">Retorno real</label>
-                                        <input type="date" value={newInjuryReturnDateActual} onChange={e => setNewInjuryReturnDateActual(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg p-2 text-white text-xs" />
+                                        <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1" title="Data da liberação para volta das atividades">Retorno real</label>
+                                        <input type="date" value={newInjuryReturnDateActual} onChange={e => setNewInjuryReturnDateActual(e.target.value)} className="w-full bg-black border border-zinc-700 rounded-lg p-2 text-white text-xs" aria-describedby="help-retorno-real" />
+                                        <span id="help-retorno-real" className="text-[9px] text-zinc-500 block mt-0.5">Data da liberação para volta</span>
                                     </div>
                                     <div className="md:col-span-2 lg:col-span-4">
                                         <button 
@@ -883,9 +887,9 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ players, onAddPl
                                         <table className="w-full text-left">
                                             <thead className="bg-zinc-900 text-[10px] text-zinc-500 uppercase">
                                                 <tr>
-                                                    <th className="p-3">Data da lesão</th>
-                                                    <th className="p-3">Retorno previsto</th>
-                                                    <th className="p-3">Retorno real</th>
+                                                    <th className="p-3" title="Data em que a lesão ocorreu">Data da lesão</th>
+                                                    <th className="p-3" title="Data limite para retornar as atividades dentro do prazo">Retorno previsto</th>
+                                                    <th className="p-3" title="Data da liberação para volta das atividades">Retorno real</th>
                                                     <th className="p-3 w-20 text-center">Editar</th>
                                                 </tr>
                                             </thead>
