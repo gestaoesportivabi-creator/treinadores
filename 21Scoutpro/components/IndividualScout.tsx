@@ -179,17 +179,17 @@ const PlayerCard: React.FC<{
   // Common inner content for both views
   const CardContent = ({ large = false }) => (
     <>
-       {/* FIFA Style Card - Cinza, Branco Gelo e Laranja */}
-      <div className={`relative ${large ? 'w-[500px] h-[700px]' : isCompact ? 'w-72 h-[420px]' : 'w-[300px] h-[440px]'} bg-gradient-to-br from-zinc-700 via-zinc-600 to-orange-500 p-[2px] rounded-3xl shadow-[0_0_60px_rgba(113,113,122,0.6),0_0_120px_rgba(251,146,60,0.4)] transform transition-transform shrink-0 overflow-hidden`}>
+       {/* FIFA Style Card - Paleta do sistema (zinc + cyan #00f0ff) */}
+      <div className={`relative ${large ? 'w-[500px] h-[700px]' : isCompact ? 'w-72 h-[420px]' : 'w-[300px] h-[440px]'} bg-gradient-to-br from-zinc-700 via-zinc-600 to-[#00f0ff] p-[2px] rounded-3xl shadow-[0_0_60px_rgba(113,113,122,0.5),0_0_120px_rgba(0,240,255,0.25)] transform transition-transform shrink-0 overflow-hidden`}>
          <div className="absolute inset-[2px] bg-gradient-to-b from-zinc-900 via-zinc-950 to-black rounded-[22px] overflow-hidden">
-            {/* Gradient overlay - Cinza e Laranja */}
-            <div className="absolute inset-0 bg-gradient-to-tr from-zinc-700/20 via-transparent to-orange-500/20"></div>
-            <div className="absolute inset-0 bg-gradient-to-bl from-zinc-600/10 via-transparent to-orange-400/10"></div>
+            {/* Gradient overlay - Zinc e Cyan do sistema */}
+            <div className="absolute inset-0 bg-gradient-to-tr from-zinc-700/20 via-transparent to-[#00f0ff]/20"></div>
+            <div className="absolute inset-0 bg-gradient-to-bl from-zinc-600/10 via-transparent to-[#00f0ff]/10"></div>
 
-            {/* Jersey Number on Top - Estilo Futurista */}
+            {/* Jersey Number on Top - Estilo sistema */}
             <div className={`absolute top-6 left-6 flex flex-col items-center z-10`}>
-                <span className={`${large ? 'text-8xl' : isCompact ? 'text-4xl' : 'text-7xl'} font-black bg-gradient-to-br from-slate-200 via-white to-orange-400 bg-clip-text text-transparent leading-none drop-shadow-[0_0_30px_rgba(251,146,60,0.9)]`}>{player.jerseyNumber}</span>
-                <span className={`${large ? 'text-2xl' : isCompact ? 'text-sm' : 'text-lg'} font-bold text-orange-300 uppercase tracking-widest mt-1 drop-shadow-[0_0_15px_rgba(251,146,60,0.8)]`}>{player.position.substring(0, 3)}</span>
+                <span className={`${large ? 'text-8xl' : isCompact ? 'text-4xl' : 'text-7xl'} font-black bg-gradient-to-br from-slate-200 via-white to-[#00f0ff] bg-clip-text text-transparent leading-none drop-shadow-[0_0_30px_rgba(0,240,255,0.6)]`}>{player.jerseyNumber}</span>
+                <span className={`${large ? 'text-2xl' : isCompact ? 'text-sm' : 'text-lg'} font-bold text-[#00f0ff] uppercase tracking-widest mt-1 drop-shadow-[0_0_15px_rgba(0,240,255,0.5)]`}>{player.position.substring(0, 3)}</span>
             </div>
 
             <div className={`absolute ${large ? 'bottom-32 right-[-20px] w-[450px] h-[550px]' : isCompact ? 'bottom-20 right-[-10px] w-60 h-72' : 'bottom-48 right-[-20px] w-[500px] h-[600px]'} z-0`}>
@@ -206,12 +206,12 @@ const PlayerCard: React.FC<{
 
             <div className={`absolute bottom-6 left-0 right-0 text-center z-10`}>
                 <div className="mx-6 border-b border-zinc-500/60 mb-3 shadow-[0_1px_15px_rgba(113,113,122,0.7)]"></div>
-                <h2 className={`${large ? 'text-5xl' : isCompact ? 'text-xl' : 'text-4xl'} font-black text-slate-100 uppercase tracking-tighter drop-shadow-[0_0_20px_rgba(255,255,255,0.6)] truncate px-4 italic`}>{player.name}</h2>
-                <p className={`bg-gradient-to-r from-slate-200 to-orange-400 bg-clip-text text-transparent font-bold ${large ? 'text-sm' : isCompact ? 'text-xs' : 'text-sm'} uppercase tracking-widest mb-2 drop-shadow-[0_0_10px_rgba(251,146,60,0.8)]`}>{avgMinutesPlayed} min/jogo</p>
+                <h2 className={`${large ? 'text-5xl' : isCompact ? 'text-xl' : 'text-4xl'} font-black text-slate-100 uppercase tracking-tighter drop-shadow-[0_0_20px_rgba(255,255,255,0.5)] truncate px-4 italic`}>{player.name}</h2>
+                <p className={`bg-gradient-to-r from-slate-200 to-[#00f0ff] bg-clip-text text-transparent font-bold ${large ? 'text-sm' : isCompact ? 'text-xs' : 'text-sm'} uppercase tracking-widest mb-2 drop-shadow-[0_0_10px_rgba(0,240,255,0.5)]`}>{avgMinutesPlayed} min/jogo</p>
                 <div className={`flex justify-center gap-4 mt-2 ${large ? 'text-xl' : isCompact ? 'text-xs' : 'text-sm'} font-bold uppercase tracking-wider`}>
-                   <span className="text-slate-300 drop-shadow-[0_0_10px_rgba(148,163,184,0.7)]">{stats.games} JOG</span>
-                   <span className="text-slate-200 drop-shadow-[0_0_10px_rgba(241,245,249,0.7)]">{stats.goals} GOLS</span>
-                   <span className="text-orange-300 drop-shadow-[0_0_10px_rgba(251,146,60,0.7)]">{stats.assists} ASS</span>
+                   <span className="text-zinc-400 drop-shadow-[0_0_10px_rgba(161,161,170,0.6)]">{stats.games} JOG</span>
+                   <span className="text-zinc-300 drop-shadow-[0_0_10px_rgba(212,212,216,0.6)]">{stats.goals} GOLS</span>
+                   <span className="text-[#00f0ff] drop-shadow-[0_0_10px_rgba(0,240,255,0.5)]">{stats.assists} ASS</span>
                 </div>
             </div>
          </div>

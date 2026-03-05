@@ -90,7 +90,7 @@ export const DashboardTodayBlock: React.FC<DashboardTodayBlockProps> = ({
           </div>
           <div>
             <p className="text-[10px] uppercase tracking-wider text-zinc-500">
-              {hasResults ? 'Resultado últimas partidas' : 'Indicadores'}
+              Últimas partidas
             </p>
             <div className="flex flex-wrap items-center gap-1.5 mt-1">
               {hasResults ? (
@@ -104,24 +104,8 @@ export const DashboardTodayBlock: React.FC<DashboardTodayBlockProps> = ({
                     }}
                   />
                 ))
-              ) : activeAlerts.length === 0 ? (
-                <span className="text-zinc-500 text-xs">Nenhuma partida salva</span>
               ) : (
-                activeAlerts.map((a, i) =>
-                  a.kind === 'lesão' && a.count > 0 ? (
-                    <span key={i} className="px-2 py-0.5 rounded bg-zinc-700 text-zinc-300 text-[10px] font-medium border border-zinc-600">
-                      {a.count} lesão{a.count !== 1 ? 'ões' : ''}
-                    </span>
-                  ) : a.kind === 'suspenso' && a.count > 0 ? (
-                    <span key={i} className="px-2 py-0.5 rounded bg-zinc-700 text-zinc-300 text-[10px] font-medium border border-zinc-600">
-                      {a.count} susp.
-                    </span>
-                  ) : a.kind === 'pendurado' && a.count > 0 ? (
-                    <span key={i} className="px-2 py-0.5 rounded bg-zinc-700 text-amber-200/90 text-[10px] font-medium border border-zinc-600">
-                      {a.count} pend.
-                    </span>
-                  ) : null
-                )
+                <span className="text-zinc-500 text-xs">—</span>
               )}
             </div>
           </div>

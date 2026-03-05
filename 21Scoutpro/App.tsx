@@ -19,7 +19,6 @@ import { QualidadeSonoTab } from './components/QualidadeSonoTab';
 import { LoadingMessage } from './components/LoadingMessage';
 import { ChampionshipTable, ChampionshipMatch } from './components/ChampionshipTable';
 import { SuspensionsAlert } from './components/SuspensionsAlert';
-import { InjuredPlayersAlert } from './components/InjuredPlayersAlert';
 import { TabBackgroundWrapper } from './components/TabBackgroundWrapper';
 import { ManagementReport } from './components/ManagementReport';
 import { NextMatchAlert } from './components/NextMatchAlert';
@@ -397,11 +396,11 @@ export default function App() {
     return 'Dia sem compromisso registrado';
   }, [nextCommitment, overviewStats.nextMatch, schedules, liveNow]);
 
-  // Últimas 3 partidas salvas para o card Resultado últimas partidas (bolinhas V/D/E)
+  // Últimas 5 partidas salvas para o card Últimas partidas (bolinhas V/D/E)
   const lastMatchResults = useMemo((): ('V' | 'D' | 'E')[] => {
     const withResult = (matches || []).filter(m => m && m.teamStats && (m.result === 'V' || m.result === 'D' || m.result === 'E'));
     const sorted = [...withResult].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-    return sorted.slice(0, 3).map(m => m.result);
+    return sorted.slice(0, 5).map(m => m.result);
   }, [matches]);
 
   // Lesões com início nos últimos 7 dias (para tendência semanal)
@@ -1430,11 +1429,10 @@ export default function App() {
                 lastMatchResults={lastMatchResults}
               />
 
-              {/* 1. Atletas Suspensos */}
+              {/* 1. Atletas Suspensos (apenas suspensos por cartões; lesões aparecem só no card Desfalques por lesão) */}
               <section className="space-y-4" aria-label="Atletas Suspensos">
                 <p className="text-[10px] uppercase tracking-[0.35em] text-zinc-500 font-bold">Atletas Suspensos</p>
                 <div className="flex flex-col gap-3">
-                  <InjuredPlayersAlert players={players} />
                   {overviewStats.nextMatch && (
                     <SuspensionsAlert
                       nextMatch={overviewStats.nextMatch}
@@ -1442,9 +1440,9 @@ export default function App() {
                       players={players}
                     />
                   )}
-                  {!overviewStats.nextMatch && dashboardAlertCounts.injuredCount === 0 && (
+                  {!overviewStats.nextMatch && (
                     <div className="rounded-lg border border-white/[0.08] bg-zinc-900/50 px-4 py-3 text-zinc-500 text-xs">
-                      Sem lesões ou suspensões no momento.
+                      Sem próximo jogo definido.
                     </div>
                   )}
                 </div>
@@ -1476,7 +1474,7 @@ export default function App() {
               {/* 4. Indicadores gerais */}
               <section className="grid grid-cols-2 lg:grid-cols-4 gap-4" aria-label="Indicadores gerais">
                 <StatCard label="Atletas" value={overviewStats.totalAthletes} helper={overviewStats.totalAthletes > 0 ? 'Cadastros' : '—'} />
-                <StatCard label="Jogos" value={overviewStats.totalGames} helper={`V ${overviewStats.wins} · D ${overviewStats.losses}`} highlight={overviewStats.totalGames > 0} />
+                <StatCard label="Jogos" value={overviewStats.totalGames} helper="" highlight={overviewStats.totalGames > 0} />
                 <StatCard label="Artilheiro" value={overviewStats.topScorerName} helper={overviewStats.topScorerGoals > 0 ? `${overviewStats.topScorerGoals} gols` : '—'} />
                 <StatCard label="Lesões no ano" value={overviewStats.injuriesThisYear} helper={String(overviewStats.currentYear)} />
               </section>
