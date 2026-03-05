@@ -109,6 +109,7 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
     const [collectionType, setCollectionType] = useState<'realtime' | 'postmatch' | null>(null); // Tipo de coleta (null = seletor)
     const [showPostMatchSheet, setShowPostMatchSheet] = useState<boolean>(false); // Planilha pós-jogo
     const [showRealtimePrepForSavedMatch, setShowRealtimePrepForSavedMatch] = useState<boolean>(false); // Preparação tempo real para partida salva (seleção de atletas antes de abrir aba)
+    const [preparationAthleteFilter, setPreparationAthleteFilter] = useState<'goleiros' | 'linha'>('goleiros'); // Goleiros | Atletas de linha na preparação
 
     // Calendário: filtro de datas (default: mês atual) e modo de visualização
     const [startDate, setStartDate] = useState<string>(() => {
@@ -2079,12 +2080,30 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                             </div>
 
                             <div className="bg-zinc-950/80 rounded-3xl border border-zinc-800 p-6 shadow-lg">
-                                <h3 className="text-white font-bold uppercase text-sm mb-4 flex items-center gap-2">
-                                    <Users className="text-[#00f0ff]" size={16} /> Selecionar Atletas
-                                </h3>
-                                <p className="text-zinc-400 text-xs mb-4">Suspensos (borda vermelha), lesão ativa (ambulância, borda laranja) e pendurados (alerta, borda amarela) aparecem indisponíveis quando aplicável.</p>
-                                <div className="max-h-[28rem] overflow-y-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                                    {(players || []).map((player) => {
+                                <div className="flex flex-wrap items-center gap-2 mb-3">
+                                    <h3 className="text-white font-bold uppercase text-sm flex items-center gap-2">
+                                        <Users className="text-[#00f0ff]" size={16} /> Selecionar Atletas
+                                    </h3>
+                                    <button type="button" onClick={() => setPreparationAthleteFilter('goleiros')} className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase transition-colors ${preparationAthleteFilter === 'goleiros' ? 'bg-[#00f0ff] text-black' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'}`}>Goleiros</button>
+                                    <button type="button" onClick={() => setPreparationAthleteFilter('linha')} className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase transition-colors ${preparationAthleteFilter === 'linha' ? 'bg-[#00f0ff] text-black' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'}`}>Atletas de linha</button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const list = preparationAthleteFilter === 'goleiros' ? (players || []).filter(p => p.position === 'Goleiro') : (players || []).filter(p => p.position !== 'Goleiro');
+                                            const newSet = new Set(selectedPlayersForMatch);
+                                            list.forEach(p => {
+                                                if (!isPlayerInjured(p) && !preparationDataSavedMatch.suspendedIds.has(p.id)) newSet.add(String(p.id).trim());
+                                            });
+                                            setSelectedPlayersForMatch(newSet);
+                                        }}
+                                        className="ml-auto px-3 py-1.5 rounded-lg text-xs font-bold uppercase bg-zinc-700 text-[#00f0ff] hover:bg-zinc-600 transition-colors"
+                                    >
+                                        Selecionar todos
+                                    </button>
+                                </div>
+                                <p className="text-zinc-400 text-xs mb-3">Suspensos (borda vermelha), lesão ativa (ambulância, borda laranja) e pendurados (alerta, borda amarela). Clique no card para selecionar.</p>
+                                <div className="max-h-[24rem] overflow-y-auto grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                    {((preparationAthleteFilter === 'goleiros' ? (players || []).filter(p => p.position === 'Goleiro') : (players || []).filter(p => p.position !== 'Goleiro'))).map((player) => {
                                         const id = String(player.id).trim();
                                         const isSelected = selectedPlayersForMatch.has(id);
                                         const injured = isPlayerInjured(player);
@@ -2093,22 +2112,23 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                         const unavailable = injured || suspended;
                                         const ph = preparationDataSavedMatch.physiology[id] ?? { psrMatchDay: null, pseAfterLastTraining: null, sleepMatchDay: null };
                                         const borderClass = suspended ? 'border-red-500' : injured ? 'border-orange-500' : pendurado ? 'border-amber-500' : 'border-zinc-700 hover:border-[#00f0ff]/50';
+                                        const displayName = (player.nickname && player.nickname.trim()) ? player.nickname.trim() : player.name;
                                         return (
-                                            <label key={player.id} className={`flex flex-row items-stretch gap-3 p-3 rounded-xl border-2 transition-colors bg-zinc-900/90 ${unavailable ? 'cursor-not-allowed opacity-90' : 'cursor-pointer'} ${borderClass}`}>
+                                            <label key={player.id} className={`flex flex-row items-stretch gap-2 p-2 rounded-lg border-2 transition-colors bg-zinc-900/90 ${unavailable ? 'cursor-not-allowed opacity-90' : 'cursor-pointer'} ${borderClass}`}>
                                                 <input type="checkbox" checked={isSelected} disabled={unavailable} onChange={(e) => { if (unavailable) return; const newSet = new Set(selectedPlayersForMatch); if (e.target.checked) newSet.add(id); else newSet.delete(id); setSelectedPlayersForMatch(newSet); }} className="sr-only" />
-                                                <div className="flex-shrink-0 flex flex-col items-center justify-center gap-0.5">
-                                                    {player.photoUrl ? <img src={player.photoUrl} alt="" className="w-12 h-12 rounded-full object-cover border-2 border-zinc-700" aria-hidden /> : <div className="w-12 h-12 rounded-full bg-zinc-800 border-2 border-zinc-700 flex items-center justify-center text-[#00f0ff] font-bold text-sm">{player.jerseyNumber}</div>}
-                                                    <span className="text-[10px] font-bold text-[#00f0ff]">#{player.jerseyNumber}</span>
-                                                    <span className="text-[9px] text-zinc-500 uppercase">{player.position}</span>
+                                                <div className="flex-shrink-0 flex flex-col items-center justify-center gap-0">
+                                                    {player.photoUrl ? <img src={player.photoUrl} alt="" className="w-9 h-9 rounded-full object-cover border border-zinc-700" aria-hidden /> : <div className="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-[#00f0ff] font-bold text-xs">{player.jerseyNumber}</div>}
+                                                    <span className="text-[9px] font-bold text-[#00f0ff]">#{player.jerseyNumber}</span>
+                                                    <span className="text-[8px] text-zinc-500 uppercase leading-tight">{player.position}</span>
                                                 </div>
-                                                <div className="flex-1 min-w-0 flex flex-col justify-center gap-1 text-right">
-                                                    <div className="flex items-center justify-end gap-1.5 flex-wrap">
-                                                        {suspended && <span className="p-1 rounded bg-red-600/90" title="Suspenso"><Ban size={14} className="text-white" /></span>}
-                                                        {injured && <span className="p-1 rounded bg-orange-500/90" title="Lesão ativa"><Ambulance size={14} className="text-white" /></span>}
-                                                        {pendurado && !suspended && !injured && <span className="p-1 rounded bg-amber-500/90" title="Pendurado"><AlertTriangle size={14} className="text-white" /></span>}
+                                                <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5 text-right">
+                                                    <div className="flex items-center justify-end gap-1 flex-wrap">
+                                                        {suspended && <span className="p-0.5 rounded bg-red-600/90" title="Suspenso"><Ban size={12} className="text-white" /></span>}
+                                                        {injured && <span className="p-0.5 rounded bg-orange-500/90" title="Lesão ativa"><Ambulance size={12} className="text-white" /></span>}
+                                                        {pendurado && !suspended && !injured && <span className="p-0.5 rounded bg-amber-500/90" title="Pendurado"><AlertTriangle size={12} className="text-white" /></span>}
                                                     </div>
-                                                    <p className={`font-bold text-sm truncate ${unavailable ? 'text-zinc-400' : 'text-white'}`}>{player.name}</p>
-                                                    <div className="flex flex-col gap-0.5 text-[10px]">
+                                                    <p className={`font-bold text-xs truncate leading-tight ${unavailable ? 'text-zinc-400' : 'text-white'}`} title={displayName}>{displayName}</p>
+                                                    <div className="flex flex-col gap-0 text-[9px]">
                                                         <span className="text-zinc-400">PSE: <span className="text-[#00f0ff] font-medium">{ph.pseAfterLastTraining != null ? ph.pseAfterLastTraining : '—'}</span></span>
                                                         <span className="text-zinc-400">PSR: <span className="text-[#00f0ff] font-medium">{ph.psrMatchDay != null ? ph.psrMatchDay : '—'}</span></span>
                                                         <span className="text-zinc-400">Sono: <span className="text-[#00f0ff] font-medium">{ph.sleepMatchDay != null ? ph.sleepMatchDay : '—'}</span></span>
@@ -2118,7 +2138,7 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                         );
                                     })}
                                 </div>
-                                {(players || []).length === 0 && <p className="text-zinc-500 text-sm text-center py-6">Nenhum jogador cadastrado</p>}
+                                {((preparationAthleteFilter === 'goleiros' ? (players || []).filter(p => p.position === 'Goleiro') : (players || []).filter(p => p.position !== 'Goleiro'))).length === 0 && <p className="text-zinc-500 text-sm text-center py-6">Nenhum jogador nesta categoria</p>}
                             </div>
 
                             <div className="flex flex-col sm:flex-row gap-3">
@@ -2196,12 +2216,30 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                             </div>
 
                             <div className="bg-zinc-950/80 rounded-3xl border border-zinc-800 p-6 shadow-lg">
-                                <h3 className="text-white font-bold uppercase text-sm mb-4 flex items-center gap-2">
-                                    <Users className="text-[#00f0ff]" size={16} /> Selecionar Atletas
-                                </h3>
-                                <p className="text-zinc-400 text-xs mb-4">Suspensos (borda vermelha), lesão ativa (ambulância, borda laranja) e pendurados (alerta, borda amarela) aparecem indisponíveis.</p>
-                                <div className="max-h-[28rem] overflow-y-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                                    {players.map((player) => {
+                                <div className="flex flex-wrap items-center gap-2 mb-3">
+                                    <h3 className="text-white font-bold uppercase text-sm flex items-center gap-2">
+                                        <Users className="text-[#00f0ff]" size={16} /> Selecionar Atletas
+                                    </h3>
+                                    <button type="button" onClick={() => setPreparationAthleteFilter('goleiros')} className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase transition-colors ${preparationAthleteFilter === 'goleiros' ? 'bg-[#00f0ff] text-black' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'}`}>Goleiros</button>
+                                    <button type="button" onClick={() => setPreparationAthleteFilter('linha')} className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase transition-colors ${preparationAthleteFilter === 'linha' ? 'bg-[#00f0ff] text-black' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'}`}>Atletas de linha</button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const list = preparationAthleteFilter === 'goleiros' ? players.filter(p => p.position === 'Goleiro') : players.filter(p => p.position !== 'Goleiro');
+                                            const newSet = new Set(selectedPlayersForMatch);
+                                            list.forEach(p => {
+                                                if (!isPlayerInjured(p) && !preparationData.suspendedIds.has(p.id)) newSet.add(String(p.id).trim());
+                                            });
+                                            setSelectedPlayersForMatch(newSet);
+                                        }}
+                                        className="ml-auto px-3 py-1.5 rounded-lg text-xs font-bold uppercase bg-zinc-700 text-[#00f0ff] hover:bg-zinc-600 transition-colors"
+                                    >
+                                        Selecionar todos
+                                    </button>
+                                </div>
+                                <p className="text-zinc-400 text-xs mb-3">Suspensos (borda vermelha), lesão ativa (ambulância, borda laranja) e pendurados (alerta, borda amarela). Clique no card para selecionar.</p>
+                                <div className="max-h-[24rem] overflow-y-auto grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                    {(preparationAthleteFilter === 'goleiros' ? players.filter(p => p.position === 'Goleiro') : players.filter(p => p.position !== 'Goleiro')).map((player) => {
                                         const id = String(player.id).trim();
                                         const isSelected = selectedPlayersForMatch.has(id);
                                         const injured = isPlayerInjured(player);
@@ -2209,50 +2247,24 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                         const pendurado = preparationData.penduradoIds.has(player.id);
                                         const unavailable = injured || suspended;
                                         const ph = preparationData.physiology[id] ?? { psrMatchDay: null, pseAfterLastTraining: null, sleepMatchDay: null };
-                                        const borderClass = suspended
-                                            ? 'border-red-500'
-                                            : injured
-                                                ? 'border-orange-500'
-                                                : pendurado
-                                                    ? 'border-amber-500'
-                                                    : 'border-zinc-700 hover:border-[#00f0ff]/50';
+                                        const borderClass = suspended ? 'border-red-500' : injured ? 'border-orange-500' : pendurado ? 'border-amber-500' : 'border-zinc-700 hover:border-[#00f0ff]/50';
+                                        const displayName = (player.nickname && player.nickname.trim()) ? player.nickname.trim() : player.name;
                                         return (
-                                            <label
-                                                key={player.id}
-                                                className={`flex flex-row items-stretch gap-3 p-3 rounded-xl border-2 transition-colors bg-zinc-900/90 ${unavailable ? 'cursor-not-allowed opacity-90' : 'cursor-pointer'} ${borderClass}`}
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    checked={isSelected}
-                                                    disabled={unavailable}
-                                                    onChange={(e) => {
-                                                        if (unavailable) return;
-                                                        const newSet = new Set(selectedPlayersForMatch);
-                                                        if (e.target.checked) newSet.add(id);
-                                                        else newSet.delete(id);
-                                                        setSelectedPlayersForMatch(newSet);
-                                                    }}
-                                                    className="sr-only"
-                                                />
-                                                <div className="flex-shrink-0 flex flex-col items-center justify-center gap-0.5">
-                                                    {player.photoUrl ? (
-                                                        <img src={player.photoUrl} alt="" className="w-12 h-12 rounded-full object-cover border-2 border-zinc-700" aria-hidden />
-                                                    ) : (
-                                                        <div className="w-12 h-12 rounded-full bg-zinc-800 border-2 border-zinc-700 flex items-center justify-center text-[#00f0ff] font-bold text-sm">
-                                                            {player.jerseyNumber}
-                                                        </div>
-                                                    )}
-                                                    <span className="text-[10px] font-bold text-[#00f0ff]">#{player.jerseyNumber}</span>
-                                                    <span className="text-[9px] text-zinc-500 uppercase">{player.position}</span>
+                                            <label key={player.id} className={`flex flex-row items-stretch gap-2 p-2 rounded-lg border-2 transition-colors bg-zinc-900/90 ${unavailable ? 'cursor-not-allowed opacity-90' : 'cursor-pointer'} ${borderClass}`}>
+                                                <input type="checkbox" checked={isSelected} disabled={unavailable} onChange={(e) => { if (unavailable) return; const newSet = new Set(selectedPlayersForMatch); if (e.target.checked) newSet.add(id); else newSet.delete(id); setSelectedPlayersForMatch(newSet); }} className="sr-only" />
+                                                <div className="flex-shrink-0 flex flex-col items-center justify-center gap-0">
+                                                    {player.photoUrl ? <img src={player.photoUrl} alt="" className="w-9 h-9 rounded-full object-cover border border-zinc-700" aria-hidden /> : <div className="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-[#00f0ff] font-bold text-xs">{player.jerseyNumber}</div>}
+                                                    <span className="text-[9px] font-bold text-[#00f0ff]">#{player.jerseyNumber}</span>
+                                                    <span className="text-[8px] text-zinc-500 uppercase leading-tight">{player.position}</span>
                                                 </div>
-                                                <div className="flex-1 min-w-0 flex flex-col justify-center gap-1 text-right">
-                                                    <div className="flex items-center justify-end gap-1.5 flex-wrap">
-                                                        {suspended && <span className="p-1 rounded bg-red-600/90" title="Suspenso"><Ban size={14} className="text-white" /></span>}
-                                                        {injured && <span className="p-1 rounded bg-orange-500/90" title="Lesão ativa"><Ambulance size={14} className="text-white" /></span>}
-                                                        {pendurado && !suspended && !injured && <span className="p-1 rounded bg-amber-500/90" title="Pendurado"><AlertTriangle size={14} className="text-white" /></span>}
+                                                <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5 text-right">
+                                                    <div className="flex items-center justify-end gap-1 flex-wrap">
+                                                        {suspended && <span className="p-0.5 rounded bg-red-600/90" title="Suspenso"><Ban size={12} className="text-white" /></span>}
+                                                        {injured && <span className="p-0.5 rounded bg-orange-500/90" title="Lesão ativa"><Ambulance size={12} className="text-white" /></span>}
+                                                        {pendurado && !suspended && !injured && <span className="p-0.5 rounded bg-amber-500/90" title="Pendurado"><AlertTriangle size={12} className="text-white" /></span>}
                                                     </div>
-                                                    <p className={`font-bold text-sm truncate ${unavailable ? 'text-zinc-400' : 'text-white'}`}>{player.name}</p>
-                                                    <div className="flex flex-col gap-0.5 text-[10px]">
+                                                    <p className={`font-bold text-xs truncate leading-tight ${unavailable ? 'text-zinc-400' : 'text-white'}`} title={displayName}>{displayName}</p>
+                                                    <div className="flex flex-col gap-0 text-[9px]">
                                                         <span className="text-zinc-400">PSE: <span className="text-[#00f0ff] font-medium">{ph.pseAfterLastTraining != null ? ph.pseAfterLastTraining : '—'}</span></span>
                                                         <span className="text-zinc-400">PSR: <span className="text-[#00f0ff] font-medium">{ph.psrMatchDay != null ? ph.psrMatchDay : '—'}</span></span>
                                                         <span className="text-zinc-400">Sono: <span className="text-[#00f0ff] font-medium">{ph.sleepMatchDay != null ? ph.sleepMatchDay : '—'}</span></span>
@@ -2262,9 +2274,7 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                         );
                                     })}
                                 </div>
-                                {players.length === 0 && (
-                                    <p className="text-zinc-500 text-sm text-center py-6">Nenhum jogador cadastrado</p>
-                                )}
+                                {(preparationAthleteFilter === 'goleiros' ? players.filter(p => p.position === 'Goleiro') : players.filter(p => p.position !== 'Goleiro')).length === 0 && <p className="text-zinc-500 text-sm text-center py-6">Nenhum jogador nesta categoria</p>}
                             </div>
 
                             <div className="bg-zinc-950/80 rounded-3xl border border-zinc-800 p-6 shadow-lg">
