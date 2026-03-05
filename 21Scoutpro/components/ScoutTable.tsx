@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Table, Printer, Trash2, Save, ChevronDown, ChevronUp, X, Minus, Clock, Goal, Shield, Zap, AlertTriangle, ArrowRightLeft, Target, Users, Activity, Gauge, Square, ArrowUpDown, Calendar, ArrowLeft, Play, Pause, RotateCcw, Ambulance } from 'lucide-react';
-import { MatchRecord, MatchStats, Player, PlayerTimeControl, Team } from '../types';
+import { Table, Printer, Trash2, Save, ChevronDown, ChevronUp, X, Minus, Clock, Goal, Shield, Zap, AlertTriangle, ArrowRightLeft, Target, Users, Activity, Gauge, Square, ArrowUpDown, Calendar, ArrowLeft, Play, Pause, RotateCcw, Ambulance, Ban } from 'lucide-react';
+import { MatchRecord, MatchStats, Player, PlayerTimeControl, Team, Championship } from '../types';
+import { getPlayerPhysiologyForMatch } from '../utils/playerPhysiologyForMatch';
+import { getChampionshipCards, getPlayerStatus } from '../utils/championshipCards';
 import { timeControlsApi } from '../services/api';
 import { TimeSelectionModal } from './TimeSelectionModal';
 import { MatchTypeModal, MatchType } from './MatchTypeModal';
@@ -73,14 +75,15 @@ interface ScoutTableProps {
     onSave?: (match: MatchRecord) => void;
     players: Player[];
     competitions: string[];
-    matches?: MatchRecord[]; // Partidas salvas
-    initialData?: { date: string; opponent: string; competition: string; location?: string; scoreTarget?: string; time?: string }; // Dados iniciais da Tabela de Campeonato
-    onInitialDataUsed?: () => void; // Callback quando dados iniciais forem usados
-    championshipMatches?: ChampionshipMatch[]; // Partidas da tabela de campeonato
-    teams?: Team[]; // Equipes cadastradas
+    matches?: MatchRecord[];
+    initialData?: { date: string; opponent: string; competition: string; location?: string; scoreTarget?: string; time?: string };
+    onInitialDataUsed?: () => void;
+    championshipMatches?: ChampionshipMatch[];
+    schedules?: { days?: unknown[]; isActive?: unknown }[];
+    teams?: Team[];
 }
 
-export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competitions, matches = [], initialData, onInitialDataUsed, championshipMatches = [], teams = [] }) => {
+export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competitions, matches = [], initialData, onInitialDataUsed, championshipMatches = [], schedules = [], teams = [] }) => {
     // Debug: log initialData quando recebido
     useEffect(() => {
         if (initialData) {
@@ -1803,6 +1806,64 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
         if (!player.injuryHistory || player.injuryHistory.length === 0) return false;
         return player.injuryHistory.some(injury => !(injury.returnDateActual || injury.endDate));
     };
+
+    // Preparação: fisiologia (PSE/PSR/Sono) e status de suspenso/pendurado por campeonato
+    const preparationData = useMemo(() => {
+        const championships: Championship[] = [];
+        try {
+            const raw = localStorage.getItem('championships');
+            if (raw) championships.push(...JSON.parse(raw));
+        } catch (_) {}
+        const match = selectedScheduledMatch;
+        if (!match || !players.length) {
+            return { physiology: {} as Record<string, { psrMatchDay: number | null; pseAfterLastTraining: number | null; sleepMatchDay: number | null }>, suspendedIds: new Set<string>(), penduradoIds: new Set<string>() };
+        }
+        const playerIds = players.map(p => p.id);
+        const physiology = getPlayerPhysiologyForMatch(match.date, playerIds, schedules, championshipMatches);
+        const suspendedIds = new Set<string>();
+        const penduradoIds = new Set<string>();
+        if (match.competition && championships.length) {
+            const champ = championships.find((c: Championship) => c.name === match.competition);
+            if (champ?.suspensionRules) {
+                const rules = champ.suspensionRules;
+                players.forEach((p) => {
+                    const status = getPlayerStatus(champ.id, p.id, rules);
+                    if (status.suspended) suspendedIds.add(p.id);
+                    else if (status.pendurado) penduradoIds.add(p.id);
+                });
+            }
+        }
+        return { physiology, suspendedIds, penduradoIds };
+    }, [selectedScheduledMatch, players, schedules, championshipMatches]);
+
+    // Mesmo para preparação de partida salva (tempo real)
+    const preparationDataSavedMatch = useMemo(() => {
+        const championships: Championship[] = [];
+        try {
+            const raw = localStorage.getItem('championships');
+            if (raw) championships.push(...JSON.parse(raw));
+        } catch (_) {}
+        const match = selectedMatch;
+        if (!match || !players.length) {
+            return { physiology: {} as Record<string, { psrMatchDay: number | null; pseAfterLastTraining: number | null; sleepMatchDay: number | null }>, suspendedIds: new Set<string>(), penduradoIds: new Set<string>() };
+        }
+        const playerIds = players.map(p => p.id);
+        const physiology = getPlayerPhysiologyForMatch(match.date, playerIds, schedules, championshipMatches);
+        const suspendedIds = new Set<string>();
+        const penduradoIds = new Set<string>();
+        if (match.competition && championships.length) {
+            const champ = championships.find((c: Championship) => c.name === match.competition);
+            if (champ?.suspensionRules) {
+                const rules = champ.suspensionRules;
+                players.forEach((p) => {
+                    const status = getPlayerStatus(champ.id, p.id, rules);
+                    if (status.suspended) suspendedIds.add(p.id);
+                    else if (status.pendurado) penduradoIds.add(p.id);
+                });
+            }
+        }
+        return { physiology, suspendedIds, penduradoIds };
+    }, [selectedMatch, players, schedules, championshipMatches]);
     
     const isPlayerSuspended = (playerId: string): boolean => {
         const entry = entries.find(e => String(e.athleteId).trim() === String(playerId).trim());
@@ -2017,55 +2078,47 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                 </div>
                             </div>
 
-                            <div className="bg-black rounded-3xl border border-zinc-900 p-6 shadow-lg">
+                            <div className="bg-zinc-950/80 rounded-3xl border border-zinc-800 p-6 shadow-lg">
                                 <h3 className="text-white font-bold uppercase text-sm mb-4 flex items-center gap-2">
                                     <Users className="text-[#00f0ff]" size={16} /> Selecionar Atletas
                                 </h3>
-                                <p className="text-zinc-400 text-xs mb-3">Selecione os atletas que vão para a partida. Atletas com lesão ativa aparecem com ícone de ambulância e não podem ser selecionados.</p>
-                                <div className="max-h-96 overflow-y-auto space-y-2">
+                                <p className="text-zinc-400 text-xs mb-4">Suspensos (borda vermelha), lesão ativa (ambulância, borda laranja) e pendurados (alerta, borda amarela) aparecem indisponíveis quando aplicável.</p>
+                                <div className="max-h-[28rem] overflow-y-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                                     {(players || []).map((player) => {
-                                        const isSelected = selectedPlayersForMatch.has(String(player.id).trim());
+                                        const id = String(player.id).trim();
+                                        const isSelected = selectedPlayersForMatch.has(id);
                                         const injured = isPlayerInjured(player);
+                                        const suspended = preparationDataSavedMatch.suspendedIds.has(player.id);
+                                        const pendurado = preparationDataSavedMatch.penduradoIds.has(player.id);
+                                        const unavailable = injured || suspended;
+                                        const ph = preparationDataSavedMatch.physiology[id] ?? { psrMatchDay: null, pseAfterLastTraining: null, sleepMatchDay: null };
+                                        const borderClass = suspended ? 'border-red-500' : injured ? 'border-orange-500' : pendurado ? 'border-amber-500' : 'border-zinc-700 hover:border-[#00f0ff]/50';
                                         return (
-                                            <label
-                                                key={player.id}
-                                                className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-colors ${injured ? 'bg-zinc-900/80 border-red-900/60 cursor-not-allowed opacity-90' : 'bg-zinc-950 border-zinc-800 cursor-pointer hover:border-[#00f0ff]/50'}`}
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    checked={isSelected}
-                                                    disabled={injured}
-                                                    onChange={(e) => {
-                                                        if (injured) return;
-                                                        const newSet = new Set(selectedPlayersForMatch);
-                                                        if (e.target.checked) {
-                                                            newSet.add(String(player.id).trim());
-                                                        } else {
-                                                            newSet.delete(String(player.id).trim());
-                                                        }
-                                                        setSelectedPlayersForMatch(newSet);
-                                                    }}
-                                                    className="w-5 h-5 text-[#00f0ff] bg-zinc-900 border-zinc-700 rounded focus:ring-[#00f0ff] focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                />
-                                                {injured && (
-                                                    <span className="flex-shrink-0 bg-red-600/90 p-1 rounded" title="Lesão ativa – não pode ser selecionado">
-                                                        <Ambulance size={16} className="text-white" />
-                                                    </span>
-                                                )}
-                                                <div className="flex-1 min-w-0">
-                                                    <span className={`font-bold text-sm ${injured ? 'text-zinc-400' : 'text-white'}`}>
-                                                        #{player.jerseyNumber} {player.name}
-                                                    </span>
-                                                    <span className="text-zinc-500 text-xs ml-2">({player.position})</span>
-                                                    {injured && <span className="text-red-400 text-[10px] ml-2 block">Lesão ativa</span>}
+                                            <label key={player.id} className={`flex flex-row items-stretch gap-3 p-3 rounded-xl border-2 transition-colors bg-zinc-900/90 ${unavailable ? 'cursor-not-allowed opacity-90' : 'cursor-pointer'} ${borderClass}`}>
+                                                <input type="checkbox" checked={isSelected} disabled={unavailable} onChange={(e) => { if (unavailable) return; const newSet = new Set(selectedPlayersForMatch); if (e.target.checked) newSet.add(id); else newSet.delete(id); setSelectedPlayersForMatch(newSet); }} className="sr-only" />
+                                                <div className="flex-shrink-0 flex flex-col items-center justify-center gap-0.5">
+                                                    {player.photoUrl ? <img src={player.photoUrl} alt="" className="w-12 h-12 rounded-full object-cover border-2 border-zinc-700" aria-hidden /> : <div className="w-12 h-12 rounded-full bg-zinc-800 border-2 border-zinc-700 flex items-center justify-center text-[#00f0ff] font-bold text-sm">{player.jerseyNumber}</div>}
+                                                    <span className="text-[10px] font-bold text-[#00f0ff]">#{player.jerseyNumber}</span>
+                                                    <span className="text-[9px] text-zinc-500 uppercase">{player.position}</span>
+                                                </div>
+                                                <div className="flex-1 min-w-0 flex flex-col justify-center gap-1 text-right">
+                                                    <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                                                        {suspended && <span className="p-1 rounded bg-red-600/90" title="Suspenso"><Ban size={14} className="text-white" /></span>}
+                                                        {injured && <span className="p-1 rounded bg-orange-500/90" title="Lesão ativa"><Ambulance size={14} className="text-white" /></span>}
+                                                        {pendurado && !suspended && !injured && <span className="p-1 rounded bg-amber-500/90" title="Pendurado"><AlertTriangle size={14} className="text-white" /></span>}
+                                                    </div>
+                                                    <p className={`font-bold text-sm truncate ${unavailable ? 'text-zinc-400' : 'text-white'}`}>{player.name}</p>
+                                                    <div className="flex flex-col gap-0.5 text-[10px]">
+                                                        <span className="text-zinc-400">PSE: <span className="text-[#00f0ff] font-medium">{ph.pseAfterLastTraining != null ? ph.pseAfterLastTraining : '—'}</span></span>
+                                                        <span className="text-zinc-400">PSR: <span className="text-[#00f0ff] font-medium">{ph.psrMatchDay != null ? ph.psrMatchDay : '—'}</span></span>
+                                                        <span className="text-zinc-400">Sono: <span className="text-[#00f0ff] font-medium">{ph.sleepMatchDay != null ? ph.sleepMatchDay : '—'}</span></span>
+                                                    </div>
                                                 </div>
                                             </label>
                                         );
                                     })}
-                                    {(players || []).length === 0 && (
-                                        <p className="text-zinc-500 text-sm text-center py-4">Nenhum jogador cadastrado</p>
-                                    )}
                                 </div>
+                                {(players || []).length === 0 && <p className="text-zinc-500 text-sm text-center py-6">Nenhum jogador cadastrado</p>}
                             </div>
 
                             <div className="flex flex-col sm:flex-row gap-3">
@@ -2142,142 +2195,117 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                 </div>
                             </div>
 
-                            <div className="bg-black rounded-3xl border border-zinc-900 p-6 shadow-lg">
+                            <div className="bg-zinc-950/80 rounded-3xl border border-zinc-800 p-6 shadow-lg">
                                 <h3 className="text-white font-bold uppercase text-sm mb-4 flex items-center gap-2">
                                     <Users className="text-[#00f0ff]" size={16} /> Selecionar Atletas
                                 </h3>
-                                <p className="text-zinc-400 text-xs mb-3">Atletas com lesão ativa aparecem com ícone de ambulância e não podem ser selecionados.</p>
-                                <div className="max-h-96 overflow-y-auto space-y-2">
+                                <p className="text-zinc-400 text-xs mb-4">Suspensos (borda vermelha), lesão ativa (ambulância, borda laranja) e pendurados (alerta, borda amarela) aparecem indisponíveis.</p>
+                                <div className="max-h-[28rem] overflow-y-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                                     {players.map((player) => {
-                                        const isSelected = selectedPlayersForMatch.has(String(player.id).trim());
+                                        const id = String(player.id).trim();
+                                        const isSelected = selectedPlayersForMatch.has(id);
                                         const injured = isPlayerInjured(player);
+                                        const suspended = preparationData.suspendedIds.has(player.id);
+                                        const pendurado = preparationData.penduradoIds.has(player.id);
+                                        const unavailable = injured || suspended;
+                                        const ph = preparationData.physiology[id] ?? { psrMatchDay: null, pseAfterLastTraining: null, sleepMatchDay: null };
+                                        const borderClass = suspended
+                                            ? 'border-red-500'
+                                            : injured
+                                                ? 'border-orange-500'
+                                                : pendurado
+                                                    ? 'border-amber-500'
+                                                    : 'border-zinc-700 hover:border-[#00f0ff]/50';
                                         return (
                                             <label
                                                 key={player.id}
-                                                className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-colors ${injured ? 'bg-zinc-900/80 border-red-900/60 cursor-not-allowed opacity-90' : 'bg-zinc-950 border-zinc-800 cursor-pointer hover:border-[#00f0ff]/50'}`}
+                                                className={`flex flex-row items-stretch gap-3 p-3 rounded-xl border-2 transition-colors bg-zinc-900/90 ${unavailable ? 'cursor-not-allowed opacity-90' : 'cursor-pointer'} ${borderClass}`}
                                             >
                                                 <input
                                                     type="checkbox"
                                                     checked={isSelected}
-                                                    disabled={injured}
+                                                    disabled={unavailable}
                                                     onChange={(e) => {
-                                                        if (injured) return;
+                                                        if (unavailable) return;
                                                         const newSet = new Set(selectedPlayersForMatch);
-                                                        if (e.target.checked) {
-                                                            newSet.add(String(player.id).trim());
-                                                        } else {
-                                                            newSet.delete(String(player.id).trim());
-                                                        }
+                                                        if (e.target.checked) newSet.add(id);
+                                                        else newSet.delete(id);
                                                         setSelectedPlayersForMatch(newSet);
                                                     }}
-                                                    className="w-5 h-5 text-[#00f0ff] bg-zinc-900 border-zinc-700 rounded focus:ring-[#00f0ff] focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    className="sr-only"
                                                 />
-                                                {injured && (
-                                                    <span className="flex-shrink-0 bg-red-600/90 p-1 rounded" title="Lesão ativa – não pode ser selecionado">
-                                                        <Ambulance size={16} className="text-white" />
-                                                    </span>
-                                                )}
-                                                <div className="flex-1 min-w-0">
-                                                    <span className={`font-bold text-sm ${injured ? 'text-zinc-400' : 'text-white'}`}>
-                                                        #{player.jerseyNumber} {player.name}
-                                                    </span>
-                                                    <span className="text-zinc-500 text-xs ml-2">({player.position})</span>
-                                                    {injured && <span className="text-red-400 text-[10px] ml-2 block">Lesão ativa</span>}
+                                                <div className="flex-shrink-0 flex flex-col items-center justify-center gap-0.5">
+                                                    {player.photoUrl ? (
+                                                        <img src={player.photoUrl} alt="" className="w-12 h-12 rounded-full object-cover border-2 border-zinc-700" aria-hidden />
+                                                    ) : (
+                                                        <div className="w-12 h-12 rounded-full bg-zinc-800 border-2 border-zinc-700 flex items-center justify-center text-[#00f0ff] font-bold text-sm">
+                                                            {player.jerseyNumber}
+                                                        </div>
+                                                    )}
+                                                    <span className="text-[10px] font-bold text-[#00f0ff]">#{player.jerseyNumber}</span>
+                                                    <span className="text-[9px] text-zinc-500 uppercase">{player.position}</span>
+                                                </div>
+                                                <div className="flex-1 min-w-0 flex flex-col justify-center gap-1 text-right">
+                                                    <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                                                        {suspended && <span className="p-1 rounded bg-red-600/90" title="Suspenso"><Ban size={14} className="text-white" /></span>}
+                                                        {injured && <span className="p-1 rounded bg-orange-500/90" title="Lesão ativa"><Ambulance size={14} className="text-white" /></span>}
+                                                        {pendurado && !suspended && !injured && <span className="p-1 rounded bg-amber-500/90" title="Pendurado"><AlertTriangle size={14} className="text-white" /></span>}
+                                                    </div>
+                                                    <p className={`font-bold text-sm truncate ${unavailable ? 'text-zinc-400' : 'text-white'}`}>{player.name}</p>
+                                                    <div className="flex flex-col gap-0.5 text-[10px]">
+                                                        <span className="text-zinc-400">PSE: <span className="text-[#00f0ff] font-medium">{ph.pseAfterLastTraining != null ? ph.pseAfterLastTraining : '—'}</span></span>
+                                                        <span className="text-zinc-400">PSR: <span className="text-[#00f0ff] font-medium">{ph.psrMatchDay != null ? ph.psrMatchDay : '—'}</span></span>
+                                                        <span className="text-zinc-400">Sono: <span className="text-[#00f0ff] font-medium">{ph.sleepMatchDay != null ? ph.sleepMatchDay : '—'}</span></span>
+                                                    </div>
                                                 </div>
                                             </label>
                                         );
                                     })}
-                                    {players.length === 0 && (
-                                        <p className="text-zinc-500 text-sm text-center py-4">Nenhum jogador cadastrado</p>
-                                    )}
                                 </div>
+                                {players.length === 0 && (
+                                    <p className="text-zinc-500 text-sm text-center py-6">Nenhum jogador cadastrado</p>
+                                )}
                             </div>
 
-                            <div className="bg-black rounded-3xl border border-zinc-900 p-6 shadow-lg">
-                                <h3 className="text-white font-bold uppercase text-sm mb-4 flex items-center gap-2">
+                            <div className="bg-zinc-950/80 rounded-3xl border border-zinc-800 p-6 shadow-lg">
+                                <h3 className="text-white font-bold uppercase text-sm mb-3 flex items-center gap-2">
                                     <Clock className="text-[#00f0ff]" size={16} /> Tipo de Partida
                                 </h3>
-                                <div className="space-y-3">
-                                    <label className="flex items-center gap-3 p-4 bg-zinc-950 border-2 border-zinc-800 rounded-xl cursor-pointer hover:border-[#00f0ff]/50 transition-colors">
-                                        <input
-                                            type="radio"
-                                            name="preparationMatchType"
-                                            value="normal"
-                                            checked={preparationMatchType === 'normal'}
-                                            onChange={() => setPreparationMatchType('normal')}
-                                            className="w-5 h-5 text-[#00f0ff] border-zinc-700 focus:ring-[#00f0ff] focus:ring-2"
-                                        />
-                                        <div className="flex-1">
-                                            <div className="text-white font-bold text-sm">Partida Normal</div>
-                                            <div className="text-zinc-500 text-xs">Dois tempos de 20 minutos</div>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                    <label className={`flex items-center gap-2 p-3 rounded-xl border-2 transition-colors cursor-pointer ${preparationMatchType === 'normal' ? 'bg-[#00f0ff]/10 border-[#00f0ff]' : 'bg-zinc-900 border-zinc-700 hover:border-[#00f0ff]/50'}`}>
+                                        <input type="radio" name="preparationMatchType" value="normal" checked={preparationMatchType === 'normal'} onChange={() => setPreparationMatchType('normal')} className="w-4 h-4 text-[#00f0ff] border-zinc-600 focus:ring-[#00f0ff] focus:ring-2" />
+                                        <div className="min-w-0">
+                                            <div className="text-white font-bold text-xs">Normal</div>
+                                            <div className="text-zinc-500 text-[10px]">2×20 min</div>
                                         </div>
                                     </label>
-
-                                    <label className="flex items-center gap-3 p-4 bg-zinc-950 border-2 border-zinc-800 rounded-xl cursor-pointer hover:border-[#00f0ff]/50 transition-colors">
-                                        <input
-                                            type="radio"
-                                            name="preparationMatchType"
-                                            value="extraTime"
-                                            checked={preparationMatchType === 'extraTime'}
-                                            onChange={() => setPreparationMatchType('extraTime')}
-                                            className="w-5 h-5 text-[#00f0ff] border-zinc-700 focus:ring-[#00f0ff] focus:ring-2"
-                                        />
-                                        <div className="flex-1">
-                                            <div className="text-white font-bold text-sm">Com Acréscimo</div>
-                                            <div className="text-zinc-500 text-xs">Partida normal + tempo extra</div>
+                                    <label className={`flex items-center gap-2 p-3 rounded-xl border-2 transition-colors cursor-pointer ${preparationMatchType === 'extraTime' ? 'bg-[#00f0ff]/10 border-[#00f0ff]' : 'bg-zinc-900 border-zinc-700 hover:border-[#00f0ff]/50'}`}>
+                                        <input type="radio" name="preparationMatchType" value="extraTime" checked={preparationMatchType === 'extraTime'} onChange={() => setPreparationMatchType('extraTime')} className="w-4 h-4 text-[#00f0ff] border-zinc-600 focus:ring-[#00f0ff] focus:ring-2" />
+                                        <div className="min-w-0">
+                                            <div className="text-white font-bold text-xs">Acréscimo</div>
+                                            <div className="text-zinc-500 text-[10px]">+ tempo extra</div>
                                         </div>
                                     </label>
-
-                                    <label className="flex items-center gap-3 p-4 bg-zinc-950 border-2 border-zinc-800 rounded-xl cursor-pointer hover:border-[#00f0ff]/50 transition-colors">
-                                        <input
-                                            type="radio"
-                                            name="preparationMatchType"
-                                            value="penalties"
-                                            checked={preparationMatchType === 'penalties'}
-                                            onChange={() => setPreparationMatchType('penalties')}
-                                            className="w-5 h-5 text-[#00f0ff] border-zinc-700 focus:ring-[#00f0ff] focus:ring-2"
-                                        />
-                                        <div className="flex-1">
-                                            <div className="text-white font-bold text-sm">Direto para Pênaltis</div>
-                                            <div className="text-zinc-500 text-xs">Sem tempo normal, apenas pênaltis</div>
+                                    <label className={`flex items-center gap-2 p-3 rounded-xl border-2 transition-colors cursor-pointer ${preparationMatchType === 'penalties' ? 'bg-[#00f0ff]/10 border-[#00f0ff]' : 'bg-zinc-900 border-zinc-700 hover:border-[#00f0ff]/50'}`}>
+                                        <input type="radio" name="preparationMatchType" value="penalties" checked={preparationMatchType === 'penalties'} onChange={() => setPreparationMatchType('penalties')} className="w-4 h-4 text-[#00f0ff] border-zinc-600 focus:ring-[#00f0ff] focus:ring-2" />
+                                        <div className="min-w-0">
+                                            <div className="text-white font-bold text-xs">Pênaltis</div>
+                                            <div className="text-zinc-500 text-[10px]">Direto pênaltis</div>
                                         </div>
                                     </label>
-
-                                    <label className="flex items-center gap-3 p-4 bg-zinc-950 border-2 border-zinc-800 rounded-xl cursor-pointer hover:border-[#00f0ff]/50 transition-colors">
-                                        <input
-                                            type="radio"
-                                            name="preparationMatchType"
-                                            value="extraTimePenalties"
-                                            checked={preparationMatchType === 'extraTimePenalties'}
-                                            onChange={() => setPreparationMatchType('extraTimePenalties')}
-                                            className="w-5 h-5 text-[#00f0ff] border-zinc-700 focus:ring-[#00f0ff] focus:ring-2"
-                                        />
-                                        <div className="flex-1">
-                                            <div className="text-white font-bold text-sm">Acréscimo + Pênaltis</div>
-                                            <div className="text-zinc-500 text-xs">Partida normal + acréscimo + pênaltis</div>
+                                    <label className={`flex items-center gap-2 p-3 rounded-xl border-2 transition-colors cursor-pointer ${preparationMatchType === 'extraTimePenalties' ? 'bg-[#00f0ff]/10 border-[#00f0ff]' : 'bg-zinc-900 border-zinc-700 hover:border-[#00f0ff]/50'}`}>
+                                        <input type="radio" name="preparationMatchType" value="extraTimePenalties" checked={preparationMatchType === 'extraTimePenalties'} onChange={() => setPreparationMatchType('extraTimePenalties')} className="w-4 h-4 text-[#00f0ff] border-zinc-600 focus:ring-[#00f0ff] focus:ring-2" />
+                                        <div className="min-w-0">
+                                            <div className="text-white font-bold text-xs">Acr. + Pên.</div>
+                                            <div className="text-zinc-500 text-[10px]">Extra + pênaltis</div>
                                         </div>
                                     </label>
                                 </div>
-
                                 {(preparationMatchType === 'extraTime' || preparationMatchType === 'extraTimePenalties') && (
-                                    <div className="mt-4">
-                                        <label className="block text-zinc-400 text-xs font-bold uppercase mb-2">
-                                            Minutos de Acréscimo
-                                        </label>
-                                        <div className="flex items-center gap-3">
-                                            <input
-                                                type="number"
-                                                min="1"
-                                                max="30"
-                                                value={preparationExtraTimeMinutes}
-                                                onChange={(e) => setPreparationExtraTimeMinutes(Math.max(1, Math.min(30, parseInt(e.target.value) || 5)))}
-                                                className="flex-1 bg-zinc-950 border border-zinc-700 rounded-lg px-4 py-2 text-white text-sm outline-none focus:border-[#00f0ff]"
-                                            />
-                                            <div className="flex items-center gap-2 text-zinc-500 text-sm">
-                                                <Clock size={16} />
-                                                <span>minutos</span>
-                                            </div>
-                                        </div>
+                                    <div className="mt-3 flex items-center gap-3">
+                                        <label className="text-zinc-400 text-xs font-bold uppercase">Min. acréscimo</label>
+                                        <input type="number" min={1} max={30} value={preparationExtraTimeMinutes} onChange={(e) => setPreparationExtraTimeMinutes(Math.max(1, Math.min(30, parseInt(e.target.value) || 5)))} className="w-20 bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1.5 text-white text-sm focus:border-[#00f0ff]" />
+                                        <span className="text-zinc-500 text-xs">min</span>
                                     </div>
                                 )}
                             </div>

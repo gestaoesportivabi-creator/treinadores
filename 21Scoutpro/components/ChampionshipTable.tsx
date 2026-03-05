@@ -97,6 +97,17 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
     // Estados para importação
     const [showImportModal, setShowImportModal] = useState(false);
     const [importData, setImportData] = useState<string>('');
+
+    // Nome e escudo do time da aba Configurações (para cards de partidas)
+    const [teamSettings, setTeamSettings] = useState<{ teamName: string; shieldUrl: string }>({ teamName: '', shieldUrl: '' });
+    useEffect(() => {
+        try {
+            const raw = localStorage.getItem('scout21_settings_current_team');
+            if (!raw) return;
+            const d = JSON.parse(raw);
+            setTeamSettings({ teamName: d.teamName || '', shieldUrl: d.shieldUrl || '' });
+        } catch (_) {}
+    }, []);
     
     // Modal de regras quando a fase da partida difere da fase do campeonato
     const [showPhaseRulesModal, setShowPhaseRulesModal] = useState(false);
@@ -436,14 +447,6 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
                                 </button>
                             )}
                             <button
-                                onClick={() => setShowImportModal(true)}
-                                className="flex items-center justify-center w-10 h-10 md:w-[176px] md:h-auto md:gap-2 bg-blue-600 hover:bg-blue-500 text-white md:px-4 md:py-2 font-bold uppercase text-xs rounded-xl transition-colors shadow-[0_0_15px_rgba(37,99,235,0.3)]"
-                                title="Importar Tabela"
-                            >
-                                <Upload size={18} />
-                                <span className="hidden md:inline">Importar Tabela</span>
-                            </button>
-                            <button
                                 onClick={() => {
                                     setChampionshipForm({
                                         id: '',
@@ -510,8 +513,13 @@ export const ChampionshipTable: React.FC<ChampionshipTableProps> = ({
                                             {formatMatchDate(match.date)} • {formatTime(match.time)}
                                         </span>
                                     </div>
-                                    <p className="text-sm font-semibold text-white truncate">
-                                        {match.team || 'Nosso time'} x {match.opponent}
+                                    <p className="text-sm font-semibold text-white truncate flex items-center gap-2">
+                                        {teamSettings.shieldUrl ? (
+                                            <img src={teamSettings.shieldUrl} alt="" className="w-5 h-5 object-contain flex-shrink-0 rounded" aria-hidden />
+                                        ) : null}
+                                        <span>{teamSettings.teamName || match.team || 'Nosso time'}</span>
+                                        <span className="text-zinc-500">x</span>
+                                        <span>{match.opponent}</span>
                                     </p>
                                     <p className="mt-2 text-[10px] uppercase tracking-wider text-zinc-500">
                                         {match.location || 'Local indefinido'}

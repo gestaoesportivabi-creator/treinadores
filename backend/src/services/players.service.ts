@@ -315,12 +315,13 @@ export const playersService = {
         for (const inj of injuries) {
           const startDate = inj.startDate || inj.date;
           if (!startDate) continue;
-          const endDateVal = inj.returnDateActual || inj.returnDate || inj.endDate;
+          // dataFim = apenas retorno REAL (liberação); nunca usar returnDate (previsto) aqui
+          const dataFimVal = inj.returnDateActual || inj.endDate;
           await lesoesRepository.create({
             jogadorId: jogador.id,
             data: new Date(startDate),
             dataInicio: new Date(startDate),
-            dataFim: endDateVal ? new Date(endDateVal) : null,
+            dataFim: dataFimVal ? new Date(dataFimVal) : null,
             tipo: inj.type || 'Outros',
             localizacao: inj.location || 'Não informado',
             lado: inj.side || null,
@@ -402,12 +403,13 @@ export const playersService = {
       for (const inj of injuryHistory) {
         const startDate = inj.startDate || inj.date;
         if (!startDate) continue;
-        const endDateVal = inj.returnDateActual || inj.returnDate || inj.endDate;
+        // dataFim = apenas retorno REAL (liberação); nunca usar returnDate (previsto) aqui
+        const dataFimVal = inj.returnDateActual || inj.endDate;
         await lesoesRepository.create({
           jogadorId: id,
           data: new Date(startDate),
           dataInicio: new Date(startDate),
-          dataFim: endDateVal ? new Date(endDateVal) : null,
+          dataFim: dataFimVal ? new Date(dataFimVal) : null,
           tipo: inj.type || 'Outros',
           localizacao: inj.location || 'Não informado',
           lado: inj.side || null,
