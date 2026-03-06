@@ -2102,7 +2102,7 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                     </button>
                                 </div>
                                 <p className="text-zinc-400 text-xs mb-3">Suspensos (borda vermelha), lesão ativa (ambulância, borda laranja) e pendurados (alerta, borda amarela). Clique no card para selecionar.</p>
-                                <div className="max-h-[24rem] overflow-y-auto grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                <div className="max-h-[24rem] overflow-y-auto grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-2">
                                     {((preparationAthleteFilter === 'goleiros' ? (players || []).filter(p => p.position === 'Goleiro') : (players || []).filter(p => p.position !== 'Goleiro'))).map((player) => {
                                         const id = String(player.id).trim();
                                         const isSelected = selectedPlayersForMatch.has(id);
@@ -2113,28 +2113,27 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                         const ph = preparationDataSavedMatch.physiology[id] ?? { psrMatchDay: null, pseAfterLastTraining: null, sleepMatchDay: null };
                                         const baseBorderClass = suspended ? 'border-red-500' : injured ? 'border-orange-500' : pendurado ? 'border-amber-500' : 'border-zinc-700 hover:border-[#00f0ff]/50';
                                         const borderClass = isSelected ? 'border border-emerald-400' : `border ${baseBorderClass}`;
-                                        const displayName = (player.nickname && player.nickname.trim()) ? player.nickname.trim() : player.name;
+                                        const nickname = (player.nickname && player.nickname.trim()) ? player.nickname.trim() : '';
                                         return (
-                                            <label key={player.id} className={`flex flex-row items-stretch gap-2 p-2 rounded-lg border transition-colors bg-zinc-900/90 ${unavailable ? 'cursor-not-allowed opacity-90' : 'cursor-pointer'} ${borderClass}`}>
+                                            <label key={player.id} className={`flex flex-col items-stretch gap-1 p-1.5 rounded-lg border transition-colors bg-zinc-900/90 max-w-[140px] ${unavailable ? 'cursor-not-allowed opacity-90' : 'cursor-pointer'} ${borderClass}`}>
                                                 <input type="checkbox" checked={isSelected} disabled={unavailable} onChange={(e) => { if (unavailable) return; const newSet = new Set(selectedPlayersForMatch); if (e.target.checked) newSet.add(id); else newSet.delete(id); setSelectedPlayersForMatch(newSet); }} className="sr-only" />
-                                                <div className="flex-shrink-0 flex flex-col items-center justify-center gap-0">
-                                                    {player.photoUrl ? <img src={player.photoUrl} alt="" className="w-9 h-9 rounded-full object-cover border border-zinc-700" aria-hidden /> : <div className="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-[#00f0ff] font-bold text-xs">{player.jerseyNumber}</div>}
-                                                    <span className="text-[9px] font-bold text-[#00f0ff]">#{player.jerseyNumber}</span>
-                                                    <span className="text-[8px] text-zinc-500 uppercase leading-tight">{player.position}</span>
-                                                </div>
-                                                <div className="flex-1 min-w-0 flex items-center justify-center">
-                                                    <p className={`font-bold text-xs truncate leading-tight text-center ${unavailable ? 'text-zinc-400' : 'text-white'}`} title={displayName}>{displayName}</p>
-                                                </div>
-                                                <div className="flex-shrink-0 flex flex-col justify-center gap-0.5 text-right">
-                                                    <div className="flex items-center justify-end gap-1 flex-wrap">
-                                                        {suspended && <span className="p-0.5 rounded bg-red-600/90" title="Suspenso"><Ban size={12} className="text-white" /></span>}
-                                                        {injured && <span className="p-0.5 rounded bg-orange-500/90" title="Lesão ativa"><Ambulance size={12} className="text-white" /></span>}
-                                                        {pendurado && !suspended && !injured && <span className="p-0.5 rounded bg-amber-500/90" title="Pendurado"><AlertTriangle size={12} className="text-white" /></span>}
+                                                <div className="flex flex-row items-center gap-1.5 min-w-0">
+                                                    {player.photoUrl ? <img src={player.photoUrl} alt="" className="w-8 h-8 rounded-full object-cover border border-zinc-700 flex-shrink-0" aria-hidden /> : <div className="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-[#00f0ff] font-bold text-[10px] flex-shrink-0">{player.jerseyNumber}</div>}
+                                                    <div className="flex-1 min-w-0 flex flex-col items-start justify-center">
+                                                        <p className={`font-bold text-[10px] truncate leading-tight w-full ${unavailable ? 'text-zinc-400' : 'text-white'}`} title={nickname || player.name}>{nickname || player.name}</p>
+                                                        {nickname ? <p className={`text-[9px] truncate leading-tight w-full text-zinc-500`} title={player.name}>{player.name}</p> : null}
                                                     </div>
-                                                    <div className="flex flex-col gap-0 text-[9px]">
-                                                        <span className="text-zinc-400">PSE: <span className="text-[#00f0ff] font-medium">{ph.pseAfterLastTraining != null ? ph.pseAfterLastTraining : '—'}</span></span>
-                                                        <span className="text-zinc-400">PSR: <span className="text-[#00f0ff] font-medium">{ph.psrMatchDay != null ? ph.psrMatchDay : '—'}</span></span>
-                                                        <span className="text-zinc-400">Sono: <span className="text-[#00f0ff] font-medium">{ph.sleepMatchDay != null ? ph.sleepMatchDay : '—'}</span></span>
+                                                </div>
+                                                <div className="flex items-center justify-between gap-1 flex-wrap">
+                                                    <div className="flex items-center gap-0.5">
+                                                        {suspended && <span className="p-0.5 rounded bg-red-600/90" title="Suspenso"><Ban size={10} className="text-white" /></span>}
+                                                        {injured && <span className="p-0.5 rounded bg-orange-500/90" title="Lesão ativa"><Ambulance size={10} className="text-white" /></span>}
+                                                        {pendurado && !suspended && !injured && <span className="p-0.5 rounded bg-amber-500/90" title="Pendurado"><AlertTriangle size={10} className="text-white" /></span>}
+                                                    </div>
+                                                    <div className="flex flex-col gap-0 text-[10px]">
+                                                        <span className="text-zinc-400">PSE <span className="text-[#00f0ff] font-bold text-xs">{ph.pseAfterLastTraining != null ? ph.pseAfterLastTraining : '—'}</span></span>
+                                                        <span className="text-zinc-400">PSR <span className="text-[#00f0ff] font-bold text-xs">{ph.psrMatchDay != null ? ph.psrMatchDay : '—'}</span></span>
+                                                        <span className="text-zinc-400">Sono <span className="text-[#00f0ff] font-bold text-xs">{ph.sleepMatchDay != null ? ph.sleepMatchDay : '—'}</span></span>
                                                     </div>
                                                 </div>
                                             </label>
@@ -2241,7 +2240,7 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                     </button>
                                 </div>
                                 <p className="text-zinc-400 text-xs mb-3">Suspensos (borda vermelha), lesão ativa (ambulância, borda laranja) e pendurados (alerta, borda amarela). Clique no card para selecionar.</p>
-                                <div className="max-h-[24rem] overflow-y-auto grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                <div className="max-h-[24rem] overflow-y-auto grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-2">
                                     {(preparationAthleteFilter === 'goleiros' ? players.filter(p => p.position === 'Goleiro') : players.filter(p => p.position !== 'Goleiro')).map((player) => {
                                         const id = String(player.id).trim();
                                         const isSelected = selectedPlayersForMatch.has(id);
@@ -2252,28 +2251,27 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                         const ph = preparationData.physiology[id] ?? { psrMatchDay: null, pseAfterLastTraining: null, sleepMatchDay: null };
                                         const baseBorderClass = suspended ? 'border-red-500' : injured ? 'border-orange-500' : pendurado ? 'border-amber-500' : 'border-zinc-700 hover:border-[#00f0ff]/50';
                                         const borderClass = isSelected ? 'border border-emerald-400' : `border ${baseBorderClass}`;
-                                        const displayName = (player.nickname && player.nickname.trim()) ? player.nickname.trim() : player.name;
+                                        const nickname = (player.nickname && player.nickname.trim()) ? player.nickname.trim() : '';
                                         return (
-                                            <label key={player.id} className={`flex flex-row items-stretch gap-2 p-2 rounded-lg border transition-colors bg-zinc-900/90 ${unavailable ? 'cursor-not-allowed opacity-90' : 'cursor-pointer'} ${borderClass}`}>
+                                            <label key={player.id} className={`flex flex-col items-stretch gap-1 p-1.5 rounded-lg border transition-colors bg-zinc-900/90 max-w-[140px] ${unavailable ? 'cursor-not-allowed opacity-90' : 'cursor-pointer'} ${borderClass}`}>
                                                 <input type="checkbox" checked={isSelected} disabled={unavailable} onChange={(e) => { if (unavailable) return; const newSet = new Set(selectedPlayersForMatch); if (e.target.checked) newSet.add(id); else newSet.delete(id); setSelectedPlayersForMatch(newSet); }} className="sr-only" />
-                                                <div className="flex-shrink-0 flex flex-col items-center justify-center gap-0">
-                                                    {player.photoUrl ? <img src={player.photoUrl} alt="" className="w-9 h-9 rounded-full object-cover border border-zinc-700" aria-hidden /> : <div className="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-[#00f0ff] font-bold text-xs">{player.jerseyNumber}</div>}
-                                                    <span className="text-[9px] font-bold text-[#00f0ff]">#{player.jerseyNumber}</span>
-                                                    <span className="text-[8px] text-zinc-500 uppercase leading-tight">{player.position}</span>
-                                                </div>
-                                                <div className="flex-1 min-w-0 flex items-center justify-center">
-                                                    <p className={`font-bold text-xs truncate leading-tight text-center ${unavailable ? 'text-zinc-400' : 'text-white'}`} title={displayName}>{displayName}</p>
-                                                </div>
-                                                <div className="flex-shrink-0 flex flex-col justify-center gap-0.5 text-right">
-                                                    <div className="flex items-center justify-end gap-1 flex-wrap">
-                                                        {suspended && <span className="p-0.5 rounded bg-red-600/90" title="Suspenso"><Ban size={12} className="text-white" /></span>}
-                                                        {injured && <span className="p-0.5 rounded bg-orange-500/90" title="Lesão ativa"><Ambulance size={12} className="text-white" /></span>}
-                                                        {pendurado && !suspended && !injured && <span className="p-0.5 rounded bg-amber-500/90" title="Pendurado"><AlertTriangle size={12} className="text-white" /></span>}
+                                                <div className="flex flex-row items-center gap-1.5 min-w-0">
+                                                    {player.photoUrl ? <img src={player.photoUrl} alt="" className="w-8 h-8 rounded-full object-cover border border-zinc-700 flex-shrink-0" aria-hidden /> : <div className="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-[#00f0ff] font-bold text-[10px] flex-shrink-0">{player.jerseyNumber}</div>}
+                                                    <div className="flex-1 min-w-0 flex flex-col items-start justify-center">
+                                                        <p className={`font-bold text-[10px] truncate leading-tight w-full ${unavailable ? 'text-zinc-400' : 'text-white'}`} title={nickname || player.name}>{nickname || player.name}</p>
+                                                        {nickname ? <p className={`text-[9px] truncate leading-tight w-full text-zinc-500`} title={player.name}>{player.name}</p> : null}
                                                     </div>
-                                                    <div className="flex flex-col gap-0 text-[9px]">
-                                                        <span className="text-zinc-400">PSE: <span className="text-[#00f0ff] font-medium">{ph.pseAfterLastTraining != null ? ph.pseAfterLastTraining : '—'}</span></span>
-                                                        <span className="text-zinc-400">PSR: <span className="text-[#00f0ff] font-medium">{ph.psrMatchDay != null ? ph.psrMatchDay : '—'}</span></span>
-                                                        <span className="text-zinc-400">Sono: <span className="text-[#00f0ff] font-medium">{ph.sleepMatchDay != null ? ph.sleepMatchDay : '—'}</span></span>
+                                                </div>
+                                                <div className="flex items-center justify-between gap-1 flex-wrap">
+                                                    <div className="flex items-center gap-0.5">
+                                                        {suspended && <span className="p-0.5 rounded bg-red-600/90" title="Suspenso"><Ban size={10} className="text-white" /></span>}
+                                                        {injured && <span className="p-0.5 rounded bg-orange-500/90" title="Lesão ativa"><Ambulance size={10} className="text-white" /></span>}
+                                                        {pendurado && !suspended && !injured && <span className="p-0.5 rounded bg-amber-500/90" title="Pendurado"><AlertTriangle size={10} className="text-white" /></span>}
+                                                    </div>
+                                                    <div className="flex flex-col gap-0 text-[10px]">
+                                                        <span className="text-zinc-400">PSE <span className="text-[#00f0ff] font-bold text-xs">{ph.pseAfterLastTraining != null ? ph.pseAfterLastTraining : '—'}</span></span>
+                                                        <span className="text-zinc-400">PSR <span className="text-[#00f0ff] font-bold text-xs">{ph.psrMatchDay != null ? ph.psrMatchDay : '—'}</span></span>
+                                                        <span className="text-zinc-400">Sono <span className="text-[#00f0ff] font-bold text-xs">{ph.sleepMatchDay != null ? ph.sleepMatchDay : '—'}</span></span>
                                                     </div>
                                                 </div>
                                             </label>
@@ -2402,7 +2400,7 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                     </button>
                                 </div>
                                 <p className="text-zinc-400 text-xs mb-3">Suspensos (borda vermelha), lesão ativa (ambulância, borda laranja) e pendurados (alerta, borda amarela). Clique no card para selecionar.</p>
-                                <div className="max-h-[24rem] overflow-y-auto grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                <div className="max-h-[24rem] overflow-y-auto grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-2">
                                     {(preparationAthleteFilter === 'goleiros' ? players.filter(p => p.position === 'Goleiro') : players.filter(p => p.position !== 'Goleiro')).map((player) => {
                                         const id = String(player.id).trim();
                                         const isSelected = selectedPlayersForMatch.has(id);
@@ -2413,28 +2411,27 @@ export const ScoutTable: React.FC<ScoutTableProps> = ({ onSave, players, competi
                                         const ph = preparationData.physiology[id] ?? { psrMatchDay: null, pseAfterLastTraining: null, sleepMatchDay: null };
                                         const baseBorderClass = suspended ? 'border-red-500' : injured ? 'border-orange-500' : pendurado ? 'border-amber-500' : 'border-zinc-700 hover:border-[#00f0ff]/50';
                                         const borderClass = isSelected ? 'border border-emerald-400' : `border ${baseBorderClass}`;
-                                        const displayName = (player.nickname && player.nickname.trim()) ? player.nickname.trim() : player.name;
+                                        const nickname = (player.nickname && player.nickname.trim()) ? player.nickname.trim() : '';
                                         return (
-                                            <label key={player.id} className={`flex flex-row items-stretch gap-2 p-2 rounded-lg border transition-colors bg-zinc-900/90 ${unavailable ? 'cursor-not-allowed opacity-90' : 'cursor-pointer'} ${borderClass}`}>
+                                            <label key={player.id} className={`flex flex-col items-stretch gap-1 p-1.5 rounded-lg border transition-colors bg-zinc-900/90 max-w-[140px] ${unavailable ? 'cursor-not-allowed opacity-90' : 'cursor-pointer'} ${borderClass}`}>
                                                 <input type="checkbox" checked={isSelected} disabled={unavailable} onChange={(e) => { if (unavailable) return; const newSet = new Set(selectedPlayersForMatch); if (e.target.checked) newSet.add(id); else newSet.delete(id); setSelectedPlayersForMatch(newSet); }} className="sr-only" />
-                                                <div className="flex-shrink-0 flex flex-col items-center justify-center gap-0">
-                                                    {player.photoUrl ? <img src={player.photoUrl} alt="" className="w-9 h-9 rounded-full object-cover border border-zinc-700" aria-hidden /> : <div className="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-[#00f0ff] font-bold text-xs">{player.jerseyNumber}</div>}
-                                                    <span className="text-[9px] font-bold text-[#00f0ff]">#{player.jerseyNumber}</span>
-                                                    <span className="text-[8px] text-zinc-500 uppercase leading-tight">{player.position}</span>
-                                                </div>
-                                                <div className="flex-1 min-w-0 flex items-center justify-center">
-                                                    <p className={`font-bold text-xs truncate leading-tight text-center ${unavailable ? 'text-zinc-400' : 'text-white'}`} title={displayName}>{displayName}</p>
-                                                </div>
-                                                <div className="flex-shrink-0 flex flex-col justify-center gap-0.5 text-right">
-                                                    <div className="flex items-center justify-end gap-1 flex-wrap">
-                                                        {suspended && <span className="p-0.5 rounded bg-red-600/90" title="Suspenso"><Ban size={12} className="text-white" /></span>}
-                                                        {injured && <span className="p-0.5 rounded bg-orange-500/90" title="Lesão ativa"><Ambulance size={12} className="text-white" /></span>}
-                                                        {pendurado && !suspended && !injured && <span className="p-0.5 rounded bg-amber-500/90" title="Pendurado"><AlertTriangle size={12} className="text-white" /></span>}
+                                                <div className="flex flex-row items-center gap-1.5 min-w-0">
+                                                    {player.photoUrl ? <img src={player.photoUrl} alt="" className="w-8 h-8 rounded-full object-cover border border-zinc-700 flex-shrink-0" aria-hidden /> : <div className="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-[#00f0ff] font-bold text-[10px] flex-shrink-0">{player.jerseyNumber}</div>}
+                                                    <div className="flex-1 min-w-0 flex flex-col items-start justify-center">
+                                                        <p className={`font-bold text-[10px] truncate leading-tight w-full ${unavailable ? 'text-zinc-400' : 'text-white'}`} title={nickname || player.name}>{nickname || player.name}</p>
+                                                        {nickname ? <p className={`text-[9px] truncate leading-tight w-full text-zinc-500`} title={player.name}>{player.name}</p> : null}
                                                     </div>
-                                                    <div className="flex flex-col gap-0 text-[9px]">
-                                                        <span className="text-zinc-400">PSE: <span className="text-[#00f0ff] font-medium">{ph.pseAfterLastTraining != null ? ph.pseAfterLastTraining : '—'}</span></span>
-                                                        <span className="text-zinc-400">PSR: <span className="text-[#00f0ff] font-medium">{ph.psrMatchDay != null ? ph.psrMatchDay : '—'}</span></span>
-                                                        <span className="text-zinc-400">Sono: <span className="text-[#00f0ff] font-medium">{ph.sleepMatchDay != null ? ph.sleepMatchDay : '—'}</span></span>
+                                                </div>
+                                                <div className="flex items-center justify-between gap-1 flex-wrap">
+                                                    <div className="flex items-center gap-0.5">
+                                                        {suspended && <span className="p-0.5 rounded bg-red-600/90" title="Suspenso"><Ban size={10} className="text-white" /></span>}
+                                                        {injured && <span className="p-0.5 rounded bg-orange-500/90" title="Lesão ativa"><Ambulance size={10} className="text-white" /></span>}
+                                                        {pendurado && !suspended && !injured && <span className="p-0.5 rounded bg-amber-500/90" title="Pendurado"><AlertTriangle size={10} className="text-white" /></span>}
+                                                    </div>
+                                                    <div className="flex flex-col gap-0 text-[10px]">
+                                                        <span className="text-zinc-400">PSE <span className="text-[#00f0ff] font-bold text-xs">{ph.pseAfterLastTraining != null ? ph.pseAfterLastTraining : '—'}</span></span>
+                                                        <span className="text-zinc-400">PSR <span className="text-[#00f0ff] font-bold text-xs">{ph.psrMatchDay != null ? ph.psrMatchDay : '—'}</span></span>
+                                                        <span className="text-zinc-400">Sono <span className="text-[#00f0ff] font-bold text-xs">{ph.sleepMatchDay != null ? ph.sleepMatchDay : '—'}</span></span>
                                                     </div>
                                                 </div>
                                             </label>
