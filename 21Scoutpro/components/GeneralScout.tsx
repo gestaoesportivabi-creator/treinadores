@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LabelList } from 'recharts';
+import { BarChart, Bar, LineChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LabelList } from 'recharts';
 import { Filter, Trophy, AlertCircle, ShieldAlert, Gauge, Activity, PieChart as PieChartIcon, BarChart3, Clock, Target, Goal, BookOpen, Flag, ChevronDown, ChevronUp } from 'lucide-react';
 import { SportConfig, MatchRecord, Player } from '../types';
 import { ExpandableCard } from './ExpandableCard';
@@ -952,13 +952,14 @@ export const GeneralScout: React.FC<GeneralScoutProps> = ({ config, matches, pla
                     <XAxis dataKey="period" stroke="#71717a" tick={axisStyle} angle={-45} textAnchor="end" height={80} />
                     <YAxis stroke="#71717a" tick={axisStyle} />
                     <Tooltip contentStyle={tooltipStyle} cursor={{stroke: COLORS.blue, strokeWidth: 1}} />
+                    <Area type="monotone" dataKey="value" fill={COLORS.blue} fillOpacity={0.25} stroke="none" />
                     <Line 
                         type="monotone" 
                         dataKey="value" 
                         stroke={COLORS.blue} 
-                        strokeWidth={4} 
-                        dot={{fill: COLORS.blue, r: 5}}
-                        activeDot={{r: 8}}
+                        strokeWidth={1.5} 
+                        dot={{fill: COLORS.blue, r: 4}}
+                        activeDot={{r: 6}}
                         name="Gols Feitos"
                     >
                         <LabelList dataKey="value" position="top" fill="#fff" fontSize={14} fontWeight="bold" dy={-25} />
@@ -982,13 +983,14 @@ export const GeneralScout: React.FC<GeneralScoutProps> = ({ config, matches, pla
                     <XAxis dataKey="period" stroke="#71717a" tick={axisStyle} angle={-45} textAnchor="end" height={80} />
                     <YAxis stroke="#71717a" tick={axisStyle} />
                     <Tooltip contentStyle={tooltipStyle} cursor={{stroke: COLORS.rose, strokeWidth: 1}} />
+                    <Area type="monotone" dataKey="value" fill={COLORS.rose} fillOpacity={0.25} stroke="none" />
                     <Line 
                         type="monotone" 
                         dataKey="value" 
                         stroke={COLORS.rose} 
-                        strokeWidth={4} 
-                        dot={{fill: COLORS.rose, r: 5}}
-                        activeDot={{r: 8}}
+                        strokeWidth={1.5} 
+                        dot={{fill: COLORS.rose, r: 4}}
+                        activeDot={{r: 6}}
                         name="Gols Tomados"
                     >
                         <LabelList dataKey="value" position="top" fill="#fff" fontSize={14} fontWeight="bold" dy={-25} />

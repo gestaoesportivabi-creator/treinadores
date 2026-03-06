@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
+import { LineChart, Line, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 import { Activity, HeartPulse, Clock, AlertTriangle, Printer, Rotate3d, Filter, UserMinus, Moon, RefreshCw } from 'lucide-react';
 import { ExpandableCard } from './ExpandableCard';
 import { MatchRecord, Player, WeeklySchedule, InjuryRecord } from '../types';
@@ -588,13 +588,14 @@ export const PhysicalScout: React.FC<PhysicalScoutProps> = ({ matches, players, 
                         contentStyle={{ backgroundColor: '#000', borderColor: '#27272a', color: '#fff', fontFamily: 'Poppins', borderRadius: '8px' }}
                         cursor={{stroke: '#ccff00'}}
                     />
+                    <Area type="monotone" dataKey="rpe" fill="#ccff00" fillOpacity={0.25} stroke="none" />
                     <Line 
                         type="monotone" 
                         dataKey="rpe" 
                         stroke="#ccff00" 
-                        strokeWidth={4} 
-                        dot={{fill: '#ccff00', r: 5}} 
-                        activeDot={{r: 8}} 
+                        strokeWidth={1.5} 
+                        dot={{fill: '#ccff00', r: 4}} 
+                        activeDot={{r: 6}} 
                         name="PSE Média equipe"
                     >
                         <LabelList dataKey="rpe" position="top" fill="#fff" fontSize={14} fontFamily="Poppins" />
@@ -615,12 +616,13 @@ export const PhysicalScout: React.FC<PhysicalScoutProps> = ({ matches, players, 
                     <Tooltip 
                         contentStyle={{ backgroundColor: '#000', borderColor: '#27272a', color: '#fff', fontFamily: 'Poppins', borderRadius: '8px' }}
                     />
+                    <Area type="monotone" dataKey="rpe" fill="#10b981" fillOpacity={0.25} stroke="none" />
                     <Line 
                         type="monotone" 
                         dataKey="rpe" 
                         stroke="#10b981"
-                        strokeWidth={4}
-                        dot={{fill: '#10b981', r: 5}}
+                        strokeWidth={1.5}
+                        dot={{fill: '#10b981', r: 4}}
                         name="PSE Média equipe"
                     >
                          <LabelList dataKey="rpe" position="top" fill="#fff" fontSize={14} fontFamily="Poppins" />
@@ -642,7 +644,8 @@ export const PhysicalScout: React.FC<PhysicalScoutProps> = ({ matches, players, 
                   <XAxis dataKey="date" stroke="#71717a" tick={{ fontSize: 12, fontFamily: 'Poppins' }} />
                   <YAxis domain={[0, 12]} stroke="#666" hide />
                   <Tooltip contentStyle={{ backgroundColor: '#000', borderColor: '#27272a', color: '#fff', fontFamily: 'Poppins', borderRadius: '8px' }} cursor={{ stroke: '#38bdf8' }} />
-                  <Line type="monotone" dataKey="rpe" stroke="#38bdf8" strokeWidth={4} dot={{ fill: '#38bdf8', r: 5 }} activeDot={{ r: 8 }} name="PSR Média equipe">
+                  <Area type="monotone" dataKey="rpe" fill="#38bdf8" fillOpacity={0.25} stroke="none" />
+                  <Line type="monotone" dataKey="rpe" stroke="#38bdf8" strokeWidth={1.5} dot={{ fill: '#38bdf8', r: 4 }} activeDot={{ r: 6 }} name="PSR Média equipe">
                     <LabelList dataKey="rpe" position="top" fill="#fff" fontSize={14} fontFamily="Poppins" />
                   </Line>
                 </LineChart>
@@ -663,7 +666,8 @@ export const PhysicalScout: React.FC<PhysicalScoutProps> = ({ matches, players, 
                   <XAxis dataKey="date" stroke="#71717a" tick={{ fontSize: 12, fontFamily: 'Poppins' }} />
                   <YAxis domain={[0, 12]} stroke="#666" hide />
                   <Tooltip contentStyle={{ backgroundColor: '#000', borderColor: '#27272a', color: '#fff', fontFamily: 'Poppins', borderRadius: '8px' }} />
-                  <Line type="monotone" dataKey="rpe" stroke="#0ea5e9" strokeWidth={4} dot={{ fill: '#0ea5e9', r: 5 }} name="PSR Média equipe">
+                  <Area type="monotone" dataKey="rpe" fill="#0ea5e9" fillOpacity={0.25} stroke="none" />
+                  <Line type="monotone" dataKey="rpe" stroke="#0ea5e9" strokeWidth={1.5} dot={{ fill: '#0ea5e9', r: 4 }} name="PSR Média equipe">
                     <LabelList dataKey="rpe" position="top" fill="#fff" fontSize={14} fontFamily="Poppins" />
                   </Line>
                 </LineChart>
